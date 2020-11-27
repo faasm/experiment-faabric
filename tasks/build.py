@@ -3,15 +3,13 @@ from subprocess import run
 from copy import copy
 import os
 
-from faasmcli.util.endpoints import get_upload_host_port
 from faasmtools.build import CMAKE_TOOLCHAIN_FILE
-from faasmcli.util.env import PROJ_ROOT
-from faasmcli.util.files import clean_dir
+from tasks.util.file import clean_dir
 from invoke import task
 
-from tasks.util.env import EXPERIMENTS_THIRD_PARTY
+from tasks.util.env import EXPERIMENT_ROOT
 
-LAMMPS_DIR = join(EXPERIMENTS_THIRD_PARTY, "lammps")
+LAMMPS_DIR = join(EXPERIMENT_ROOT, "lammps")
 
 
 # The LAMMPS CMake build instructions can be found in the following link
@@ -26,7 +24,7 @@ def build(ctx, clean=False):
     work_dir = join(LAMMPS_DIR, "build")
     cmake_dir = join(LAMMPS_DIR, "cmake")
     install_dir = join(LAMMPS_DIR, "install")
-    wasm_path = join(PROJ_ROOT, "wasm", "lammps", "test", "function.wasm")
+    # wasm_path = join(PROJ_ROOT, "wasm", "lammps", "test", "function.wasm")
 
     clean_dir(work_dir, clean)
     clean_dir(install_dir, clean)
