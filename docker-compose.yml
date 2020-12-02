@@ -71,7 +71,5 @@ services:
       - REDIS_QUEUE_HOST=redis-queue
       - REDIS_STATE_HOST=redis-state
     volumes:
-      - .:/usr/local/code/faasm
-      - ./build:/build/faasm
       - ./container/machine-code:/usr/local/faasm/object
       - ./container/shared_store:/usr/local/faasm/shared_store
