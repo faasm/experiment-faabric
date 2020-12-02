@@ -8,7 +8,7 @@ _version = None
 def get_version():
     global _version
 
-    ver_file = join(PROJ_ROOT, "VERSION")
+    ver_file = join(EXPERIMENT_ROOT, "VERSION")
 
     if not _version:
         with open(ver_file, "r") as fh:

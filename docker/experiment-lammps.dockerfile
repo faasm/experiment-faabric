@@ -8,4 +8,6 @@ WORKDIR /experiments/experiment-lammps
 RUN git clone --branch faasm https://github.com/faasm/lammps
 
 # Build LAMMPS
-# RUN inv -r build.build
+RUN inv build.build --clean
+
+# Run Faasm Cli
