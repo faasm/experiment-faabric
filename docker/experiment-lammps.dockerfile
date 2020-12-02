@@ -33,6 +33,6 @@ COPY --from=experiments \
 
 # Sample data upload
 # RUN inv upload lammps main
-# RUN inv state.shared-file /data/lammps-examples/controller/in.controller.wall
+# RUN inv state.shared-file /data/lammps-examples/controller/in.controller.wall /lammps-data/in.controller
 
 CMD ["/bin/bash", "-l"]

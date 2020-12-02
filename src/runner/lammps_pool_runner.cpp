@@ -14,7 +14,7 @@ int main()
     const std::shared_ptr<spdlog::logger>& logger = faabric::util::getLogger();
 
     // Set up the message
-    auto msg = faabric::util::messageFactory("lammps", "test");
+    auto msg = faabric::util::messageFactory("lammps", "main");
     msg.set_cmdline("-in faasm://lammps-data/in.controller");
     logger->info("Running function lammps/test");
 
