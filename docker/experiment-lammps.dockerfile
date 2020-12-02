@@ -4,7 +4,7 @@ FROM faasm/experiment-base:${EXPERIMENTS_VERSION} as experiments
 
 # Install LAMMPS
 WORKDIR /experiments
-RUN git clone https://github.com/faasm/experiment-lammps
+RUN git clone --branch run-arch https://github.com/faasm/experiment-lammps
 WORKDIR /experiments/experiment-lammps
 RUN git clone --branch faasm https://github.com/faasm/lammps
 
@@ -29,7 +29,7 @@ COPY --from=experiments \
 COPY --from=experiments \
     /experiments/experiment-lammps/src/runner/CMakeLists.txt \
     /usr/local/code/faasm/src/runner/CMakeLists.txt
-RUN inv dev.cc lammps_pool_runner
+# RUN inv dev.cc lammps_pool_runner
 
 # Sample data upload
 # RUN inv upload lammps main

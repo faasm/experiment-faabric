@@ -12,9 +12,6 @@ target_link_libraries(func_runner ${RUNNER_LIBS})
 add_executable(simple_runner simple_runner.cpp)
 target_link_libraries(simple_runner ${RUNNER_LIBS})
 
-add_executable(lammps_runner lammps_runner.cpp)
-target_link_libraries(lammps_runner ${RUNNER_LIBS})
-
 add_executable(lammps_pool_runner lammps_pool_runner.cpp)
 target_link_libraries(lammps_pool_runner ${RUNNER_LIBS})
 
