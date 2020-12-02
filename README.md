@@ -22,8 +22,9 @@ docker-compose up -d
 # Launch the cli container
 ./bin/cli.sh
 
-# Upload the sample data file and run the binary
+# Code generation step (may take a while)
 (faasm) inv upload lammps main
+# Upload the sample data file and run the binary
 (faasm) inv state.shared-file /data/in.controller /lammps-data/in.controller
 (faasm) lammps_pool_runner
 ```

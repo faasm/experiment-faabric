@@ -35,8 +35,4 @@ COPY --from=experiments \
 # Compile LAMMPS custom runner
 RUN inv -r faasmcli/faasmcli dev.cc lammps_pool_runner
 
-# Sample data upload
-# RUN inv upload lammps main
-# RUN inv state.shared-file /data/lammps-examples/controller/in.controller.wall /lammps-data/in.controller
-
 CMD ["/bin/bash", "-l"]
