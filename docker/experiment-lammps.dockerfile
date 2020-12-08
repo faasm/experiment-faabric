@@ -22,6 +22,9 @@ COPY --from=experiments /experiments/experiment-lammps/lammps/examples \
 COPY --from=experiments \
     /experiments/experiment-lammps/lammps/examples/controller/in.controller.wall \
     /data/in.controller
+# Temporary fix to have access to the source code to solve building issues
+COPY --from=experiments \
+    /experiments/experiment-lammps /experiment-lammps
 
 # Copy the runner code
 # TODO cleaner way to do this?

@@ -16,6 +16,7 @@ int main()
     // Set up the message
     auto msg = faabric::util::messageFactory("lammps", "main");
     msg.set_cmdline("-in faasm://lammps-data/in.controller");
+    msg.set_mpiworldsize(1);
     logger->info("Running function lammps/test");
 
     // Set up the scheduler
@@ -24,11 +25,13 @@ int main()
     sch.addHostToGlobalSet();
 
     // Set up the configuration
+    /*
     faabric::util::SystemConfig &conf = faabric::util::getSystemConfig();
     int nThreads = 5;
     //conf.defaultMpiWorldSize = 5;
     conf.maxNodes = nThreads;
     conf.maxNodesPerFunction = nThreads;
+    */
 
     // Start the worker pool
     logger->info("Starting faaslet pool in the background");
