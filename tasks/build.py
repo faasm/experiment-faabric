@@ -56,3 +56,22 @@ def build(ctx, clean=False):
     if res.returncode != 0:
         raise RuntimeError("LAMMPS install failed")
 
+@task
+def copy_wasm(ctx, clean=False):
+    """
+    Manually copy the LAMMPS binary to the Faasm func dir
+    """
+    install_dir = join(LAMMPS_DIR, "install", "bin")
+    faasm_func_dir = "/usr/local/code/faasm/wasm/lammps/main"
+    cmd = [
+        "cp",
+        "{}/lmp".format(install_dir),
+        "{}/function.wasm".format(faasm_func_dir),
+    ]
+
+    cmd = " ".join(cmd)
+    print(cmd)
+
+    res = run(cmd, shell=True)
+    if res.returncode != 0:
+        raise RuntimeError("Copying wasm file failed")
