@@ -11,7 +11,7 @@ RUN git clone --branch faasm https://github.com/faasm/lammps
 # Cross-compile and build LAMMPS
 RUN inv build.build --clean
 # Build natively
-RUN inv build.native --clean
+#RUN inv build.native --clean
 
 # Run Faasm Cli
 FROM faasm/cli:${FAASM_VERSION}
