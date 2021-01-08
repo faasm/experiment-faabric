@@ -11,7 +11,7 @@ RUN git clone --branch faasm https://github.com/faasm/lammps
 # Cross-compile and build LAMMPS
 RUN inv build.build --clean
 # Build natively
-RUN inv build.native --clean
+#RUN inv build.native --clean
 
 # Run Faasm Cli
 FROM faasm/cli:${FAASM_VERSION}
@@ -24,6 +24,9 @@ COPY --from=experiments /experiments/experiment-lammps/lammps/examples \
 COPY --from=experiments \
     /experiments/experiment-lammps/lammps/examples/controller/in.controller.wall \
     /data/in.controller
+# Temporary fix to have access to the source code to solve building issues
+COPY --from=experiments \
+    /experiments/experiment-lammps /experiment-lammps
 
 # Copy the runner code
 # TODO cleaner way to do this?

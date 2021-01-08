@@ -19,7 +19,7 @@ LAMMPS_DIR = join(EXPERIMENT_ROOT, "lammps")
 @task(default=True)
 def build(ctx, clean=False):
     """
-    Build and install the cross-compiled LAMMPS 
+    Build and install the cross-compiled LAMMPS
     """
     work_dir = join(LAMMPS_DIR, "build")
     cmake_dir = join(LAMMPS_DIR, "cmake")
@@ -54,6 +54,7 @@ def build(ctx, clean=False):
     res = run("ninja install", shell=True, cwd=work_dir)
     if res.returncode != 0:
         raise RuntimeError("LAMMPS install failed")
+
 
 @task
 def native(ctx, clean=False):
@@ -92,3 +93,24 @@ def native(ctx, clean=False):
     res = run("ninja install", shell=True, cwd=work_dir)
     if res.returncode != 0:
         raise RuntimeError("LAMMPS install failed")
+
+
+@task
+def copy_wasm(ctx, clean=False):
+    """
+    Manually copy the LAMMPS binary to the Faasm func dir
+    """
+    install_dir = join(LAMMPS_DIR, "install", "bin")
+    faasm_func_dir = "/usr/local/code/faasm/wasm/lammps/main"
+    cmd = [
+        "cp",
+        "{}/lmp".format(install_dir),
+        "{}/function.wasm".format(faasm_func_dir),
+    ]
+
+    cmd = " ".join(cmd)
+    print(cmd)
+
+    res = run(cmd, shell=True)
+    if res.returncode != 0:
+        raise RuntimeError("Copying wasm file failed")
