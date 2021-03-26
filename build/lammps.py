@@ -1,13 +1,10 @@
 from copy import copy
 from os import environ, makedirs
-from os.path import join, exists
+from os.path import join, exists, dirname, realpath
 from shutil import rmtree
 from subprocess import run
 
 import sys
-
-from faasmtools.build import CMAKE_TOOLCHAIN_FILE
-from tasks.util.file import clean_dir
 
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
 LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
