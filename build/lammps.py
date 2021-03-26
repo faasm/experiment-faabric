@@ -3,8 +3,9 @@ from os import environ, makedirs
 from os.path import join, exists, dirname, realpath
 from shutil import rmtree
 from subprocess import run
-
 import sys
+
+from faasmtools.build import CMAKE_TOOLCHAIN_FILE
 
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
 LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
@@ -60,44 +61,44 @@ def build_native(clean=False):
         raise RuntimeError("LAMMPS install failed")
 
 
-# def build_faasm(clean=False):
-#     """
-#     Build and install the cross-compiled LAMMPS
-#     """
-#     work_dir = join(LAMMPS_DIR, "build")
-#     cmake_dir = join(LAMMPS_DIR, "cmake")
-#     install_dir = join(LAMMPS_DIR, "install")
-#     # wasm_path = join(PROJ_ROOT, "wasm", "lammps", "test", "function.wasm")
-# 
-#     clean_dir(work_dir, clean)
-#     clean_dir(install_dir, clean)
-# 
-#     env_vars = copy(environ)
-# 
-#     cmake_cmd = [
-#         "cmake",
-#         "-GNinja",
-#         "-DLAMMPS_FAASM=ON",
-#         "-DCMAKE_TOOLCHAIN_FILE={}".format(CMAKE_TOOLCHAIN_FILE),
-#         "-DCMAKE_BUILD_TYPE=Release",
-#         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
-#         cmake_dir,
-#     ]
-# 
-#     cmake_str = " ".join(cmake_cmd)
-#     print(cmake_str)
-# 
-#     res = run(cmake_str, shell=True, cwd=work_dir, env=env_vars)
-#     if res.returncode != 0:
-#         raise RuntimeError("LAMMPS CMake config failed")
-# 
-#     res = run("ninja", shell=True, cwd=work_dir)
-#     if res.returncode != 0:
-#         raise RuntimeError("LAMMPS build failed")
-# 
-#     res = run("ninja install", shell=True, cwd=work_dir)
-#     if res.returncode != 0:
-#         raise RuntimeError("LAMMPS install failed")
+def build_faasm(clean=False):
+    """
+    Build and install the cross-compiled LAMMPS
+    """
+    work_dir = join(LAMMPS_DIR, "build")
+    cmake_dir = join(LAMMPS_DIR, "cmake")
+    install_dir = join(LAMMPS_DIR, "install")
+    # wasm_path = join(PROJ_ROOT, "wasm", "lammps", "test", "function.wasm")
+
+    clean_dir(work_dir, clean)
+    clean_dir(install_dir, clean)
+
+    env_vars = copy(environ)
+
+    cmake_cmd = [
+        "cmake",
+        "-GNinja",
+        "-DLAMMPS_FAASM=ON",
+        "-DCMAKE_TOOLCHAIN_FILE={}".format(CMAKE_TOOLCHAIN_FILE),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
+        cmake_dir,
+    ]
+
+    cmake_str = " ".join(cmake_cmd)
+    print(cmake_str)
+
+    res = run(cmake_str, shell=True, cwd=work_dir, env=env_vars)
+    if res.returncode != 0:
+        raise RuntimeError("LAMMPS CMake config failed")
+
+    res = run("ninja", shell=True, cwd=work_dir)
+    if res.returncode != 0:
+        raise RuntimeError("LAMMPS build failed")
+
+    res = run("ninja install", shell=True, cwd=work_dir)
+    if res.returncode != 0:
+        raise RuntimeError("LAMMPS install failed")
 # 
 # 
 # def copy_wasm(clean=False):
