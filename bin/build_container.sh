@@ -15,7 +15,11 @@ pushd ${PROJ_ROOT} >> /dev/null
 export DOCKER_BUILDKIT=1
 
 # Docker args
-NO_CACHE=$1
+if [ "$1" == "--no-cache" ]; then
+    NO_CACHE=$1
+else
+    NO_CACHE=""
+fi
 
 # Create faasm.ini file for up-to-date knative deployment
 ${BASE_DIR}/faasm/bin/knative_route.sh | tail -7 > faasm.ini
