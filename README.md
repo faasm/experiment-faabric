@@ -7,6 +7,13 @@ The original source code can be found [here](https://lammps.sandia.gov/).
 There's also a Faasm specific fork with the updated compilation toolchain
 [here](https://github.com/faasm/lammps), change branch to `faasm`.
 
+## Quick start
+
+First, build the experiment container:
+```bash
+./bin/build_container.sh
+```
+
 ## Run the experiments
 
 The whole build process is containerized, and that's the only way to interact
