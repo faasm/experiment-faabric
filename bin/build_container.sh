@@ -30,14 +30,15 @@ docker build \
 # Remove faasm.ini file
 rm faasm.ini
 
-# Upload all prk functions
-# docker run --rm \
-#     faasm/experiment-lammps:${VERSION} \
-#     inv -r faasmcli/faasmcli upload lammps main
-# docker run --rm \
-#     faasm/experiment-lammps:${VERSION} \
-#     inv -r faasmcli/faasmcli state.shared-file \
-#     /data/in.controller /lammps-data/in.controller
+# Upload lammps function + data
+docker run --rm \
+    faasm/experiment-lammps:${VERSION} \
+    inv -r faasmcli/faasmcli upload lammps main \
+    /code/experiment-lammps/third-party/lammps/install/bin/lmp
+docker run --rm \
+    faasm/experiment-lammps:${VERSION} \
+    inv -r faasmcli/faasmcli state.shared-file \
+    /data/in.controller /lammps-data/in.controller
 
 # Push the image to docker hub if required
 if [ "${BASH_ARGV[0]}" == "--push" ]; then
