@@ -18,14 +18,13 @@ export DOCKER_BUILDKIT=1
 NO_CACHE=$1
 
 # Create faasm.ini file for up-to-date knative deployment
-/usr/local/code/faasm/bin/knative_route.sh | tail -7 > faasm.ini
+${BASE_DIR}/faasm/bin/knative_route.sh | tail -7 > faasm.ini
 
 docker build \
     ${NO_CACHE} \
     -t faasm/${IMAGE_NAME}:${VERSION} \
     -f ${PROJ_ROOT}/Dockerfile \
     --build-arg EXPERIMENTS_VERSION=${VERSION} \
-    --build-arg FAASM_VERSION=${FAASM_VERSION} \
     ${PROJ_ROOT}
 
 # Remove faasm.ini file
