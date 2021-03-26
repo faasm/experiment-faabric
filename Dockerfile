@@ -7,11 +7,8 @@ RUN git clone -b resurrect https://github.com/faasm/experiment-lammps
 WORKDIR /code/experiment-lammps
 RUN git submodule update --init
 
-# Install faasmtools?
-# RUN pip3 install -e /usr/local/code/cpp
-
 # Build natively
-# RUN python3 ./build/lammps.py native --clean
+RUN python3 ./build/lammps.py native --clean
 # Cross-compile and build LAMMPS
 # RUN python3 ./build/lammps.py faasm --clean
 
