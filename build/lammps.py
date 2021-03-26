@@ -1,6 +1,6 @@
 from copy import copy
-from os import environ
-from os.path import join, exists, makedirs
+from os import environ, makedirs
+from os.path import join, exists
 from shutil import rmtree
 from subprocess import run
 

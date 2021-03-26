@@ -20,8 +20,9 @@ NO_CACHE=$1
 # Create faasm.ini file for up-to-date knative deployment
 ${BASE_DIR}/faasm/bin/knative_route.sh | tail -7 > faasm.ini
 
+    #${NO_CACHE} \
 docker build \
-    ${NO_CACHE} \
+    --no-cache \
     -t faasm/${IMAGE_NAME}:${VERSION} \
     -f ${PROJ_ROOT}/Dockerfile \
     --build-arg EXPERIMENTS_VERSION=${VERSION} \
