@@ -77,6 +77,7 @@ def build_native(clean=False):
 #     cmake_cmd = [
 #         "cmake",
 #         "-GNinja",
+#         "-DLAMMPS_FAASM=ON",
 #         "-DCMAKE_TOOLCHAIN_FILE={}".format(CMAKE_TOOLCHAIN_FILE),
 #         "-DCMAKE_BUILD_TYPE=Release",
 #         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
