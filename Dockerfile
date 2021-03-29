@@ -5,7 +5,7 @@ FROM faasm/cpp-sysroot:0.0.22 as build-step
 
 # Download code and build LAMMPS
 WORKDIR /code
-RUN git clone -b resurrect https://github.com/faasm/experiment-lammps
+RUN git clone https://github.com/faasm/experiment-lammps
 WORKDIR /code/experiment-lammps
 RUN git submodule update --init
 
