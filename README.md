@@ -9,29 +9,21 @@ There's also a Faasm specific fork with the updated compilation toolchain
 
 ## Quick start
 
-First, build the experiment container:
+This tutorial assumes that this repository is cloned as a submodule of
+[faasm/experiment-base](https://github.com/faasm/experiment-base).
+Additionally, you need to activate the virtual environment in `experiment-base`.
+
+Then, you can first build the experiment container:
 ```bash
 ./bin/build_container.sh
 ```
 
-## Run the experiments
-
-The whole build process is containerized, and that's the only way to interact
-with the deployment. In particular, the Docker build cross-compiles LAMMPS to 
-WebAssembly, and prepares the necessary dependencies. The experiments run
-against Faasm deployed as a service. 
-
-To deploy the necessary services and run an example workload you can do:
+And run the experiments via:
 ```bash
-# This sets up the necessary Faasm architecture
-docker-compose up -d
-
-# Launch the cli container
-./bin/cli.sh
-
-# Code generation step (may take a while)
-(faasm) inv upload lammps main
-# Upload the sample data file and run the binary
-(faasm) inv state.shared-file /data/in.controller /lammps-data/in.controller
-(faasm) lammps_pool_runner
+./run/native.sh
+./run/faasm.py
 ```
+
+Both will populate result files in `./experiment-base/results/lammps`, where you
+may also plot them.
+
