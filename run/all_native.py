@@ -47,7 +47,7 @@ def parse_out(cmd_out):
     time = int(wall_time[0]) * 3600 + int(wall_time[1]) * 60 + int(wall_time[2])
 
     print(time)
-    return(time)
+    return time
 
 
 def benchmark():
@@ -63,7 +63,7 @@ def benchmark():
             results[np].append(invoke(np))
             print("Run {}/{} finished!".format(_ + 1, NUM_TESTS))
 
-    print(json.dumps(results))
+    json.dumps(results)
     with open("/home/mpirun/results.dat", "w+") as fh:
         json.dump(results, fh)
 
