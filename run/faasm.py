@@ -70,7 +70,7 @@ def benchmark():
             results[np].append(invoke(np))
             print("Run {}/{} finished!".format(_ + 1, NUM_TESTS))
 
-    print(json.dumps(results))
+    json.dumps(results)
     with open("{}/results/lammps/lammps_faasm.dat".format(BASE_DIR), "w+") as fh:
         json.dump(results, fh)
 
