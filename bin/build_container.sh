@@ -45,7 +45,7 @@ docker run --rm \
     /data/in.controller /lammps-data/in.controller
 
 # Push the image to docker hub if required
-if [ "${BASH_ARGV[0]}" == "--push" ]; then
+if [ "$1" == "--push" ]; then
     docker push faasm/${IMAGE_NAME}:${VERSION}
 fi
 
