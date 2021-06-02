@@ -39,6 +39,8 @@ def build_native(clean=False):
     cmake_cmd = [
         "cmake",
         "-GNinja",
+        "-DPKG_RIGID=yes",
+        "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_C_COMPILER=/usr/bin/clang-10",
         "-DCMAKE_CXX_COMPILER=/usr/bin/clang++-10",
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
@@ -79,6 +81,7 @@ def build_faasm(clean=False):
         "cmake",
         "-GNinja",
         "-DLAMMPS_FAASM=ON",
+        "-DPKG_RIGID=yes",
         "-DCMAKE_TOOLCHAIN_FILE={}".format(CMAKE_TOOLCHAIN_FILE),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
