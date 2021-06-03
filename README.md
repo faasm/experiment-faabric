@@ -27,3 +27,32 @@ And run the experiments via:
 Both will populate result files in `./experiment-base/results/lammps`, where you
 may also plot them.
 
+## Experiment notes - Remove
+
+### Achieving longer runs with LAMMPS:
+
++ Using the `controller` example, change the `run` command argument (last line)
+and increase the number of timestep intervals by a factor of a 100. Still
+communication bound.
++ Using the `HEAT` example (extracted from a paper) is way more compute bound.
+However, it takes a _long_ time to run. To shorten it, we can do the inverse
+step described before, and reduce the number of intervals. TODO: we'd need to
+support 3-dim cartesian grids.
+
+### Runing native locally without cluster
+
++ Set up the deployment using compose. Bear in mind that the total number of 
+available hosts will be `NUM_WORKERS + 1`.
+```bash
+docker-compose up -d --scale worker=<NUM_WORKERS>
+```
+
++ Then just generate the `hostfile` and run:
+```bash
+python3 ./run/docker_gen_hostfile.py
+python3 ./run/docker_native.py
+```
+
++ If you want to change any experiment parameters, look either into
+`./run/docker_native.py` or `./run/all_native.py`.
+

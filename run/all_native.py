@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import re
+import sys
 
 from os.path import join
 from subprocess import check_output
@@ -11,8 +12,15 @@ LAMMPS_BUILD_PATH = "/code/experiment-lammps/third-party/lammps/install-native/b
 LAMMPS_CMDLINE = "-in /data/in.controller"
 
 # Benchmark details
-NUM_PROCS = [1, 2, 4]
+NUM_PROCS = [4, 8, 12, 16, 20]
 NUM_TESTS = 1
+
+
+def get_cmdline():
+    if len(sys.argv) > 1:
+        return "-in {}".format(sys.argv[1])
+    else:
+        return LAMMPS_CMDLINE
 
 
 def mpi_run(np=1, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE):
@@ -31,22 +39,19 @@ def mpi_run(np=1, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE):
     return output
 
 
-def invoke(np):
+def invoke(np, cmdline):
     """
     Invoke one of the ParRes Kernels functions
     """
-    cmd_out = mpi_run(np=np, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE)
+    cmd_out = mpi_run(np=np, hostfile=HOSTFILE, cmdline=cmdline)
     cmd_out = cmd_out.decode("utf-8")
     print(cmd_out)
-
     return parse_out(cmd_out)
 
 
 def parse_out(cmd_out):
     wall_time = re.findall("Total wall time: ([0-9:]*)", cmd_out)[0].split(":")
     time = int(wall_time[0]) * 3600 + int(wall_time[1]) * 60 + int(wall_time[2])
-
-    print(time)
     return time
 
 
@@ -60,7 +65,7 @@ def benchmark():
         if np not in results:
             results[np] = []
         for _ in range(NUM_TESTS):
-            results[np].append(invoke(np))
+            results[np].append(invoke(np, get_cmdline()))
             print("Run {}/{} finished!".format(_ + 1, NUM_TESTS))
 
     json.dumps(results)

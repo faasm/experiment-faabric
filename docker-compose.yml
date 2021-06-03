@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  worker:
+    image: ${LAMMPS_IMAGE}
+    entrypoint: ["/usr/sbin/sshd", "-D"]
+    working_dir: /home/mpirun
+    privileged: true
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/lib:/build/faabric/install/lib
+      - FUNCTION_STORAGE=local
+      - LOG_LEVEL=debug
+      - REDIS_STATE_HOST=redis
+      - REDIS_QUEUE_HOST=redis
+
+  master:
+    image: ${LAMMPS_IMAGE}
+    entrypoint: ["/usr/sbin/sshd", "-D"]
+    working_dir: /home/mpirun
+    privileged: true
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/lib:/build/faabric/install/lib
+      - FUNCTION_STORAGE=local
+      - LOG_LEVEL=debug
+      - REDIS_STATE_HOST=redis
+      - REDIS_QUEUE_HOST=redis
+    depends_on:
+      - worker
