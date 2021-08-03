@@ -15,12 +15,8 @@ RUN make install
 ENV USER mpirun
 RUN adduser --disabled-password --gecos "" ${USER} && \
     echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-RUN apt update
-# Dev tools delete eventually
-RUN apt install -y gdb vim
 
 # Set up SSH (for native MPI)
-RUN apt update && apt upgrade -y
 RUN apt install -y openssh-server
 RUN mkdir /var/run/sshd
 RUN echo 'root:${USER}' | chpasswd
@@ -44,6 +40,10 @@ RUN chown -R ${USER}:${USER} ${HOME}/.ssh
 # Download code and build LAMMPS
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-lammps
+
+# TODO - remove this, assume master
+RUN git checkout updates-0308
+
 WORKDIR /code/experiment-lammps
 RUN git submodule update --init
 
