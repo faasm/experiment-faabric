@@ -1,6 +1,6 @@
 # LAMMPS experiment
 
-Faasm for of LAMMPS can be found [here](https://github.com/faasm/lammps),
+The Faasm fork of LAMMPS can be found [here](https://github.com/faasm/lammps),
 with original source [here](https://lammps.sandia.gov/).
 
 ## Quick start
