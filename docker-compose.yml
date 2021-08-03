@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  cli:
+    image: ${LAMMPS_CLI_IMAGE}
+    working_dir: /code/experiment-lammps
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    volumes:
+      - ${FAASM_LOCAL_DIR}:/usr/local/faasm
+      - .:/code/experiment-lammps

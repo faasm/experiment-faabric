@@ -1,29 +1,23 @@
-# Faasm Experiments - LAMMPS
+# LAMMPS experiment
 
-LAMMPS is a framweork for efficiently computing short-range molecular dynamics.
-It is an MPI only project but can also be run in a OpenMP-MPI hybrid fashion.
-
-The original source code can be found [here](https://lammps.sandia.gov/).
-There's also a Faasm specific fork with the updated compilation toolchain
-[here](https://github.com/faasm/lammps), change branch to `faasm`.
+Faasm for of LAMMPS can be found [here](https://github.com/faasm/lammps),
+with original source [here](https://lammps.sandia.gov/).
 
 ## Quick start
 
-This tutorial assumes that this repository is cloned as a submodule of
-[faasm/experiment-base](https://github.com/faasm/experiment-base).
-Additionally, you need to activate the virtual environment in `experiment-base`.
+This project runs inside the container defined in this repo. To run it:
 
-Then, you can first build the experiment container:
 ```bash
-./bin/build_container.sh
+./bin/cli.sh
 ```
 
-And run the experiments via:
-```bash
-./run/native.sh
-./run/faasm.py
-```
+From inside, you can build and run the experiments with:
 
-Both will populate result files in `./experiment-base/results/lammps`, where you
-may also plot them.
+```bash
+# Native
+inv native
+
+# Wasm
+inv wasm
+```
 

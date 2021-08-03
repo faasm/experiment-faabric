@@ -19,7 +19,7 @@ RUN apt update
 # Dev tools delete eventually
 RUN apt install -y gdb vim
 
-# Set up SSH
+# Set up SSH (for native MPI)
 RUN apt update && apt upgrade -y
 RUN apt install -y openssh-server
 RUN mkdir /var/run/sshd
@@ -35,29 +35,11 @@ COPY ./ssh/id_rsa.mpi id_rsa
 COPY ./ssh/id_rsa.mpi.pub id_rsa.pub
 COPY ./ssh/id_rsa.mpi.pub authorized_keys
 RUN ssh-keygen -A
-RUN chmod -R 600 ${HOME}/.ssh* && \
-    chmod 700 ${HOME}/.ssh && \
-    chmod 644 ${HOME}/.ssh/id_rsa.pub && \
-    chmod 664 ${HOME}/.ssh/config && \
-    chown -R ${USER}:${USER} ${HOME}/.ssh
-
-# TODO - can we get rid of this?
-# Set up experiment base code and plotting tools
-# RUN apt-get update
-# RUN apt-get install -y \
-    #     python3-dev \
-    #     python3-pip \
-    #     python3-venv
-#
-# # Python set-up
-# WORKDIR /experiments
-# RUN git clone https://github.com/faasm/experiments experiment-base
-# WORKDIR /experiments/experiment-base
-# RUN pip3 install -r requirements.txt
-
-# Start the SSH server for reachability
-# WORKDIR ${HOME}
-# CMD ["/usr/sbin/sshd", "-D"]
+RUN chmod -R 600 ${HOME}/.ssh*
+RUN chmod 700 ${HOME}/.ssh
+RUN chmod 644 ${HOME}/.ssh/id_rsa.pub
+RUN chmod 664 ${HOME}/.ssh/config
+RUN chown -R ${USER}:${USER} ${HOME}/.ssh
 
 # Download code and build LAMMPS
 WORKDIR /code
@@ -65,18 +47,18 @@ RUN git clone https://github.com/faasm/experiment-lammps
 WORKDIR /code/experiment-lammps
 RUN git submodule update --init
 
+# Install Python deps
+RUN pip3 install -r requirements.txt
+
 # Cross-compile and build LAMMPS for Faasm
-RUN python3 ./build/lammps.py faasm --clean
+RUN inv wasm
 
 # Build natively
-RUN python3 ./build/lammps.py native --clean
+RUN inv native
 
 # Shortcut for input data
 WORKDIR /data
 RUN cp /code/experiment-lammps/third-party/lammps/examples/controller/in.controller.wall \
     /data/in.controller
 
-# Copy faasm.ini file to interact w/ k8s
-WORKDIR /usr/local/code/faasm
-COPY ./faasm.ini /usr/local/code/faasm
 CMD ["/usr/sbin/sshd", "-D"]
