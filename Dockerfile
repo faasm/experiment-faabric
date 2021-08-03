@@ -8,8 +8,8 @@ WORKDIR /tmp/openmpi-4.1.0
 RUN ./configure --prefix=/usr/local
 RUN make -j `nproc`
 RUN make install
-# The previous steps take a lot of time, so don't move these lines and beneffit
-# from Docker's incremental build
+# The previous steps take a lot of time, so be careful not to invalidate the
+# Docker cache
 
 # Add an mpirun user
 ENV USER mpirun
