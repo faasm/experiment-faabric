@@ -66,5 +66,6 @@ def upload(ctx, host="localhost", port=8002, local=False):
         copyfile(wasm_file, dest_file)
     else:
         url = "http://{}:{}/f/{}/{}".format(host, port, FAASM_USER, FAASM_FUNC)
+        print("Putting function to {}".format(url))
         response = requests.put(url, data=open(wasm_file, "rb"))
         print("Response {}: {}".format(response.status_code, response.text))
