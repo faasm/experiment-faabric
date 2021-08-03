@@ -4,9 +4,9 @@ services:
   cli:
     image: ${LAMMPS_CLI_IMAGE}
     working_dir: /code/experiment-lammps
+    command: ${INNER_SHELL}
     stdin_open: true
     tty: true
-    privileged: true
     network_mode: host
     volumes:
       - ${FAASM_LOCAL_DIR}:/usr/local/faasm

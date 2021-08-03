@@ -40,11 +40,11 @@ RUN chown -R ${USER}:${USER} ${HOME}/.ssh
 # Download code and build LAMMPS
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-lammps
+WORKDIR /code/experiment-lammps
 
 # TODO - remove this, assume master
 RUN git checkout updates-0308
 
-WORKDIR /code/experiment-lammps
 RUN git submodule update --init
 
 # Install Python deps

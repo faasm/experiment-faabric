@@ -18,7 +18,7 @@ if [[ -z "$LAMMPS_CLI_IMAGE" ]]; then
     export LAMMPS_CLI_IMAGE=faasm/experiment-lammps:${VERSION}
 fi
 
-INNER_SHELL=${SHELL:-"/bin/bash"}
+export INNER_SHELL=${SHELL:-"/bin/bash"}
 
 # Make sure the CLI is running already in the background (avoids creating a new
 # container every time)
