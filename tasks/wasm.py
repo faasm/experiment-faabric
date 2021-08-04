@@ -1,8 +1,10 @@
 from invoke import task
 import requests
-from shutil import rmtree, copyfile
-from os.path import exists, join
+from shutil import copyfile
+from os.path import join
 from os import makedirs
+from subprocess import run
+
 from tasks.util import (
     WASM_BUILD_DIR,
     LAMMPS_DIR,
@@ -11,7 +13,6 @@ from tasks.util import (
     FAASM_USER,
     FAASM_FUNC,
 )
-from subprocess import run
 
 CMAKE_TOOLCHAIN_FILE = "/usr/local/faasm/toolchain/tools/WasiToolchain.cmake"
 

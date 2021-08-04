@@ -14,8 +14,7 @@ def build(ctx, nocache=False, push=False):
     """
     shell_env = copy(environ)
     shell_env["DOCKER_BUILDKIT"] = "1"
-
-    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
+    img_tag = _get_tag()
 
     cmd = [
         "docker",
@@ -30,4 +29,19 @@ def build(ctx, nocache=False, push=False):
     run(cmd_str, shell=True, check=True, cwd=PROJ_ROOT)
 
     if push:
-        run("docker push {}".format(img_tag), check=True, shell=True)
+        _push_image(img_tag)
+
+
+def _get_tag():
+    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
+    return img_tag
+
+
+def _push_image(img_tag):
+    run("docker push {}".format(img_tag), check=True, shell=True)
+
+
+@task
+def push(ctx):
+    img_tag = _get_tag()
+    _push_image(img_tag)

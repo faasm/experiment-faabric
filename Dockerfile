@@ -37,6 +37,10 @@ RUN chmod 644 ${HOME}/.ssh/id_rsa.pub
 RUN chmod 664 ${HOME}/.ssh/config
 RUN chown -R ${USER}:${USER} ${HOME}/.ssh
 
+# Unset HOME
+RUN unset HOME
+RUN HOME=
+
 # Download code and build LAMMPS
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-lammps

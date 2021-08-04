@@ -1,6 +1,11 @@
 from invoke import task
 from os.path import join
-from tasks.util import NATIVE_BUILD_DIR, LAMMPS_DIR, NATIVE_INSTALL_DIR, clean_dir
+from tasks.util import (
+    NATIVE_BUILD_DIR,
+    LAMMPS_DIR,
+    NATIVE_INSTALL_DIR,
+    clean_dir,
+)
 from subprocess import run
 
 # The LAMMPS CMake build instructions can be found in the following link
