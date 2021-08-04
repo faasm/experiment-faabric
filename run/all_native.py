@@ -33,17 +33,6 @@ def mpi_run(np=1, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE):
     return output
 
 
-def invoke(np):
-    """
-    Invoke one of the ParRes Kernels functions
-    """
-    cmd_out = mpi_run(np=np, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE)
-    cmd_out = cmd_out.decode("utf-8")
-    print(cmd_out)
-
-    return parse_out(cmd_out)
-
-
 def parse_out(cmd_out):
     wall_time = re.findall("Total wall time: ([0-9:]*)", cmd_out)[0].split(":")
     time = (
@@ -64,7 +53,11 @@ def benchmark():
         if np not in results:
             results[np] = []
         for _ in range(NUM_TESTS):
-            results[np].append(invoke(np))
+            cmd_out = mpi_run(np=np, hostfile=HOSTFILE, cmdline=LAMMPS_CMDLINE)
+            cmd_out = cmd_out.decode("utf-8")
+            print(cmd_out)
+
+            results[np].append(parse_out(cmd_out))
             print("Run {}/{} finished!".format(_ + 1, NUM_TESTS))
 
     json.dumps(results)

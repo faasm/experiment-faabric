@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mpi-native-experiment
+  namespace: mpi-native
+spec:
+  selector:
+    matchLabels:
+      run: mpi-native
+  replicas: 5
+  template:
+    metadata:
+      name: mpi-worker
+      labels:
+        run: mpi-native
+    spec:
+      containers:
+        - name: mpi-worker
+          image: experiment-lammps:0.0.1
+          imagePullPolicy: Always
+          #imagePullPolicy: IfNotPresent
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: run
+                operator: In
+                values:
+                - mpi-native
+            topologyKey: "kubernetes.io/hostname"

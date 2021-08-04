@@ -2,25 +2,29 @@
 
 THIS_DIR=$(dirname $(readlink -f $0))
 PROJ_ROOT=${THIS_DIR}/..
-BASE_DIR=${PROJ_ROOT}/../..
-VERSION=$(< ${BASE_DIR}/VERSION)
+
+CLUSTER_SIZE=5
+MPI_MAX_PROC=2
 
 pushd ${PROJ_ROOT} >> /dev/null
 
-# Apply corresponding file
-IMAGE_NAME=faasm/experiment-lammps:${VERSION} \
-  envsubst < ${BASE_DIR}/aks/deployment.yaml |\
-  kubectl apply -f -
+# Get the master
+MPI_MASTER=$(kubectl -n ${NAMESPACE} get pods -l run=faabric | awk 'NR==2 {print $1}')
+echo "Chosen as master node w/ name: ${MPI_MASTER}"
 
-# Wait for deployment to be ready
-kubectl wait --for=condition=ready --timeout="-1s" pod -l run=faabric -n faabric
+# Run the benchmark
+kubectl -n mpi-native \
+    exec -it \
+    ${MPI_MASTER} -- bash -c "su mpirun -c '/home/mpirun/all.py'"
 
-# Run experiments
-EXPERIMENT="lammps_native_aks" RUN_SCRIPT=$(pwd)/run/all_native.py \
-  ${BASE_DIR}/aks/run_mpi_benchmark.sh
+# Grep the results
+mkdir -p results
+kubectl cp mpi-native/${MPI_MASTER}:/home/mpirun/results.dat \
+    ./results/lammps_native.dat
 
-# Delete the deployment afterwards
-kubectl delete -f ${BASE_DIR}/aks/deployment.yaml
+# Delete results on the host
+kubectl -n ${NAMESPACE} exec -it \
+    ${MPI_MASTER} -- bash -c "rm /home/mpirun/results.dat"
 
 popd >> /dev/null
 

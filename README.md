@@ -9,7 +9,7 @@ This project runs inside the container defined in this repo. To run it:
 ./bin/cli.sh
 ```
 
-## Data
+## Running on Faasm
 
 To upload the data you can run:
 
@@ -21,19 +21,13 @@ inv data.upload --local
 inv data.upload --host <faasm_upload_host>
 ```
 
-## Building code
-
 You can build the code with:
 
 ```bash
-# Native
-inv native
-
-# Wasm
 inv wasm
 ```
 
-To upload the wasm code to Faasm:
+and upload with:
 
 ```bash
 # Local
@@ -43,10 +37,27 @@ inv wasm.upload --local
 inv wasm.upload --host <faasm_upload_host>
 ```
 
-## Running the experiment
-
-To run on Faasm:
+To run it:
 
 ```bash
 inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+```
+
+## Running natively
+
+The native experiment has to use a "proper" MPI deployment.
+
+The scripts to do this should be run outside the container, with `kubectl`
+available to access your K8s cluster.
+
+To set up the MPI deployment:
+
+```bash
+./run/native_deploy.sh
+```
+
+To then execute the experiments
+
+```bash
+./run/native.sh
 ```
