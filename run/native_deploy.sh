@@ -7,14 +7,15 @@ MPI_MAX_PROC=2
 
 pushd ${PROJ_ROOT} >> /dev/null
 
-# Do K8s deployment
-kubectl apply -f k8s/deployment.yaml
+# Apply and wait to be ready
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/deployment.yml
 
-# Wait for deployment to be ready
-kubectl wait --for=condition=ready \
+kubectl \
+    -n mpi-native \
+    wait --for=condition=ready \
     --timeout="-10s" \
-    pod -l run=mpi-native \
-    -n mpi-native
+    pod -l run=mpi-native
 
 # Generate the hostfile
 kubectl get pods -n mpi-native -l run=faabric -o wide \
