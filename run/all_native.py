@@ -7,7 +7,9 @@ from subprocess import check_output
 
 MPI_RUN = "mpirun"
 HOSTFILE = "/home/mpirun/hostfile"
-LAMMPS_BUILD_PATH = "/code/experiment-lammps/third-party/lammps/install-native/bin/lmp"
+LAMMPS_BUILD_PATH = (
+    "/code/experiment-lammps/third-party/lammps/install-native/bin/lmp"
+)
 LAMMPS_CMDLINE = "-in /data/in.controller"
 
 # Benchmark details
@@ -44,7 +46,9 @@ def invoke(np):
 
 def parse_out(cmd_out):
     wall_time = re.findall("Total wall time: ([0-9:]*)", cmd_out)[0].split(":")
-    time = int(wall_time[0]) * 3600 + int(wall_time[1]) * 60 + int(wall_time[2])
+    time = (
+        int(wall_time[0]) * 3600 + int(wall_time[1]) * 60 + int(wall_time[2])
+    )
 
     print(time)
     return time
