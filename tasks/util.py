@@ -5,14 +5,24 @@ from os import makedirs
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
+
 NATIVE_BUILD_DIR = join(PROJ_ROOT, "build", "native")
 NATIVE_INSTALL_DIR = join(PROJ_ROOT, "build", "native-install")
 WASM_BUILD_DIR = join(PROJ_ROOT, "build", "wasm")
 WASM_INSTALL_DIR = join(PROJ_ROOT, "build", "wasm-install")
 LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
 
+EXPERIMENTS_BASE_DIR = dirname(dirname(PROJ_ROOT))
+
 FAASM_USER = "lammps"
 FAASM_FUNC = "main"
+
+IS_DOCKER = HOME_DIR.startswith("/root")
+
+if IS_DOCKER:
+    RESULTS_DIR = join(PROJ_ROOT, "results")
+else:
+    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results", "covid")
 
 
 def get_version():

@@ -43,5 +43,8 @@ def _push_image(img_tag):
 
 @task
 def push(ctx):
+    """
+    Push the container image
+    """
     img_tag = _get_tag()
     _push_image(img_tag)

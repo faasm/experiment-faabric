@@ -55,6 +55,9 @@ def build(ctx, clean=False, verbose=False):
 
 @task
 def upload(ctx, host="localhost", port=8002, local=False):
+    """
+    Upload the LAMMPS function to Faasm
+    """
     wasm_file = join(WASM_INSTALL_DIR, "bin", "lmp")
 
     if local:

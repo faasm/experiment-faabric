@@ -42,3 +42,11 @@ inv wasm.upload --local
 # Remote
 inv wasm.upload --host <faasm_upload_host>
 ```
+
+## Running the experiment
+
+To run on Faasm:
+
+```bash
+inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+```
