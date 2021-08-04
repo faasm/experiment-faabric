@@ -10,7 +10,8 @@ HOSTFILE = "/home/mpirun/hostfile"
 LAMMPS_BUILD_PATH = (
     "/code/experiment-lammps/third-party/lammps/install-native/bin/lmp"
 )
-LAMMPS_CMDLINE = "-in /data/in.controller"
+DATA_FILE = "/code/experiment-lammps/third-party/lammps/examples/controller/in.controller.wall"
+LAMMPS_CMDLINE = "-in {}".format(DATA_FILE)
 
 # Benchmark details
 NUM_PROCS = [1, 2, 4]

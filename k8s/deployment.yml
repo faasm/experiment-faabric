@@ -1,31 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mpi-native-experiment
-  namespace: mpi-native
+  name: faasm-mpi-deployment
+  namespace: faasm-mpi-native
 spec:
   selector:
     matchLabels:
-      run: mpi-native
+      run: faasm-mpi-native
   replicas: 1
   template:
     metadata:
       name: mpi-worker
       labels:
-        run: mpi-native
+        run: faasm-mpi-native
     spec:
       containers:
         - name: mpi-worker
-          image: experiment-lammps:0.0.1
+          image: faasm/experiment-lammps:0.0.1
           imagePullPolicy: Always
           #imagePullPolicy: IfNotPresent
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: run
-                operator: In
-                values:
-                - mpi-native
-            topologyKey: "kubernetes.io/hostname"
+          #affinity:
+          #podAntiAffinity:
+          #requiredDuringSchedulingIgnoredDuringExecution:
+          #- labelSelector:
+          #    matchExpressions:
+          #    - key: run
+          #      operator: In
+          #      values:
+          #        - faasm-mpi-native
+          #  topologyKey: "kubernetes.io/hostname"

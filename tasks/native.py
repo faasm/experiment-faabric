@@ -34,14 +34,8 @@ def build(ctx, clean=False, verbose=False):
     cmake_str = " ".join(cmake_cmd)
     print(cmake_str)
 
-    res = run(cmake_str, shell=True, cwd=NATIVE_BUILD_DIR)
-    if res.returncode != 0:
-        raise RuntimeError("LAMMPS native CMake config failed")
+    run(cmake_str, check=True, shell=True, cwd=NATIVE_BUILD_DIR)
 
-    res = run("ninja", shell=True, cwd=NATIVE_BUILD_DIR)
-    if res.returncode != 0:
-        raise RuntimeError("LAMMPS native build failed")
+    run("ninja", check=True, shell=True, cwd=NATIVE_BUILD_DIR)
 
-    res = run("ninja install", shell=True, cwd=NATIVE_BUILD_DIR)
-    if res.returncode != 0:
-        raise RuntimeError("LAMMPS install failed")
+    run("ninja install", check=True, shell=True, cwd=NATIVE_BUILD_DIR)

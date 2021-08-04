@@ -8,38 +8,44 @@ WORKDIR /tmp/openmpi-4.1.0
 RUN ./configure --prefix=/usr/local
 RUN make -j `nproc`
 RUN make install
+
 # The previous steps take a lot of time, so be careful not to invalidate the
 # Docker cache
 
+# -------------------------------
+# NATIVE MPI SETUP
+# -------------------------------
+
 # Add an mpirun user
-ENV USER mpirun
-RUN adduser --disabled-password --gecos "" ${USER} && \
-    echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN adduser --disabled-password --gecos "" mpirun
+RUN echo "mpirun ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Set up SSH (for native MPI)
 RUN apt install -y openssh-server
 RUN mkdir /var/run/sshd
-RUN echo 'root:${USER}' | chpasswd
-RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+RUN echo 'root:mpirun' | chpasswd
 
-# User SSH config
-ENV HOME /home/${USER}
-WORKDIR ${HOME}/.ssh
-COPY ./ssh/config config
-COPY ./ssh/id_rsa.mpi id_rsa
-COPY ./ssh/id_rsa.mpi.pub id_rsa.pub
+COPY ./ssh/sshd_config /etc/ssh/sshd_config
+
+# Generate a key to be used by all hosts
+RUN ssh-keygen -b 2048 -t rsa -f /home/mpirun/.ssh/id_rsa -q -N ""
+
+# Copy into authorized keys
+WORKDIR /home/mpirun/.ssh
 COPY ./ssh/id_rsa.mpi.pub authorized_keys
-RUN ssh-keygen -A
-RUN chmod -R 600 ${HOME}/.ssh*
-RUN chmod 700 ${HOME}/.ssh
-RUN chmod 644 ${HOME}/.ssh/id_rsa.pub
-RUN chmod 664 ${HOME}/.ssh/config
-RUN chown -R ${USER}:${USER} ${HOME}/.ssh
 
-# Unset HOME
-RUN unset HOME
-RUN HOME=
+# Copy SSH config into place
+COPY ssh/config /home/mpirun/.ssh/config
+
+# Set up perms on SSH files
+RUN chmod -R 600 /home/mpirun/.ssh*
+RUN chmod 700 /home/mpirun/.ssh
+RUN chmod 644 /home/mpirun/.ssh/id_rsa.pub
+RUN chown -R mpirun:mpirun /home/mpirun/.ssh
+
+# -------------------------------
+# EXPERIMENT CODE SETUP
+# -------------------------------
 
 # Download code and build LAMMPS
 WORKDIR /code
@@ -60,9 +66,4 @@ RUN inv wasm
 # Build natively
 RUN inv native
 
-# Shortcut for input data
-WORKDIR /data
-RUN cp /code/experiment-lammps/third-party/lammps/examples/controller/in.controller.wall \
-    /data/in.controller
-
-CMD ["/usr/sbin/sshd", "-D"]
+CMD /code/experiment-lammps/ssh/start_sshd.sh
