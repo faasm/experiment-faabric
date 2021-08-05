@@ -6,7 +6,7 @@ from subprocess import run, PIPE
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
-LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
+LAMMPS_DIR = join(PROJ_ROOT, "third-party", "lammps")
 
 LAMMPS_DATA_FILE = join(
     LAMMPS_DIR, "examples", "controller", "in.controller.wall"
@@ -15,6 +15,14 @@ LAMMPS_DATA_FILE = join(
 NATIVE_BUILD_DIR = join(PROJ_ROOT, "build", "native")
 NATIVE_INSTALL_DIR = join(PROJ_ROOT, "build", "native-install")
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
+
+DOCKER_PROJ_ROOT = "/code/experiment-lammps"
+DOCKER_LAMMPS_DIR = join(DOCKER_PROJ_ROOT, "third-party", "lammps")
+DOCKER_NATIVE_INSTALL_DIR = join(DOCKER_PROJ_ROOT, "build", "native-install")
+DOCKER_LAMMPS_BINARY = join(DOCKER_NATIVE_INSTALL_DIR, "bin", "lmp")
+DOCKER_LAMMPS_DATA_FILE = join(
+    DOCKER_LAMMPS_DIR, "examples", "controller", "in.controller.wall"
+)
 
 WASM_BUILD_DIR = join(PROJ_ROOT, "build", "wasm")
 WASM_INSTALL_DIR = join(PROJ_ROOT, "build", "wasm-install")
@@ -29,7 +37,7 @@ IS_DOCKER = HOME_DIR.startswith("/root")
 if IS_DOCKER:
     RESULTS_DIR = join(PROJ_ROOT, "results")
 else:
-    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results", "covid")
+    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results", "lammps")
 
 
 def get_version():

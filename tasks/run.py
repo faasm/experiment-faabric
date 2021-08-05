@@ -10,19 +10,18 @@ from tasks.util import (
     RESULTS_DIR,
     FAASM_USER,
     FAASM_FUNC,
-    LAMMPS_DATA_FILE,
-    NATIVE_INSTALL_DIR,
+    DOCKER_LAMMPS_BINARY,
+    DOCKER_LAMMPS_DATA_FILE,
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
     get_pod_names_ips,
 )
 
-LAMMPS_NATIVE_BINARY = join(NATIVE_INSTALL_DIR, "bin", "lmp")
-LAMMPS_NATIVE_CMDLINE = "-in {}".format(LAMMPS_DATA_FILE)
+DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
 
 LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
-NUM_PROCS = [1, 2, 4]
+NUM_PROCS = [1, 2, 3, 4, 5]
 
 KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
@@ -34,8 +33,8 @@ def init_csv_file(csv_path):
 
 
 def write_result_line(csv_path, n_procs, reported, actual):
-    with open(csv_path, "w") as out_file:
-        out_file.write("{},{},{}\n".format(n_procs, reported, actual))
+    with open(csv_path, "a") as out_file:
+        out_file.write("{},{},{:.2f}\n".format(n_procs, reported, actual))
 
 
 def process_lammps_result(lammps_output, actual_time, result_file, num_procs):
@@ -97,7 +96,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 exit(1)
 
             end = time.time()
-            actual_time = math.ceil((end - start) / 60)
+            actual_time = end - start
             process_lammps_result(response.text, actual_time, result_file, np)
 
 
@@ -126,12 +125,10 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             mpirun_cmd = [
                 "mpirun",
-                "-np",
-                np,
-                "-hostfile",
-                NATIVE_HOSTFILE,
-                LAMMPS_NATIVE_BINARY,
-                LAMMPS_NATIVE_CMDLINE,
+                "-np {}".format(np),
+                "-hostfile {}".format(NATIVE_HOSTFILE),
+                DOCKER_LAMMPS_BINARY,
+                DOCKER_LAMMPS_CMDLINE,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
 
@@ -139,10 +136,11 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 "exec",
                 master_pod,
                 "--",
-                "\"su mpirun -c '{}'\"".format(mpirun_cmd),
+                "su mpirun -c '{}'".format(mpirun_cmd),
             ]
             exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+            print("MPI RUN: {}".format(exec_output))
 
             end = time.time()
-            actual_time = math.ceil((end - start) / 60)
+            actual_time = end - start
             process_lammps_result(exec_output, actual_time, result_file, np)
