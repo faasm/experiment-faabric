@@ -1,4 +1,3 @@
-import math
 import re
 import time
 import requests
@@ -11,6 +10,7 @@ from tasks.util import (
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
     DOCKER_LAMMPS_BINARY,
+    KNATIVE_HEADERS,
     DOCKER_LAMMPS_DATA_FILE,
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
@@ -23,20 +23,17 @@ LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
 NUM_PROCS = [1, 2, 3, 4, 5]
 
-KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
+def _init_csv_file(csv_name):
+    result_dir = join(RESULTS_DIR, "lammps")
+    makedirs(result_dir, exist_ok=True)
 
-def _init_csv_file(csv_path):
+    result_file = join(result_dir, csv_name)
     makedirs(RESULTS_DIR, exist_ok=True)
-    with open(csv_path, "w") as out_file:
+    with open(result_file, "w") as out_file:
         out_file.write("WorldSize,Run,Reported,Actual\n")
 
-
-def _write_result_line(csv_path, n_procs, run_num, reported, actual):
-    with open(csv_path, "a") as out_file:
-        out_file.write(
-            "{},{},{},{:.2f}\n".format(n_procs, run_num, reported, actual)
-        )
+    return result_file
 
 
 def _process_lammps_result(
@@ -59,9 +56,12 @@ def _process_lammps_result(
         + int(reported_time[2])
     )
 
-    _write_result_line(
-        result_file, num_procs, run_num, reported_time, actual_time
-    )
+    with open(result_file, "a") as out_file:
+        out_file.write(
+            "{},{},{},{:.2f}\n".format(
+                num_procs, run_num, reported_time, actual_time
+            )
+        )
 
 
 @task
@@ -69,8 +69,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
     Run the experiment on Faasm
     """
-    result_file = join(RESULTS_DIR, "lammps_wasm.csv")
-    _init_csv_file(result_file)
+    result_file = _init_csv_file("lammps_wasm.csv")
 
     if nprocs:
         num_procs = [nprocs]
@@ -113,8 +112,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
     Run the experiment natively on OpenMPI
     """
-    result_file = join(RESULTS_DIR, "lammps_native.csv")
-    _init_csv_file(result_file)
+    result_file = _init_csv_file("lammps_native.csv")
 
     if nprocs:
         num_procs = [nprocs]

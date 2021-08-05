@@ -42,7 +42,9 @@ IS_DOCKER = HOME_DIR.startswith("/root")
 if IS_DOCKER:
     RESULTS_DIR = join(PROJ_ROOT, "results")
 else:
-    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results", "lammps")
+    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results")
+
+KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
 
 def get_version():

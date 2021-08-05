@@ -1,16 +1,26 @@
 import math
 import re
-import sys
 import time
+import requests
+
+from os import makedirs
 from invoke import task
 from os.path import join
-from subprocess import check_output, DEVNULL
 
-from tasks.util import KERNELS_FAASM_USER
+from tasks.util import (
+    KERNELS_FAASM_USER,
+    RESULTS_DIR,
+    KNATIVE_HEADERS,
+    NATIVE_HOSTFILE,
+    run_kubectl_cmd,
+    get_pod_names_ips,
+)
 
 ITERATIONS = 20000
 SPARSE_GRID_SIZE_2LOG = 10
 SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
+
+NUM_PROCS = [1, 2, 3, 4, 5]
 
 PRK_CMDLINE = {
     "dgemm": "{} 500 32 1".format(
@@ -67,6 +77,18 @@ MPI_RUN = "mpirun"
 HOSTFILE = "/home/mpirun/hostfile"
 
 
+def _init_csv_file(csv_name):
+    result_dir = join(RESULTS_DIR, "lammps")
+    makedirs(result_dir, exist_ok=True)
+
+    result_file = join(result_dir, csv_name)
+    makedirs(RESULTS_DIR, exist_ok=True)
+    with open(result_file, "w") as out_file:
+        out_file.write("Kernel,WorldSize,Run,StatName,StatValue\n")
+
+    return result_file
+
+
 def is_power_of_two(n):
     return math.ceil(log_2(n)) == math.floor(log_2(n))
 
@@ -78,128 +100,18 @@ def log_2(x):
     return math.log10(x) / math.log10(2)
 
 
-@task
-def wasm(ctx):
-    procs = [1, 2, 4]
-    results = {}
-
-    start = time.time()
-    # results are in seconds
-    for func in PRK_STATS:
-        if func not in results:
-            results[func] = []
-        for np in procs:
-            results[func].append(invoke_faasm(func, np))
-
-    elapsed_mins = math.ceil((time.time() - start) / 60)
-    print(elapsed_mins)
-
-@task
-def native(ctx):
-    procs = [1, 2, 4]
-    results = {}
-
-    # results are in seconds
-    for func in PRK_STATS:
-        if func not in results:
-            results[func] = []
-        for np in procs:
-            results[func].append(invoke_native(func, np))
-
-    print(json.dumps(results))
-    with open("./results.dat", "w") as fh:
-        json.dump(results, fh)
-
-
-def invoke_faasm(func, np=1, native=False):
-    """
-    Invoke one of the ParRes Kernels functions
-    """
-    if func not in PRK_CMDLINE:
-        print("Invalid PRK function {}".format(func))
-        return 1
-
-    cmdline = PRK_CMDLINE[func]
-
-    if func == "random" and not is_power_of_two(np):
-        print("Must have a power of two number of processes for random")
-        exit(1)
-    elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
-        print(
-            "To run sparse, grid size must be a multiple of --np (currently grid_size={} and np={})".format(
-                SPARSE_GRID_SIZE, np
-            )
-        )
-        exit(1)
-
-    cmd_out = invoke_impl(
-        KERNELS_FAASM_USER,
-        func,
-        cmdline=cmdline,
-        mpi_np=np,
-        debug=True,
-    )
-    print(cmd_out)
-
-    return 0
-    # return _parse_prk_out(func, cmd_out)
-
-def invoke_native(func, np=8):
-    if func not in PRK_CMDLINE:
-        print("Invalid PRK function {}".format(func))
-        return 1
-
-    cmdline = PRK_CMDLINE[func]
-
-    if func == "random" and not is_power_of_two(np):
-        print("Must have a power of two number of processes for random")
-        exit(1)
-    elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
-        print(
-            "To run sparse, grid size must be a multiple of --np (currently grid_size={} and np={})".format(
-                SPARSE_GRID_SIZE, np
-            )
-        )
-        exit(1)
-
-    executable = PRK_NATIVE_EXECUTABLES[func]
-    cmd_out = mpi_run(executable, np=np, hostfile=HOSTFILE, cmdline=cmdline)
-    cmd_out = cmd_out.decode()
-    print(cmd_out)
-
-    return _parse_prk_out(func, cmd_out)
-
-
-def mpi_run(exe, np=1, hostfile=None, cmdline=None):
-    mpi_cmd = " ".join(
-        [
-            MPI_RUN,
-            "-np {}".format(np),
-            "-hostfile {}".format(hostfile) if hostfile else "",
-            exe,
-            cmdline if cmdline else "",
-        ]
-    )
-    print(mpi_cmd)
-    output = check_output(mpi_cmd, shell=True)
-
-    return output
-
-
-
-def _parse_prk_out(func, cmd_out):
-    stats = PRK_STATS.get(func)
+def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
+    stats = PRK_STATS.get(kernel)
 
     if not stats:
-        print("No stats for {}".format(func))
+        print("No stats for {}".format(kernel))
         return
 
-    print("----- {} stats -----".format(func))
+    print("----- {} stats -----".format(kernel))
 
     for stat in stats:
-        spilt_str = "{}: ".format(stat)
-
-        stat_val = [c for c in cmd_out.split(spilt_str) if c.strip()]
+        split_str = "{}: ".format(stat)
+        stat_val = [c for c in kernels_out.split(split_str) if c.strip()]
         if not stat_val:
             print("{} = MISSING".format(stat))
             continue
@@ -211,3 +123,108 @@ def _parse_prk_out(func, cmd_out):
 
         if "ime" in stat:
             return stat_val
+
+        with open(result_file, "a") as out_file:
+            out_file.write(
+                "{},{},{},{},{:.2f}\n".format(
+                    kernel, np, run_num, stat, stat_val
+                )
+            )
+
+
+def _validate_function(func, np):
+    if func not in PRK_CMDLINE:
+        print("Invalid PRK function {}".format(func))
+        return 1
+
+        if func == "random" and not is_power_of_two(np):
+            print("Must have a power of two number of processes for random")
+            exit(1)
+        elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
+            print("To run sparse, grid size must be a multiple of --np")
+            print(
+                "Currently grid_size={} and np={})".format(
+                    SPARSE_GRID_SIZE, np
+                )
+            )
+            exit(1)
+
+
+@task
+def wasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+    result_file = _init_csv_file("kernels_wasm.csv")
+    if nprocs:
+        num_procs = [nprocs]
+    else:
+        num_procs = NUM_PROCS
+
+    start = time.time()
+    # results are in seconds
+    for func in PRK_STATS:
+        for np in num_procs:
+            for run_num in range(repeats):
+
+                cmdline = PRK_CMDLINE[func]
+                url = "http://{}:{}".format(host, port)
+                msg = {
+                    "user": KERNELS_FAASM_USER,
+                    "function": func,
+                    "cmdline": cmdline,
+                    "mpi_world_size": np,
+                }
+                response = requests.post(
+                    url, json=msg, headers=KNATIVE_HEADERS
+                )
+                if response.status_code != 200:
+                    print(
+                        "Invocation failed: {}:\n{}".format(
+                            response.status_code, response.text
+                        )
+                    )
+                    exit(1)
+
+                _process_kernels_result(
+                    response.text, result_file, func, np, run_num
+                )
+
+
+@task
+def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+    result_file = _init_csv_file("kernels_native.csv")
+
+    if nprocs:
+        num_procs = [nprocs]
+    else:
+        num_procs = NUM_PROCS
+
+    pod_names, pod_ips = get_pod_names_ips()
+    master_pod = pod_names[0]
+
+    for func in PRK_STATS:
+        for np in num_procs:
+            for run_num in range(repeats):
+                _validate_function(func, np)
+
+                cmdline = PRK_CMDLINE[func]
+                executable = PRK_NATIVE_EXECUTABLES[func]
+                mpirun_cmd = [
+                    "mpirun",
+                    "-np {}".format(np),
+                    "-hostfile {}".format(NATIVE_HOSTFILE),
+                    executable,
+                    cmdline,
+                ]
+                mpirun_cmd = " ".join(mpirun_cmd)
+
+                exec_cmd = [
+                    "exec",
+                    master_pod,
+                    "--",
+                    "su mpirun -c '{}'".format(mpirun_cmd),
+                ]
+                exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+                print(exec_output)
+
+                _process_kernels_result(
+                    exec_output, result_file, func, np, run_num
+                )
