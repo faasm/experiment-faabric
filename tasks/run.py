@@ -6,7 +6,13 @@ from os import makedirs
 from os.path import join
 from invoke import task
 
-from tasks.util import RESULTS_DIR, FAASM_USER, FAASM_FUNC
+from tasks.util import (
+    RESULTS_DIR,
+    FAASM_USER,
+    FAASM_FUNC,
+    run_kubectl_cmd,
+    get_pod_names_ips,
+)
 
 LAMMPS_CMDLINE = "-in faasm://lammps-data/in.controller"
 
@@ -86,8 +92,6 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = math.ceil((end - start) / 60)
-            print("Elapsed mins: {}".format(actual_time))
-
             process_lammps_result(response.text, actual_time, result_file, np)
 
 
@@ -104,7 +108,25 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
+    pod_names, pod_ips = get_pod_names_ips()
+    master_pod = pod_names[0]
+
     for np in num_procs:
         print("Running natively with {} MPI processes".format(np))
+        print("Chosen pod {} as master".format(master_pod))
 
-    # TODO - fill in native run code
+        for _ in range(repeats):
+            start = time.time()
+
+            exec_cmd = [
+                "exec",
+                master_pod,
+                "--",
+                "bash -c",
+                "\"su mpirun -c '/home/mpirun/all.py'\"",
+            ]
+            exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+
+            end = time.time()
+            actual_time = math.ceil((end - start) / 60)
+            process_lammps_result(exec_output, actual_time, result_file, np)

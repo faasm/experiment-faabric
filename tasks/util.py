@@ -1,6 +1,7 @@
 from os.path import dirname, realpath, expanduser, join, exists
 from shutil import rmtree
 from os import makedirs
+from subprocess import run, PIPE
 
 
 HOME_DIR = expanduser("~")
@@ -41,3 +42,43 @@ def clean_dir(dir_path, clean):
 
     if not exists(dir_path):
         makedirs(dir_path)
+
+
+def run_kubectl_cmd(cmd):
+    kubecmd = "kubectl -n faasm-mpi-native {}".format(cmd)
+    print(kubecmd)
+    res = run(
+        kubecmd,
+        stdout=PIPE,
+        stderr=PIPE,
+        cwd=PROJ_ROOT,
+        shell=True,
+        check=True,
+    )
+
+    return res.stdout.decode("utf-8")
+
+
+def get_pod_names_ips():
+    # List all pods
+    cmd_out = run_kubectl_cmd("get pods -o wide")
+    print(cmd_out)
+
+    # Split output into list of strings
+    lines = cmd_out.split("\n")[1:]
+    lines = [l.strip() for l in lines if l.strip()]
+
+    pod_names = list()
+    pod_ips = list()
+    for line in lines:
+        line_parts = line.split(" ")
+        line_parts = [p.strip() for p in line_parts if p.strip()]
+
+        pod_names.append(line_parts[0])
+        pod_ips.append(line_parts[5])
+
+    print("Got pods: {}".format(pod_names))
+    print("Got IPs: {}".format(pod_ips))
+
+    return pod_names, pod_ips
+

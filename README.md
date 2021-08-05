@@ -50,10 +50,10 @@ can run:
 
 ```bash
 # Local
-inv mpi.deploy --local
+inv native.deploy --local
 
 # Remote
-inv mpi.deploy
+inv native.deploy
 ```
 
 Check the deployment with `kubectl`:
@@ -65,7 +65,7 @@ kubectl -n faasm-mpi-native get deployments
 Once ready, we can template the MPI host file on all the containers:
 
 ```bash
-inv mpi.hostfile
+inv native.hostfile
 ```
 
 We can then execute the experiment natively with:
