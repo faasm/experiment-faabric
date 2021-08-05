@@ -17,6 +17,19 @@ This project runs inside one of two containers defined in this repo:
 ./bin/cli.sh kernels
 ```
 
+To rebuild the containers:
+
+```bash
+# OpenMPI
+inv openmpi.container
+
+# LAMMPS
+inv lammps.container
+
+# Kernes
+inv kernels.container
+```
+
 ## Running LAMMPS on Faasm
 
 To upload the data you can run:

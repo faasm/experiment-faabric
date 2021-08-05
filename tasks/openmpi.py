@@ -4,8 +4,7 @@ from os.path import join
 from copy import copy
 from subprocess import run
 
-from tasks.util.env import PROJ_ROOT
-from tasks.util.version import get_docker_tag, push_docker_image
+from tasks.util import PROJ_ROOT, get_docker_tag, push_docker_image
 
 OPENMPI_IMAGE_NAME = "openmpi"
 OPENMPI_DOCKERFILE = join(PROJ_ROOT, "docker", "openmpi.dockerfile")

@@ -1,19 +1,12 @@
 from invoke import task
-from tasks.util import PROJ_ROOT, get_version
+from tasks.util import PROJ_ROOT, get_docker_tag, push_docker_image
 from os import environ
+from os.path import join
 from copy import copy
 from subprocess import run
 
-IMAGE_NAME = "experiment-lammps"
-
-
-def _get_tag():
-    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
-    return img_tag
-
-
-def _push_image(img_tag):
-    run("docker push {}".format(img_tag), check=True, shell=True)
+LAMMPS_IMAGE_NAME = "experiment-lammps"
+LAMMPS_DOCKERFILE = join(PROJ_ROOT, "docker", "lammps.dockerfile")
 
 
 @task(default=True)
@@ -23,11 +16,12 @@ def build(ctx, nocache=False, push=False):
     """
     shell_env = copy(environ)
     shell_env["DOCKER_BUILDKIT"] = "1"
-    img_tag = _get_tag()
+    img_tag = get_docker_tag(LAMMPS_IMAGE_NAME)
 
     cmd = [
         "docker",
         "build",
+        "-f {}".format(LAMMPS_DOCKERFILE),
         "--no-cache" if nocache else "",
         "-t {}".format(img_tag),
         ".",
@@ -38,7 +32,7 @@ def build(ctx, nocache=False, push=False):
     run(cmd_str, shell=True, check=True, cwd=PROJ_ROOT)
 
     if push:
-        _push_image(img_tag)
+        push_docker_image(img_tag)
 
 
 @task
@@ -46,5 +40,5 @@ def push(ctx):
     """
     Push the container image
     """
-    img_tag = _get_tag()
-    _push_image(img_tag)
+    img_tag = get_docker_tag(LAMMPS_IMAGE_NAME)
+    push_docker_image(img_tag)

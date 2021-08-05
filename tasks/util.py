@@ -6,8 +6,11 @@ from subprocess import run, PIPE
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
-LAMMPS_DIR = join(PROJ_ROOT, "third-party", "lammps")
 
+KERNELS_NATIVE_DIR = join(PROJ_ROOT, "third-party", "kernels-native")
+KERNELS_WASM_DIR = join(PROJ_ROOT, "third-party", "kernels")
+
+LAMMPS_DIR = join(PROJ_ROOT, "third-party", "lammps")
 LAMMPS_DATA_FILE = join(
     LAMMPS_DIR, "examples", "controller", "in.controller.wall"
 )
@@ -95,3 +98,12 @@ def get_pod_names_ips():
     print("Got IPs: {}".format(pod_ips))
 
     return pod_names, pod_ips
+
+
+def get_docker_tag(img_name):
+    img_tag = "faasm/{}:{}".format(img_name, get_version())
+    return img_tag
+
+
+def push_docker_image(img_tag):
+    run("docker push {}".format(img_tag), check=True, shell=True)

@@ -10,7 +10,28 @@ pushd ${PROJ_ROOT} > /dev/null
 export VERSION=$(cat VERSION)
 
 if [[ -z "$LAMMPS_CLI_IMAGE" ]]; then
-    export LAMMPS_CLI_IMAGE=faasm/experiment-lammps:${VERSION}
+    export LAMMPS_CLI_IMAGE=faasm/experiment-kernels:{VERSION}
+fi
+
+if [[ -z "$KERNELS_CLI_IMAGE" ]]; then
+    export KERNELS_CLI_IMAGE=faasm/experiment-kernels:{VERSION}
+fi
+
+if [[ -z "$1" ]]; then
+    echo "Must specify which CLI"
+    exit 1
+
+elif [[ "$1" == "lammps" ]]; then
+    CLI_CONTAINER="lammps-cli"
+    echo "LAMMPS CLI (${LAMMPS_CLI_IMAGE})"
+
+elif [[ "$1" == "kernels" ]]; then
+    CLI_CONTAINER="kernels-cli"
+    echo "Kernels CLI (${FAASM_CLI_IMAGE})"
+
+else
+    echo "Unrecognised CLI. Must be lammps or kernels"
+    exit 1
 fi
 
 export INNER_SHELL=${SHELL:-"/bin/bash"}
@@ -21,12 +42,12 @@ docker-compose -f docker-compose.yml \
     up \
     --no-recreate \
     -d \
-    cli
+    ${CLI_CONTAINER}
 
 # Attach to the CLI container
 docker-compose -f docker-compose.yml \
     exec \
-    cli \
+    ${CLI_CONTAINER} \
     ${INNER_SHELL}
 
 popd > /dev/null
