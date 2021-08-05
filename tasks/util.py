@@ -6,12 +6,18 @@ from subprocess import run, PIPE
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(realpath(__file__)))
+LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
+
+LAMMPS_DATA_FILE = join(
+    LAMMPS_DIR, "examples", "controller", "in.controller.wall"
+)
 
 NATIVE_BUILD_DIR = join(PROJ_ROOT, "build", "native")
 NATIVE_INSTALL_DIR = join(PROJ_ROOT, "build", "native-install")
+NATIVE_HOSTFILE = "/home/mpirun/hostfile"
+
 WASM_BUILD_DIR = join(PROJ_ROOT, "build", "wasm")
 WASM_INSTALL_DIR = join(PROJ_ROOT, "build", "wasm-install")
-LAMMPS_DIR = "{}/third-party/lammps".format(PROJ_ROOT)
 
 EXPERIMENTS_BASE_DIR = dirname(dirname(PROJ_ROOT))
 
@@ -81,4 +87,3 @@ def get_pod_names_ips():
     print("Got IPs: {}".format(pod_ips))
 
     return pod_names, pod_ips
-

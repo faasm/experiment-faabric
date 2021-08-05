@@ -10,11 +10,17 @@ from tasks.util import (
     RESULTS_DIR,
     FAASM_USER,
     FAASM_FUNC,
+    LAMMPS_DATA_FILE,
+    NATIVE_INSTALL_DIR,
+    NATIVE_HOSTFILE,
     run_kubectl_cmd,
     get_pod_names_ips,
 )
 
-LAMMPS_CMDLINE = "-in faasm://lammps-data/in.controller"
+LAMMPS_NATIVE_BINARY = join(NATIVE_INSTALL_DIR, "bin", "lmp")
+LAMMPS_NATIVE_CMDLINE = "-in {}".format(LAMMPS_DATA_FILE)
+
+LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
 NUM_PROCS = [1, 2, 4]
 
@@ -76,7 +82,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
             msg = {
                 "user": FAASM_USER,
                 "function": FAASM_FUNC,
-                "cmdline": LAMMPS_CMDLINE,
+                "cmdline": LAMMPS_WASM_CMDLINE,
                 "mpi_world_size": np,
             }
             print("Posting to {}".format(url))
@@ -100,7 +106,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
     Run the experiment natively on OpenMPI
     """
-    result_file = join(RESULTS_DIR, "lammps_wasm.csv")
+    result_file = join(RESULTS_DIR, "lammps_native.csv")
     init_csv_file(result_file)
 
     if nprocs:
@@ -118,12 +124,22 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
         for _ in range(repeats):
             start = time.time()
 
+            mpirun_cmd = [
+                "mpirun",
+                "-np",
+                np,
+                "-hostfile",
+                NATIVE_HOSTFILE,
+                LAMMPS_NATIVE_BINARY,
+                LAMMPS_NATIVE_CMDLINE,
+            ]
+            mpirun_cmd = " ".join(mpirun_cmd)
+
             exec_cmd = [
                 "exec",
                 master_pod,
                 "--",
-                "bash -c",
-                "\"su mpirun -c '/home/mpirun/all.py'\"",
+                "\"su mpirun -c '{}'\"".format(mpirun_cmd),
             ]
             exec_output = run_kubectl_cmd(" ".join(exec_cmd))
 

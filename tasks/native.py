@@ -4,6 +4,7 @@ from tasks.util import (
     NATIVE_BUILD_DIR,
     LAMMPS_DIR,
     NATIVE_INSTALL_DIR,
+    NATIVE_HOSTFILE,
     clean_dir,
     run_kubectl_cmd,
     get_pod_names_ips,
@@ -94,7 +95,7 @@ def hostfile(ctx):
     # SCP the hostfile to all hosts
     for pod_name in pod_names:
         run_kubectl_cmd(
-            "cp {} {}:/home/mpirun/hostfile".format(
-                HOSTFILE_LOCAL_FILE, pod_name
+            "cp {} {}:{}".format(
+                HOSTFILE_LOCAL_FILE, pod_name, NATIVE_HOSTFILE
             )
         )
