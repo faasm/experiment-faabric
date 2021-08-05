@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       run: faasm-mpi-native
-  replicas: 5
+  replicas: 3
   template:
     metadata:
       name: mpi-worker
@@ -18,14 +18,3 @@ spec:
         - name: mpi-worker
           image: faasm/experiment-lammps:0.0.1
           imagePullPolicy: Always
-          imagePullPolicy: IfNotPresent
-          affinity:
-          podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: run
-                operator: In
-                values:
-                  - faasm-mpi-native
-            topologyKey: "kubernetes.io/hostname"

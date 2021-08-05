@@ -45,19 +45,31 @@ inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 
 ## Running natively
 
-The native experiment has to use a "proper" MPI deployment.
-
-The scripts to do this should be run outside the container, with `kubectl`
-available to access your K8s cluster.
-
-To set up the MPI deployment:
+The native experiment has to use OpenMPI in the K8s cluster. To deploy this we
+can run:
 
 ```bash
-./run/native_deploy.sh
+# Local
+inv mpi.deploy --local
+
+# Remote
+inv mpi.deploy
 ```
 
-To then execute the experiments
+Check the deployment with `kubectl`:
 
 ```bash
-./run/native.sh
+kubectl -n faasm-mpi-native get deployments
+```
+
+Once ready, we can template the MPI host file on all the containers:
+
+```bash
+inv mpi.hostfile
+```
+
+We can then execute the experiment natively with:
+
+```bash
+inv run.native
 ```

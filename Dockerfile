@@ -28,20 +28,21 @@ RUN echo 'root:mpirun' | chpasswd
 COPY ./ssh/sshd_config /etc/ssh/sshd_config
 
 # Generate a key to be used by all hosts
+WORKDIR /home/mpirun/.ssh
 RUN ssh-keygen -b 2048 -t rsa -f /home/mpirun/.ssh/id_rsa -q -N ""
 
 # Copy into authorized keys
-WORKDIR /home/mpirun/.ssh
-COPY ./ssh/id_rsa.mpi.pub authorized_keys
+RUN cp id_rsa.pub authorized_keys
 
 # Copy SSH config into place
-COPY ssh/config /home/mpirun/.ssh/config
+COPY ssh/config config
 
 # Set up perms on SSH files
-RUN chmod -R 600 /home/mpirun/.ssh*
-RUN chmod 700 /home/mpirun/.ssh
-RUN chmod 644 /home/mpirun/.ssh/id_rsa.pub
-RUN chown -R mpirun:mpirun /home/mpirun/.ssh
+WORKDIR /home/mpirun
+RUN chmod -R 600 .ssh
+RUN chmod 700 .ssh
+RUN chmod 644 .ssh/id_rsa.pub
+RUN chown -R mpirun:mpirun .ssh
 
 # -------------------------------
 # EXPERIMENT CODE SETUP

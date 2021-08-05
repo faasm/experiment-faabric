@@ -26,12 +26,32 @@ def write_result_line(csv_path, n_procs, reported, actual):
         out_file.write("{},{},{}\n".format(n_procs, reported, actual))
 
 
+def process_lammps_result(lammps_output, actual_time, result_file, num_procs):
+    reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
+
+    if len(reported_time) != 1:
+        print(
+            "Did not find one reported time in output. Got {} matches from: \n{}".format(
+                len(reported_time), lammps_output
+            )
+        )
+        exit(1)
+
+    reported_time = reported_time[0].split(":")
+    reported_time = (
+        int(reported_time[0]) * 3600
+        + int(reported_time[1]) * 60
+        + int(reported_time[2])
+    )
+
+    write_result_line(result_file, num_procs, reported_time, actual_time)
+
+
 @task
 def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
     Run the experiment on Faasm
     """
-    results = {}
     result_file = join(RESULTS_DIR, "lammps_wasm.csv")
     init_csv_file(result_file)
 
@@ -43,8 +63,6 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
-        if np not in results:
-            results[np] = []
         for _ in range(repeats):
             start = time.time()
 
@@ -70,23 +88,23 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
             actual_time = math.ceil((end - start) / 60)
             print("Elapsed mins: {}".format(actual_time))
 
-            reported_time = re.findall(
-                "Total wall time: ([0-9:]*)", response.text
-            )
+            process_lammps_result(response.text, actual_time, result_file, np)
 
-            if len(reported_time) != 1:
-                print(
-                    "Did not find one reported time in output. Got {} matches from: \n{}".format(
-                        len(reported_time), response.text
-                    )
-                )
-                exit(1)
 
-            reported_time = reported_time[0].split(":")
-            reported_time = (
-                int(reported_time[0]) * 3600
-                + int(reported_time[1]) * 60
-                + int(reported_time[2])
-            )
+@task
+def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+    """
+    Run the experiment natively on OpenMPI
+    """
+    result_file = join(RESULTS_DIR, "lammps_wasm.csv")
+    init_csv_file(result_file)
 
-            write_result_line(result_file, np, reported_time, actual_time)
+    if nprocs:
+        num_procs = [nprocs]
+    else:
+        num_procs = NUM_PROCS
+
+    for np in num_procs:
+        print("Running natively with {} MPI processes".format(np))
+
+    # TODO - fill in native run code
