@@ -1,29 +1,75 @@
-# Faasm Experiments - LAMMPS
+# LAMMPS experiment
 
-LAMMPS is a framweork for efficiently computing short-range molecular dynamics.
-It is an MPI only project but can also be run in a OpenMP-MPI hybrid fashion.
+The Faasm fork of LAMMPS can be found [here](https://github.com/faasm/lammps),
+with original source [here](https://lammps.sandia.gov/).
 
-The original source code can be found [here](https://lammps.sandia.gov/).
-There's also a Faasm specific fork with the updated compilation toolchain
-[here](https://github.com/faasm/lammps), change branch to `faasm`.
+This project runs inside the container defined in this repo. To run it:
 
-## Quick start
-
-This tutorial assumes that this repository is cloned as a submodule of
-[faasm/experiment-base](https://github.com/faasm/experiment-base).
-Additionally, you need to activate the virtual environment in `experiment-base`.
-
-Then, you can first build the experiment container:
 ```bash
-./bin/build_container.sh
+./bin/cli.sh
 ```
 
-And run the experiments via:
+## Running on Faasm
+
+To upload the data you can run:
+
 ```bash
-./run/native.sh
-./run/faasm.py
+# Local
+inv data.upload --local
+
+# Remote
+inv data.upload --host <faasm_upload_host>
 ```
 
-Both will populate result files in `./experiment-base/results/lammps`, where you
-may also plot them.
+You can build the code with:
 
+```bash
+inv wasm
+```
+
+and upload with:
+
+```bash
+# Local
+inv wasm.upload --local
+
+# Remote
+inv wasm.upload --host <faasm_upload_host>
+```
+
+To run it:
+
+```bash
+inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+```
+
+## Running natively
+
+The native experiment has to use OpenMPI in the K8s cluster. To deploy this we
+can run:
+
+```bash
+# Local
+inv native.deploy --local
+
+# Remote
+inv native.deploy
+```
+
+Check the deployment with `kubectl`:
+
+```bash
+kubectl -n faasm-mpi-native get deployments
+```
+
+Once ready, we can template the MPI host file on all the containers:
+
+```bash
+inv native.hostfile
+```
+
+We can then execute the experiment natively with:
+
+```bash
+inv run.native
+```

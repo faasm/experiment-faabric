@@ -1,0 +1,13 @@
+build/
+results/
+hostfile
+
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# Kubernetes
+.kube/
+
