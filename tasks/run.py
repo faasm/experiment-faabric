@@ -29,20 +29,24 @@ KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 def init_csv_file(csv_path):
     makedirs(RESULTS_DIR, exist_ok=True)
     with open(csv_path, "w") as out_file:
-        out_file.write("WorldSize,Reported,Actual\n")
+        out_file.write("WorldSize,Run,Reported,Actual\n")
 
 
-def write_result_line(csv_path, n_procs, reported, actual):
+def write_result_line(csv_path, n_procs, run_num, reported, actual):
     with open(csv_path, "a") as out_file:
-        out_file.write("{},{},{:.2f}\n".format(n_procs, reported, actual))
+        out_file.write(
+            "{},{},{},{:.2f}\n".format(n_procs, run_num, reported, actual)
+        )
 
 
-def process_lammps_result(lammps_output, actual_time, result_file, num_procs):
+def process_lammps_result(
+    lammps_output, result_file, num_procs, run_num, actual_time
+):
     reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
 
     if len(reported_time) != 1:
         print(
-            "Did not find one reported time in output. Got {} matches from: \n{}".format(
+            "Did not find single time in output. Got {} matches from: \n{}".format(
                 len(reported_time), lammps_output
             )
         )
@@ -55,7 +59,9 @@ def process_lammps_result(lammps_output, actual_time, result_file, num_procs):
         + int(reported_time[2])
     )
 
-    write_result_line(result_file, num_procs, reported_time, actual_time)
+    write_result_line(
+        result_file, num_procs, run_num, reported_time, actual_time
+    )
 
 
 @task
@@ -74,7 +80,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
-        for _ in range(repeats):
+        for run_num in range(repeats):
             start = time.time()
 
             url = "http://{}:{}".format(host, port)
@@ -97,7 +103,9 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
-            process_lammps_result(response.text, actual_time, result_file, np)
+            process_lammps_result(
+                response.text, result_file, np, run_num, actual_time
+            )
 
 
 @task
@@ -120,7 +128,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
         print("Running natively with {} MPI processes".format(np))
         print("Chosen pod {} as master".format(master_pod))
 
-        for _ in range(repeats):
+        for run_num in range(repeats):
             start = time.time()
 
             mpirun_cmd = [
@@ -143,4 +151,6 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
-            process_lammps_result(exec_output, actual_time, result_file, np)
+            process_lammps_result(
+                exec_output, result_file, np, run_num, actual_time
+            )
