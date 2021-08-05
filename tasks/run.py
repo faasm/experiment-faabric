@@ -101,6 +101,8 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 )
                 exit(1)
 
+            print(response.text)
+
             end = time.time()
             actual_time = end - start
             _process_lammps_result(
