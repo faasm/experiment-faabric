@@ -135,19 +135,16 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
 def _validate_function(func, np):
     if func not in PRK_CMDLINE:
         print("Invalid PRK function {}".format(func))
-        return 1
+        exit(1)
 
-        if func == "random" and not is_power_of_two(np):
-            print("Must have a power of two number of processes for random")
-            exit(1)
-        elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
-            print("To run sparse, grid size must be a multiple of --np")
-            print(
-                "Currently grid_size={} and np={})".format(
-                    SPARSE_GRID_SIZE, np
-                )
-            )
-            exit(1)
+    if func == "random" and not is_power_of_two(np):
+        print("Must have a power of two number of processes for random")
+        exit(1)
+
+    elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
+        print("To run sparse, grid size must be a multiple of --np")
+        print("Currently grid_size={} and np={})".format(SPARSE_GRID_SIZE, np))
+        exit(1)
 
 
 @task
@@ -158,8 +155,6 @@ def wasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
-    start = time.time()
-    # results are in seconds
     for func in PRK_STATS:
         for np in num_procs:
             for run_num in range(repeats):
