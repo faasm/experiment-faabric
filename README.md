@@ -1,52 +1,83 @@
-# LAMMPS experiment
+# MPI Experiments
+
+This repo contains two MPI-based experiments, using
+[LAMMPS](https://lammps.sandia.gov/) and the
+[ParRes Kernels](https://github.com/ParRes/Kernels).
 
 The Faasm fork of LAMMPS can be found [here](https://github.com/faasm/lammps),
-with original source [here](https://lammps.sandia.gov/).
+and of ParRes Kernels [here](https://github.com/faasm/Kernels).
 
-This project runs inside the container defined in this repo. To run it:
+This project runs inside one of two containers defined in this repo:
 
 ```bash
-./bin/cli.sh
+# LAMMPS
+./bin/cli.sh lammps
+
+# Kernels
+./bin/cli.sh kernels
 ```
 
-## Running on Faasm
+## Running LAMMPS on Faasm
 
 To upload the data you can run:
 
 ```bash
 # Local
-inv data.upload --local
+inv lammps.data.upload --local
 
 # Remote
-inv data.upload --host <faasm_upload_host>
+inv lammps.data.upload --host <faasm_upload_host>
 ```
 
 You can build the code with:
 
 ```bash
-inv wasm
+inv lammps.wasm
 ```
 
 and upload with:
 
 ```bash
 # Local
-inv wasm.upload --local
+inv lammps.wasm.upload --local
 
 # Remote
-inv wasm.upload --host <faasm_upload_host>
+inv lammps.wasm.upload --host <faasm_upload_host>
 ```
 
 To run it:
 
 ```bash
-inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+```
+
+## Running Kernels on Faasm
+
+You can build the code with:
+
+```basn
+inv kernels.wasm
+```
+
+and upload with:
+
+```bash
+# Local
+inv kernels.wasm.upload --local
+
+# Remote
+inv kernels.wasm.upload --host <faasm_upload_host>
+```
+
+To run it:
+
+```bash
+inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 ```
 
 ## Running natively
 
-The native experiment has to use OpenMPI in the K8s cluster. To deploy this we
-can run:
+Both native experiments use OpenMPI in a K8s cluster. To deploy this we can run:
 
 ```bash
 # Local
@@ -68,8 +99,12 @@ Once ready, we can template the MPI host file on all the containers:
 inv native.hostfile
 ```
 
-We can then execute the experiment natively with:
+We can then execute the experiments natively with:
 
 ```bash
-inv run.native
+# LAMMPS
+inv lammps.run.native
+
+# Kernels
+inv kernels.run.native
 ```
