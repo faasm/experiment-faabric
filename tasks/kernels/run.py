@@ -1,15 +1,13 @@
-#!/usr/bin/python3
 import math
 import re
 import sys
 import time
-
+from invoke import task
 from os.path import join
 from subprocess import check_output, DEVNULL
-from util.faasm import invoke_impl
 
+from tasks.util import KERNELS_FAASM_USER
 
-FAASM_USER = "prk"
 ITERATIONS = 20000
 SPARSE_GRID_SIZE_2LOG = 10
 SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
@@ -18,18 +16,24 @@ PRK_CMDLINE = {
     "dgemm": "{} 500 32 1".format(
         ITERATIONS
     ),  # iterations, matrix order, outer block size (?)
-    "nstream": "{} 2000000 0".format(ITERATIONS),  # iterations, vector length, offset
+    "nstream": "{} 2000000 0".format(
+        ITERATIONS
+    ),  # iterations, vector length, offset
     "random": "16 16",  # update ratio, table size
     "reduce": "{} 2000000".format(ITERATIONS),  # iterations, vector length
     "sparse": "{} {} 4".format(
         ITERATIONS, SPARSE_GRID_SIZE_2LOG
     ),  # iterations, log2 grid size, stencil radius
     "stencil": "{} 1000".format(ITERATIONS),  # iterations, array dimension
-    "global": "{} 10000".format(ITERATIONS),  # iterations, scramble string length
+    "global": "{} 10000".format(
+        ITERATIONS
+    ),  # iterations, scramble string length
     "p2p": "{} 1000 100".format(
         ITERATIONS
     ),  # iterations, 1st array dimension, 2nd array dimension
-    "transpose": "{} 2000 64".format(ITERATIONS),  # iterations, matrix order, tile size
+    "transpose": "{} 2000 64".format(
+        ITERATIONS
+    ),  # iterations, matrix order, tile size
 }
 
 PRK_NATIVE_BUILD = "/code/Kernels"
@@ -59,6 +63,9 @@ PRK_STATS = {
     "transpose": ("Rate (MB/s)", "Avg time (s)"),
 }
 
+MPI_RUN = "mpirun"
+HOSTFILE = "/home/mpirun/hostfile"
+
 
 def is_power_of_two(n):
     return math.ceil(log_2(n)) == math.floor(log_2(n))
@@ -71,7 +78,40 @@ def log_2(x):
     return math.log10(x) / math.log10(2)
 
 
-def invoke(func, np=1, native=False):
+@task
+def wasm(ctx):
+    procs = [1, 2, 4]
+    results = {}
+
+    start = time.time()
+    # results are in seconds
+    for func in PRK_STATS:
+        if func not in results:
+            results[func] = []
+        for np in procs:
+            results[func].append(invoke_faasm(func, np))
+
+    elapsed_mins = math.ceil((time.time() - start) / 60)
+    print(elapsed_mins)
+
+@task
+def native(ctx):
+    procs = [1, 2, 4]
+    results = {}
+
+    # results are in seconds
+    for func in PRK_STATS:
+        if func not in results:
+            results[func] = []
+        for np in procs:
+            results[func].append(invoke_native(func, np))
+
+    print(json.dumps(results))
+    with open("./results.dat", "w") as fh:
+        json.dump(results, fh)
+
+
+def invoke_faasm(func, np=1, native=False):
     """
     Invoke one of the ParRes Kernels functions
     """
@@ -93,7 +133,7 @@ def invoke(func, np=1, native=False):
         exit(1)
 
     cmd_out = invoke_impl(
-        FAASM_USER,
+        KERNELS_FAASM_USER,
         func,
         cmdline=cmdline,
         mpi_np=np,
@@ -103,6 +143,48 @@ def invoke(func, np=1, native=False):
 
     return 0
     # return _parse_prk_out(func, cmd_out)
+
+def invoke_native(func, np=8):
+    if func not in PRK_CMDLINE:
+        print("Invalid PRK function {}".format(func))
+        return 1
+
+    cmdline = PRK_CMDLINE[func]
+
+    if func == "random" and not is_power_of_two(np):
+        print("Must have a power of two number of processes for random")
+        exit(1)
+    elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
+        print(
+            "To run sparse, grid size must be a multiple of --np (currently grid_size={} and np={})".format(
+                SPARSE_GRID_SIZE, np
+            )
+        )
+        exit(1)
+
+    executable = PRK_NATIVE_EXECUTABLES[func]
+    cmd_out = mpi_run(executable, np=np, hostfile=HOSTFILE, cmdline=cmdline)
+    cmd_out = cmd_out.decode()
+    print(cmd_out)
+
+    return _parse_prk_out(func, cmd_out)
+
+
+def mpi_run(exe, np=1, hostfile=None, cmdline=None):
+    mpi_cmd = " ".join(
+        [
+            MPI_RUN,
+            "-np {}".format(np),
+            "-hostfile {}".format(hostfile) if hostfile else "",
+            exe,
+            cmdline if cmdline else "",
+        ]
+    )
+    print(mpi_cmd)
+    output = check_output(mpi_cmd, shell=True)
+
+    return output
+
 
 
 def _parse_prk_out(func, cmd_out):
@@ -129,19 +211,3 @@ def _parse_prk_out(func, cmd_out):
 
         if "ime" in stat:
             return stat_val
-
-
-if __name__ == "__main__":
-    # procs = [1, 2]
-    procs = [1, 2, 4]
-    results = {}
-
-    start = time.time()
-    # results are in seconds
-    for func in PRK_STATS:
-        if func not in results:
-            results[func] = []
-        for np in procs:
-            results[func].append(invoke(func, np))
-    elapsed_mins = math.ceil((time.time() - start) / 60)
-    print(elapsed_mins)
