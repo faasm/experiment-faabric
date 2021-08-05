@@ -1,9 +1,12 @@
 from invoke import task
 from os.path import join
+from os import makedirs
 from subprocess import run
+from shutil import copyfile
+import requests
 from sys import exit
 
-from tasks.util import PROJ_ROOT, WASM_DIR, FAASM_DIR
+from tasks.util import KERNELS_NATIVE_DIR, KERNELS_WASM_DIR, KERNELS_FAASM_USER
 
 MAKE_TARGETS = [
     ("MPI1/Synch_global", "global"),
@@ -18,19 +21,23 @@ MAKE_TARGETS = [
 ]
 
 
-@task(default=True)
-def build(ctx, mode, clean=False):
+@task
+def native(ctx, clean=False):
     """
-    Compile and install the ParRes kernels
+    Build native kernels
     """
-    if mode == "native":
-        src_dir = NATIVE_CODE_DIR
-    elif mode == "wasm":
-        src_dir = WASM_CODE_DIR
-    else:
-        print("ERROR: unknown mode `{}`".format(mode))
-        exit(1)
+    _do_build(KERNELS_NATIVE_DIR, clean)
 
+
+@task
+def wasm(ctx, clean=False):
+    """
+    Build kernels to wasm
+    """
+    _do_build(KERNELS_WASM_DIR, clean)
+
+
+def _do_build(src_dir, clean):
     if clean:
         run("make clean", shell=True, cwd=src_dir)
 
@@ -50,14 +57,29 @@ def build(ctx, mode, clean=False):
 
 
 @task
-def upload_wasm(ctx):
+def upload(ctx, host="localhost", port=8002, local=False):
     """
-    Upload wasm code in place
+    Upload the LAMMPS function to Faasm
     """
     for target in [t[1] for t in MAKE_TARGETS]:
-        wasm_src = join(WASM_DIR, "{}.wasm".format(target))
-        cmd = "inv -r faasmcli/faasmcli upload prk {} {}".format(
-            target, wasm_src
-        )
-        print(cmd)
-        run(cmd, shell=True, check=True, cwd=FAASM_DIR)
+        wasm_file = join(KERNELS_WASM_DIR, "{}.wasm".format(target))
+
+        if local:
+            dest_dir = "/usr/local/faasm/wasm/{}/{}".format(
+                KERNELS_FAASM_USER, target
+            )
+            makedirs(dest_dir, exist_ok=True)
+
+            dest_file = join(dest_dir, "function.wasm")
+
+            print("Copying {} to {}".format(wasm_file, dest_file))
+            copyfile(wasm_file, dest_file)
+        else:
+            url = "http://{}:{}/f/{}/{}".format(
+                host, port, KERNELS_FAASM_USER, target
+            )
+            print("Putting function to {}".format(url))
+            response = requests.put(url, data=open(wasm_file, "rb"))
+            print(
+                "Response {}: {}".format(response.status_code, response.text)
+            )

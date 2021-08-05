@@ -8,8 +8,8 @@ from invoke import task
 
 from tasks.util import (
     RESULTS_DIR,
-    FAASM_USER,
-    FAASM_FUNC,
+    LAMMPS_FAASM_USER,
+    LAMMPS_FAASM_FUNC,
     DOCKER_LAMMPS_BINARY,
     DOCKER_LAMMPS_DATA_FILE,
     NATIVE_HOSTFILE,
@@ -85,8 +85,8 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             url = "http://{}:{}".format(host, port)
             msg = {
-                "user": FAASM_USER,
-                "function": FAASM_FUNC,
+                "user": LAMMPS_FAASM_USER,
+                "function": LAMMPS_FAASM_FUNC,
                 "cmdline": LAMMPS_WASM_CMDLINE,
                 "mpi_world_size": np,
             }

@@ -69,17 +69,17 @@ inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 You can build the code with:
 
 ```basn
-inv kernels.wasm
+inv kernels.build.wasm
 ```
 
 and upload with:
 
 ```bash
 # Local
-inv kernels.wasm.upload --local
+inv kernels.build.upload --local
 
 # Remote
-inv kernels.wasm.upload --host <faasm_upload_host>
+inv kernels.build.upload --host <faasm_upload_host>
 ```
 
 To run it:
@@ -94,10 +94,10 @@ Both native experiments use OpenMPI in a K8s cluster. To deploy this we can run:
 
 ```bash
 # Local
-inv native.deploy --local
+inv openmpi.deploy --local
 
 # Remote
-inv native.deploy
+inv openmpi.deploy
 ```
 
 Check the deployment with `kubectl`:
@@ -109,7 +109,7 @@ kubectl -n faasm-mpi-native get deployments
 Once ready, we can template the MPI host file on all the containers:
 
 ```bash
-inv native.hostfile
+inv openmpi.hostfile
 ```
 
 We can then execute the experiments natively with:

@@ -1,29 +1,31 @@
 from invoke import task
-from tasks.util import PROJ_ROOT, get_experiments_base_version
 from os import environ
+from os.path import join
 from copy import copy
 from subprocess import run
 
-IMAGE_NAME = "experiment-kernels"
+from tasks.util import get_docker_tag, push_docker_image, PROJ_ROOT
+
+KERNELS_IMAGE_NAME = "experiment-kernels"
+KERNELS_DOCKERFILE = join(PROJ_ROOT, "docker", "kernels.dockerfile")
 
 
 @task(default=True)
 def build(ctx, nocache=False, push=False):
     """
-    Build the kernels experiment image
+    Build the container image used for kernels experiment
     """
     shell_env = copy(environ)
     shell_env["DOCKER_BUILDKIT"] = "1"
-
-    ver = get_experiments_base_version()
-    img_tag = "faasm/{}:{}".format(IMAGE_NAME, ver)
+    img_tag = get_docker_tag(KERNELS_IMAGE_NAME)
 
     cmd = [
         "docker",
         "build",
+        "-f {}".format(KERNELS_DOCKERFILE),
         "--no-cache" if nocache else "",
         "-t {}".format(img_tag),
-        PROJ_ROOT,
+        ".",
     ]
 
     cmd_str = " ".join(cmd)
@@ -31,4 +33,13 @@ def build(ctx, nocache=False, push=False):
     run(cmd_str, shell=True, check=True, cwd=PROJ_ROOT)
 
     if push:
-        run("docker push {}".format(img_tag), check=True, shell=True)
+        push_docker_image(img_tag)
+
+
+@task
+def push(ctx):
+    """
+    Push the kernels container image
+    """
+    img_tag = get_docker_tag(KERNELS_IMAGE_NAME)
+    push_docker_image(img_tag)

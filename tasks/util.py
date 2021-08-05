@@ -32,8 +32,10 @@ WASM_INSTALL_DIR = join(PROJ_ROOT, "build", "wasm-install")
 
 EXPERIMENTS_BASE_DIR = dirname(dirname(PROJ_ROOT))
 
-FAASM_USER = "lammps"
-FAASM_FUNC = "main"
+LAMMPS_FAASM_USER = "lammps"
+LAMMPS_FAASM_FUNC = "main"
+
+KERNELS_FAASM_USER = "prk"
 
 IS_DOCKER = HOME_DIR.startswith("/root")
 

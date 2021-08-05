@@ -38,7 +38,7 @@ def build(ctx, nocache=False, push=False):
 @task
 def push(ctx):
     """
-    Push the container image
+    Push the LAMMPS container image
     """
     img_tag = get_docker_tag(LAMMPS_IMAGE_NAME)
     push_docker_image(img_tag)
