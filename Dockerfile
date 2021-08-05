@@ -53,9 +53,6 @@ WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-lammps
 WORKDIR /code/experiment-lammps
 
-# TODO - remove this, assume master
-RUN git checkout updates-0308
-
 RUN git submodule update --init
 
 # Install Python deps

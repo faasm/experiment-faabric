@@ -7,6 +7,15 @@ from subprocess import run
 IMAGE_NAME = "experiment-lammps"
 
 
+def _get_tag():
+    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
+    return img_tag
+
+
+def _push_image(img_tag):
+    run("docker push {}".format(img_tag), check=True, shell=True)
+
+
 @task(default=True)
 def build(ctx, nocache=False, push=False):
     """
@@ -30,15 +39,6 @@ def build(ctx, nocache=False, push=False):
 
     if push:
         _push_image(img_tag)
-
-
-def _get_tag():
-    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
-    return img_tag
-
-
-def _push_image(img_tag):
-    run("docker push {}".format(img_tag), check=True, shell=True)
 
 
 @task

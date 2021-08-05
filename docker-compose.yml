@@ -9,5 +9,4 @@ services:
     tty: true
     network_mode: host
     volumes:
-      - ${FAASM_LOCAL_DIR}:/usr/local/faasm
       - .:/code/experiment-lammps

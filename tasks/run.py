@@ -26,27 +26,27 @@ NUM_PROCS = [1, 2, 3, 4, 5]
 KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
 
-def init_csv_file(csv_path):
+def _init_csv_file(csv_path):
     makedirs(RESULTS_DIR, exist_ok=True)
     with open(csv_path, "w") as out_file:
         out_file.write("WorldSize,Run,Reported,Actual\n")
 
 
-def write_result_line(csv_path, n_procs, run_num, reported, actual):
+def _write_result_line(csv_path, n_procs, run_num, reported, actual):
     with open(csv_path, "a") as out_file:
         out_file.write(
             "{},{},{},{:.2f}\n".format(n_procs, run_num, reported, actual)
         )
 
 
-def process_lammps_result(
+def _process_lammps_result(
     lammps_output, result_file, num_procs, run_num, actual_time
 ):
     reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
 
     if len(reported_time) != 1:
         print(
-            "Did not find single time in output. Got {} matches from: \n{}".format(
+            "Got {} matches for reported time, expected 1 from: \n{}".format(
                 len(reported_time), lammps_output
             )
         )
@@ -59,7 +59,7 @@ def process_lammps_result(
         + int(reported_time[2])
     )
 
-    write_result_line(
+    _write_result_line(
         result_file, num_procs, run_num, reported_time, actual_time
     )
 
@@ -70,7 +70,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     Run the experiment on Faasm
     """
     result_file = join(RESULTS_DIR, "lammps_wasm.csv")
-    init_csv_file(result_file)
+    _init_csv_file(result_file)
 
     if nprocs:
         num_procs = [nprocs]
@@ -103,7 +103,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
-            process_lammps_result(
+            _process_lammps_result(
                 response.text, result_file, np, run_num, actual_time
             )
 
@@ -114,7 +114,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     Run the experiment natively on OpenMPI
     """
     result_file = join(RESULTS_DIR, "lammps_native.csv")
-    init_csv_file(result_file)
+    _init_csv_file(result_file)
 
     if nprocs:
         num_procs = [nprocs]
@@ -147,10 +147,10 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 "su mpirun -c '{}'".format(mpirun_cmd),
             ]
             exec_output = run_kubectl_cmd(" ".join(exec_cmd))
-            print("MPI RUN: {}".format(exec_output))
+            print(exec_output)
 
             end = time.time()
             actual_time = end - start
-            process_lammps_result(
+            _process_lammps_result(
                 exec_output, result_file, np, run_num, actual_time
             )
