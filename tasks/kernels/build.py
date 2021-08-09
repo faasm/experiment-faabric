@@ -4,7 +4,6 @@ from os import makedirs
 from subprocess import run
 from shutil import copyfile
 import requests
-from sys import exit
 
 from tasks.util import KERNELS_NATIVE_DIR, KERNELS_WASM_DIR, KERNELS_FAASM_USER
 

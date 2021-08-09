@@ -66,7 +66,7 @@ def clean_dir(dir_path, clean):
 
 
 def run_kubectl_cmd(cmd):
-    kubecmd = "kubectl -n faasm-mpi-native {}".format(cmd)
+    kubecmd = "kubectl -n faasm-openmpi {}".format(cmd)
     print(kubecmd)
     res = run(
         kubecmd,

@@ -106,6 +106,8 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 response.text, result_file, np, run_num, actual_time
             )
 
+    print("Results written to {}".format(result_file))
+
 
 @task
 def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):

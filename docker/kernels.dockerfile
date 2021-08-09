@@ -13,7 +13,7 @@ RUN git submodule update --init
 RUN pip3 install -r requirements.txt
 
 # Compile to wasm
-RUN inv kernels.wasm
+RUN inv kernels.build.wasm
 
 # Compile natively
-RUN inv kernels.native
+RUN inv kernels.build.native

@@ -61,8 +61,6 @@ def deploy(ctx, local=False):
     """
     Deploy the native MPI setup to K8s
     """
-    deploy_yml = "deployment-local.yml" if local else "deployment.yml"
-
     run(
         "kubectl apply -f k8s/namespace.yml",
         shell=True,
@@ -70,7 +68,7 @@ def deploy(ctx, local=False):
     )
 
     run(
-        "kubectl apply -f k8s/{}".format(deploy_yml),
+        "kubectl apply -f k8s/deployment.yml",
         shell=True,
         check=True,
     )

@@ -44,5 +44,8 @@ RUN chmod 700 .ssh
 RUN chmod 644 .ssh/id_rsa.pub
 RUN chown -R mpirun:mpirun .ssh
 
-COPY ssh/start_sshd.sh /start_sshd.sh
-CMD /start_sshd.sh
+EXPOSE 22
+
+COPY ssh/sshd_wrapper.sh /sshd_wrapper.sh
+COPY ssh/start.sh /start.sh
+ENTRYPOINT "/start.sh"
