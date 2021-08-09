@@ -9,7 +9,7 @@ LAMMPS_DATA_FILE = join(
 LAMMPS_IMAGE_NAME = "experiment-lammps"
 LAMMPS_DOCKERFILE = join(PROJ_ROOT, "docker", "lammps.dockerfile")
 
-DOCKER_PROJ_ROOT = "/code/experiment-lammps"
+DOCKER_PROJ_ROOT = "/code/experiment-mpi"
 DOCKER_LAMMPS_DIR = join(DOCKER_PROJ_ROOT, "third-party", "lammps")
 DOCKER_NATIVE_INSTALL_DIR = join(DOCKER_PROJ_ROOT, "build", "native-install")
 DOCKER_LAMMPS_BINARY = join(DOCKER_NATIVE_INSTALL_DIR, "bin", "lmp")

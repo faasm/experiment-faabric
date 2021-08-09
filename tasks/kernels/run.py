@@ -6,7 +6,7 @@ from os import makedirs
 from invoke import task
 from os.path import join
 
-from tasks.util import (
+from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
 )
@@ -47,8 +47,7 @@ PRK_CMDLINE = {
     ),  # iterations, matrix order, tile size
 }
 
-PRK_NATIVE_BUILD = "/code/Kernels"
-FAASM_WORKING_DIR = "/usr/local/code/faasm"
+PRK_NATIVE_BUILD = "/code/experiment-mpi/third-party/kernels-native"
 
 PRK_NATIVE_EXECUTABLES = {
     "dgemm": join(PRK_NATIVE_BUILD, "MPI1", "DGEMM", "dgemm"),
@@ -65,7 +64,7 @@ PRK_NATIVE_EXECUTABLES = {
 PRK_STATS = {
     # "dgemm": ("Avg time (s)", "Rate (MFlops/s)"),
     "nstream": ("Avg time (s)", "Rate (MB/s)"),
-    # "random": ("Rate (GUPS/s)", "Time (s)"),
+    "random": ("Rate (GUPS/s)", "Time (s)"),
     "reduce": ("Rate (MFlops/s)", "Avg time (s)"),
     "sparse": ("Rate (MFlops/s)", "Avg time (s)"),
     "stencil": ("Rate (MFlops/s)", "Avg time (s)"),
@@ -79,7 +78,7 @@ HOSTFILE = "/home/mpirun/hostfile"
 
 
 def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "lammps")
+    result_dir = join(RESULTS_DIR, "kernels")
     makedirs(result_dir, exist_ok=True)
 
     result_file = join(result_dir, csv_name)
@@ -108,22 +107,22 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
         print("No stats for {}".format(kernel))
         return
 
-    print("----- {} stats -----".format(kernel))
-
     for stat in stats:
-        split_str = "{}: ".format(stat)
-        stat_val = [c for c in kernels_out.split(split_str) if c.strip()]
-        if not stat_val:
-            print("{} = MISSING".format(stat))
-            continue
+        stat_parts = kernels_out.split(stat)
+        stat_parts = [s for s in stat_parts if s.strip()]
+        if len(stat_parts) != 2:
+            print(
+                "Could not find stat {} for kernel {} in output".format(
+                    stat, kernel
+                )
+            )
+            exit(1)
 
-        stat_val = stat_val[1]
-        stat_val = re.split("\s+", stat_val)[0]
-        stat_val = stat_val.rstrip(",")
+        expected_part = stat_parts[1]
+        stat_val = re.findall(": ([0-9\.]*)".format(stat), kernels_out)
+        stat_val = stat_val[0].strip()
         stat_val = float(stat_val)
-
-        if "ime" in stat:
-            return stat_val
+        print("Got {} = {} for {}".format(stat, stat_val, kernel))
 
         with open(result_file, "a") as out_file:
             out_file.write(
@@ -133,38 +132,47 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
             )
 
 
-def _validate_function(func, np):
-    if func not in PRK_CMDLINE:
-        print("Invalid PRK function {}".format(func))
+def _validate_kernel(kernel, np):
+    if kernel not in PRK_CMDLINE:
+        print("Invalid PRK function {}".format(kernel))
         exit(1)
 
-    if func == "random" and not is_power_of_two(np):
+    if kernel == "random" and not is_power_of_two(np):
         print("Must have a power of two number of processes for random")
         exit(1)
 
-    elif func == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
+    elif kernel == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
         print("To run sparse, grid size must be a multiple of --np")
         print("Currently grid_size={} and np={})".format(SPARSE_GRID_SIZE, np))
         exit(1)
 
 
 @task
-def wasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def wasm(
+    ctx, host="localhost", port=8080, repeats=1, nprocs=None, kernel=None
+):
     result_file = _init_csv_file("kernels_wasm.csv")
     if nprocs:
         num_procs = [nprocs]
     else:
         num_procs = NUM_PROCS
 
-    for func in PRK_STATS:
+    if kernel:
+        kernels = [kernel]
+    else:
+        kernels = PRK_STATS.keys()
+
+    for kernel in kernels:
         for np in num_procs:
+            np = int(np)
+            _validate_kernel(kernel, np)
             for run_num in range(repeats):
 
-                cmdline = PRK_CMDLINE[func]
+                cmdline = PRK_CMDLINE[kernel]
                 url = "http://{}:{}".format(host, port)
                 msg = {
                     "user": KERNELS_FAASM_USER,
-                    "function": func,
+                    "function": kernel,
                     "cmdline": cmdline,
                     "mpi_world_size": np,
                 }
@@ -180,12 +188,14 @@ def wasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                     exit(1)
 
                 _process_kernels_result(
-                    response.text, result_file, func, np, run_num
+                    response.text, result_file, kernel, np, run_num
                 )
 
 
 @task
-def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def native(
+    ctx, host="localhost", port=8080, repeats=1, nprocs=None, kernel=None
+):
     result_file = _init_csv_file("kernels_native.csv")
 
     if nprocs:
@@ -196,13 +206,19 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     pod_names, pod_ips = get_pod_names_ips("kernels")
     master_pod = pod_names[0]
 
-    for func in PRK_STATS:
+    if kernel:
+        kernels = [kernel]
+    else:
+        kernels = PRK_STATS.keys()
+
+    for kernel in kernels:
         for np in num_procs:
             for run_num in range(repeats):
-                _validate_function(func, np)
+                np = int(np)
+                _validate_kernel(kernel, np)
 
-                cmdline = PRK_CMDLINE[func]
-                executable = PRK_NATIVE_EXECUTABLES[func]
+                cmdline = PRK_CMDLINE[kernel]
+                executable = PRK_NATIVE_EXECUTABLES[kernel]
                 mpirun_cmd = [
                     "mpirun",
                     "-np {}".format(np),
@@ -222,5 +238,5 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 print(exec_output)
 
                 _process_kernels_result(
-                    exec_output, result_file, func, np, run_num
+                    exec_output, result_file, kernel, np, run_num
                 )

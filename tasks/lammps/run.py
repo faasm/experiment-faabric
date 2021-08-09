@@ -71,7 +71,7 @@ def _process_lammps_result(
 @task
 def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
-    Run the experiment on Faasm
+    Run LAMMPS experiment on Faasm
     """
     result_file = _init_csv_file("lammps_wasm.csv")
 
@@ -116,7 +116,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 @task
 def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
-    Run the experiment natively on OpenMPI
+    Run LAMMPS experiment on OpenMPI
     """
     result_file = _init_csv_file("lammps_native.csv")
 

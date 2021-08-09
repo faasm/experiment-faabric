@@ -88,52 +88,68 @@ virtual environment:
 inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 ```
 
-## Running natively
+## Running LAMMPS on OpenMPI
 
-Both native experiments use OpenMPI in a K8s cluster. To deploy this we can run
-the following using the `experiment-base` environment:
+To deploy (using the `experiment-base` environment):
 
 ```bash
-# Local
-inv openmpi.deploy --local
-
-# Remote
-inv openmpi.deploy
+inv lammps.native.deploy
 ```
 
 Wait for all the containers to become ready. Check with:
 
 ```bash
-kubectl -n faasm-openmpi get deployments --watch
-```
-
-If there are any issues, check logs with:
-
-```bash
-kubectl -n faasm-openmpi get pods
-kubectl -n faasm-openmpi describe deployment/<deployment_name>
+kubectl -n openmpi-lammps get deployments --watch
 ```
 
 Once ready, we can template the MPI host file on all the containers:
 
 ```bash
-inv openmpi.hostfile
+inv lammps.native.hostfile
 ```
 
 Execute with:
 
 ```bash
-# LAMMPS
 inv lammps.run.native
+```
 
-# Kernels
+Once finished, you can remove the OpenMPI deployment with:
+
+```bash
+inv lammps.native.delete
+```
+
+## Running Kernels on OpenMPI
+
+To deploy (using the `experiment-base` environment):
+
+```bash
+inv kernels.native.deploy
+```
+
+Wait for all the containers to become ready. Check with:
+
+```bash
+kubectl -n openmpi-kernels get deployments --watch
+```
+
+Once ready, we can template the MPI host file on all the containers:
+
+```bash
+inv kernels.native.hostfile
+```
+
+Execute with:
+
+```bash
 inv kernels.run.native
 ```
 
 Once finished, you can remove the OpenMPI deployment with:
 
 ```bash
-inv openmpi.delete
+inv kernels.native.delete
 ```
 
 ## Rebuilding containers
