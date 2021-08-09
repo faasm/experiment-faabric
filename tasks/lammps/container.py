@@ -1,12 +1,11 @@
 from invoke import task
-from tasks.util import PROJ_ROOT, get_docker_tag, push_docker_image
 from os import environ
 from os.path import join
 from copy import copy
 from subprocess import run
 
-LAMMPS_IMAGE_NAME = "experiment-lammps"
-LAMMPS_DOCKERFILE = join(PROJ_ROOT, "docker", "lammps.dockerfile")
+from tasks.util.env import PROJ_ROOT, get_docker_tag, push_docker_image
+from tasks.lammps.env import LAMMPS_IMAGE_NAME, LAMMPS_DOCKERFILE
 
 
 @task(default=True)

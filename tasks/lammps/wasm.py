@@ -5,11 +5,10 @@ from os.path import join
 from os import makedirs
 from subprocess import run
 
-from tasks.util import (
-    WASM_BUILD_DIR,
+from tasks.util.env import WASM_BUILD_DIR, WASM_INSTALL_DIR, clean_dir
+
+from tasks.lammps.env import (
     LAMMPS_DIR,
-    WASM_INSTALL_DIR,
-    clean_dir,
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
 )

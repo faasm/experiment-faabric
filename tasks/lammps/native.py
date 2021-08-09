@@ -1,12 +1,21 @@
 from invoke import task
 from os.path import join
-from tasks.util import (
+from subprocess import run
+
+from tasks.util.env import (
     NATIVE_BUILD_DIR,
-    LAMMPS_DIR,
     NATIVE_INSTALL_DIR,
     clean_dir,
 )
-from subprocess import run
+from tasks.util.openmpi import (
+    deploy_native_mpi,
+    delete_native_mpi,
+    generate_native_mpi_hostfile,
+)
+from tasks.lammps.env import (
+    LAMMPS_IMAGE_NAME,
+    LAMMPS_DIR,
+)
 
 
 @task(default=True)
@@ -39,3 +48,27 @@ def build(ctx, clean=False, verbose=False):
     run("ninja", check=True, shell=True, cwd=NATIVE_BUILD_DIR)
 
     run("ninja install", check=True, shell=True, cwd=NATIVE_BUILD_DIR)
+
+
+@task
+def deploy(ctx, local=False):
+    """
+    Deploy the LAMMPS native MPI setup to K8s
+    """
+    deploy_native_mpi("lammps", LAMMPS_IMAGE_NAME)
+
+
+@task
+def delete(ctx):
+    """
+    Delete the LAMMPS native MPI setup from K8s
+    """
+    delete_native_mpi("lammps", LAMMPS_IMAGE_NAME)
+
+
+@task
+def hostfile(ctx):
+    """
+    Set up the LAMMPS native MPI hostfile
+    """
+    generate_native_mpi_hostfile("lammps")

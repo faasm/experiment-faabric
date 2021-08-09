@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: faasm-openmpi-deployment
+  namespace: openmpi-lammps
+spec:
+  selector:
+    matchLabels:
+      run: faasm-openmpi
+  replicas: 2
+  template:
+    metadata:
+      name: mpi-worker
+      labels:
+        run: faasm-openmpi
+    spec:
+      containers:
+        - name: mpi-worker
+          image: faasm/experiment-lammps:0.0.1
+          imagePullPolicy: Always
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: run
+                  operator: In
+                  values:
+                  - faasm-openmpi
+              topologyKey: kubernetes.io/hostname

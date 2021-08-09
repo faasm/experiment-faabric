@@ -4,10 +4,8 @@ from os.path import join
 from copy import copy
 from subprocess import run
 
-from tasks.util import get_docker_tag, push_docker_image, PROJ_ROOT
-
-KERNELS_IMAGE_NAME = "experiment-kernels"
-KERNELS_DOCKERFILE = join(PROJ_ROOT, "docker", "kernels.dockerfile")
+from tasks.util.env import get_docker_tag, push_docker_image, PROJ_ROOT
+from tasks.kernels.env import KERNELS_IMAGE_NAME, KERNELS_DOCKERFILE
 
 
 @task(default=True)

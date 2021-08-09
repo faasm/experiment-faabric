@@ -5,16 +5,20 @@ from os import makedirs
 from os.path import join
 from invoke import task
 
-from tasks.util import (
+from tasks.util.env import (
     RESULTS_DIR,
+    KNATIVE_HEADERS,
+)
+from tasks.util.openmpi import (
+    NATIVE_HOSTFILE,
+    get_pod_names_ips,
+    run_kubectl_cmd,
+)
+from tasks.lammps.env import (
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
     DOCKER_LAMMPS_BINARY,
-    KNATIVE_HEADERS,
     DOCKER_LAMMPS_DATA_FILE,
-    NATIVE_HOSTFILE,
-    run_kubectl_cmd,
-    get_pod_names_ips,
 )
 
 DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
@@ -121,7 +125,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
-    pod_names, pod_ips = get_pod_names_ips()
+    pod_names, pod_ips = get_pod_names_ips("lammps")
     master_pod = pod_names[0]
 
     for np in num_procs:
@@ -146,7 +150,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 "--",
                 "su mpirun -c '{}'".format(mpirun_cmd),
             ]
-            exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
             print(exec_output)
 
             end = time.time()

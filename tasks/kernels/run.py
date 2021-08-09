@@ -1,6 +1,5 @@
 import math
 import re
-import time
 import requests
 
 from os import makedirs
@@ -8,13 +7,15 @@ from invoke import task
 from os.path import join
 
 from tasks.util import (
-    KERNELS_FAASM_USER,
     RESULTS_DIR,
     KNATIVE_HEADERS,
+)
+from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
     get_pod_names_ips,
 )
+from tasks.kernels.env import KERNELS_FAASM_USER
 
 ITERATIONS = 20000
 SPARSE_GRID_SIZE_2LOG = 10
@@ -192,7 +193,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
-    pod_names, pod_ips = get_pod_names_ips()
+    pod_names, pod_ips = get_pod_names_ips("kernels")
     master_pod = pod_names[0]
 
     for func in PRK_STATS:
@@ -217,7 +218,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                     "--",
                     "su mpirun -c '{}'".format(mpirun_cmd),
                 ]
-                exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+                exec_output = run_kubectl_cmd("kernels", " ".join(exec_cmd))
                 print(exec_output)
 
                 _process_kernels_result(

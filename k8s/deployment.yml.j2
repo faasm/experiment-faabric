@@ -2,12 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: faasm-openmpi-deployment
-  namespace: faasm-openmpi
+  namespace: {{ native_mpi_namespace }}
 spec:
   selector:
     matchLabels:
       run: faasm-openmpi
-  replicas: 5
+  replicas: 2
   template:
     metadata:
       name: mpi-worker
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: mpi-worker
-          image: faasm/openmpi:0.0.1
+          image: {{ native_mpi_image }}
           imagePullPolicy: Always
       affinity:
         podAntiAffinity:

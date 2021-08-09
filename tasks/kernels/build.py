@@ -5,7 +5,11 @@ from subprocess import run
 from shutil import copyfile
 import requests
 
-from tasks.util import KERNELS_NATIVE_DIR, KERNELS_WASM_DIR, KERNELS_FAASM_USER
+from tasks.kernels.env import (
+    KERNELS_NATIVE_DIR,
+    KERNELS_WASM_DIR,
+    KERNELS_FAASM_USER,
+)
 
 MAKE_TARGETS = [
     ("MPI1/Synch_global", "global"),
