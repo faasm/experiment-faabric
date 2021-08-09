@@ -4,9 +4,6 @@ WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-mpi
 WORKDIR /code/experiment-mpi
 
-# TODO - remove once done
-RUN git checkout merge-mpi
-
 RUN git submodule update --init
 
 # Install Python deps
