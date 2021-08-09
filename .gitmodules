@@ -3,7 +3,7 @@
 	url = https://github.com/faasm/lammps.git
 [submodule "third-party/kernels"]
 	path = third-party/kernels
-	url = git@github.com:faasm/Kernels.git
+	url = https://github.com/faasm/Kernels.git
 [submodule "third-party/kernels-native"]
 	path = third-party/kernels-native
-	url = https://github.com/faasm/Kernels
+	url = https://github.com/faasm/Kernels.git

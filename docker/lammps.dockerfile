@@ -1,6 +1,5 @@
 FROM faasm/openmpi:0.0.1
 
-# Download code and build LAMMPS
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-mpi
 WORKDIR /code/experiment-mpi
