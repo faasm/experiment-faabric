@@ -2,6 +2,9 @@ build/
 results/
 hostfile
 
+# Templated k8s files
+k8s/templated
+
 # Python
 __pycache__/
 *.pyc

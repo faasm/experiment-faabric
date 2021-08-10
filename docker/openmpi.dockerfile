@@ -44,24 +44,8 @@ RUN chmod 700 .ssh
 RUN chmod 644 .ssh/id_rsa.pub
 RUN chown -R mpirun:mpirun .ssh
 
-# -------------------------------
-# EXPERIMENT CODE SETUP
-# -------------------------------
+EXPOSE 22
 
-# Download code and build LAMMPS
-WORKDIR /code
-RUN git clone https://github.com/faasm/experiment-lammps
-WORKDIR /code/experiment-lammps
-
-RUN git submodule update --init
-
-# Install Python deps
-RUN pip3 install -r requirements.txt
-
-# Cross-compile and build LAMMPS for Faasm
-RUN inv wasm
-
-# Build natively
-RUN inv native
-
-CMD /code/experiment-lammps/ssh/start_sshd.sh
+COPY ssh/sshd_wrapper.sh /sshd_wrapper.sh
+COPY ssh/start.sh /start.sh
+ENTRYPOINT "/start.sh"

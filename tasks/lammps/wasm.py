@@ -5,13 +5,12 @@ from os.path import join
 from os import makedirs
 from subprocess import run
 
-from tasks.util import (
-    WASM_BUILD_DIR,
+from tasks.util.env import WASM_BUILD_DIR, WASM_INSTALL_DIR, clean_dir
+
+from tasks.lammps.env import (
     LAMMPS_DIR,
-    WASM_INSTALL_DIR,
-    clean_dir,
-    FAASM_USER,
-    FAASM_FUNC,
+    LAMMPS_FAASM_USER,
+    LAMMPS_FAASM_FUNC,
 )
 
 CMAKE_TOOLCHAIN_FILE = "/usr/local/faasm/toolchain/tools/WasiToolchain.cmake"
@@ -61,7 +60,9 @@ def upload(ctx, host="localhost", port=8002, local=False):
     wasm_file = join(WASM_INSTALL_DIR, "bin", "lmp")
 
     if local:
-        dest_dir = "/usr/local/faasm/wasm/{}/{}".format(FAASM_USER, FAASM_FUNC)
+        dest_dir = "/usr/local/faasm/wasm/{}/{}".format(
+            LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
+        )
         makedirs(dest_dir, exist_ok=True)
 
         dest_file = join(dest_dir, "function.wasm")
@@ -69,7 +70,9 @@ def upload(ctx, host="localhost", port=8002, local=False):
         print("Copying {} to {}".format(wasm_file, dest_file))
         copyfile(wasm_file, dest_file)
     else:
-        url = "http://{}:{}/f/{}/{}".format(host, port, FAASM_USER, FAASM_FUNC)
+        url = "http://{}:{}/f/{}/{}".format(
+            host, port, LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
+        )
         print("Putting function to {}".format(url))
         response = requests.put(url, data=open(wasm_file, "rb"))
         print("Response {}: {}".format(response.status_code, response.text))

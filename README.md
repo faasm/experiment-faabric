@@ -1,75 +1,168 @@
-# LAMMPS experiment
+# MPI Experiments
+
+This repo contains two MPI-based experiments, using
+[LAMMPS](https://lammps.sandia.gov/) and the
+[ParRes Kernels](https://github.com/ParRes/Kernels).
 
 The Faasm fork of LAMMPS can be found [here](https://github.com/faasm/lammps),
-with original source [here](https://lammps.sandia.gov/).
+and of ParRes Kernels [here](https://github.com/faasm/Kernels).
 
-This project runs inside the container defined in this repo. To run it:
+For general info on running these experiments (e.g. setting up the cluster),
+see the [`experiment-base` repo](https://github.com/faasm/experiment-base).
 
 ```bash
-./bin/cli.sh
+# Kernels
+./bin/cli.sh kernels
 ```
 
-## Running on Faasm
+## Running LAMMPS on Faasm
+
+Building the code and uploading the data must be done from within the LAMMPS
+experiment container:
+
+```bash
+./bin/cli.sh lammps
+```
 
 To upload the data you can run:
 
 ```bash
 # Local
-inv data.upload --local
+inv lammps.data.upload --local
 
 # Remote
-inv data.upload --host <faasm_upload_host>
+inv lammps.data.upload --host <faasm_upload_host>
 ```
 
 You can build the code with:
 
 ```bash
-inv wasm
+inv lammps.wasm
 ```
 
 and upload with:
 
 ```bash
 # Local
-inv wasm.upload --local
+inv lammps.wasm.upload --local
 
 # Remote
-inv wasm.upload --host <faasm_upload_host>
+inv lammps.wasm.upload --host <faasm_upload_host>
 ```
 
-To run it:
+The experiment must be run _outside_ the container using the `experiment-base`
+virtual environment:
 
 ```bash
-inv run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 ```
 
-## Running natively
+## Running Kernels on Faasm
 
-The native experiment has to use OpenMPI in the K8s cluster. To deploy this we
-can run:
+Building the code must be done from within the kernels experiment container:
+
+```bash
+./bin/cli.sh kernels
+```
+
+You can build the code with:
+
+```basn
+inv kernels.build.wasm
+```
+
+and upload with:
 
 ```bash
 # Local
-inv native.deploy --local
+inv kernels.build.upload --local
 
 # Remote
-inv native.deploy
+inv kernels.build.upload --host <faasm_upload_host>
 ```
 
-Check the deployment with `kubectl`:
+The experiment must be run _outside_ the container using the `experiment-base`
+virtual environment:
 
 ```bash
-kubectl -n faasm-mpi-native get deployments
+inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+```
+
+## Running LAMMPS on OpenMPI
+
+To deploy (using the `experiment-base` environment):
+
+```bash
+inv lammps.native.deploy
+```
+
+Wait for all the containers to become ready. Check with:
+
+```bash
+kubectl -n openmpi-lammps get deployments --watch
 ```
 
 Once ready, we can template the MPI host file on all the containers:
 
 ```bash
-inv native.hostfile
+inv lammps.native.hostfile
 ```
 
-We can then execute the experiment natively with:
+Execute with:
 
 ```bash
-inv run.native
+inv lammps.run.native
+```
+
+Once finished, you can remove the OpenMPI deployment with:
+
+```bash
+inv lammps.native.delete
+```
+
+## Running Kernels on OpenMPI
+
+To deploy (using the `experiment-base` environment):
+
+```bash
+inv kernels.native.deploy
+```
+
+Wait for all the containers to become ready. Check with:
+
+```bash
+kubectl -n openmpi-kernels get deployments --watch
+```
+
+Once ready, we can template the MPI host file on all the containers:
+
+```bash
+inv kernels.native.hostfile
+```
+
+Execute with:
+
+```bash
+inv kernels.run.native
+```
+
+Once finished, you can remove the OpenMPI deployment with:
+
+```bash
+inv kernels.native.delete
+```
+
+## Rebuilding containers
+
+To rebuild the containers:
+
+```bash
+# OpenMPI
+inv openmpi.container
+
+# LAMMPS
+inv lammps.container
+
+# Kernes
+inv kernels.container
 ```

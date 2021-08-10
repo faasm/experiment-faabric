@@ -4,7 +4,7 @@ from os.path import join, exists
 from shutil import copy
 import requests
 
-from tasks.util import LAMMPS_DATA_FILE
+from tasks.lammps.env import LAMMPS_DATA_FILE
 
 FAASM_LOCAL_SHARED_DIR = "/usr/local/faasm/shared"
 

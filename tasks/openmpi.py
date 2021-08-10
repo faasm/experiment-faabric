@@ -1,33 +1,33 @@
 from invoke import task
-from tasks.util import PROJ_ROOT, get_version
 from os import environ
+from os.path import join
 from copy import copy
 from subprocess import run
 
-IMAGE_NAME = "experiment-lammps"
+from tasks.util.env import (
+    PROJ_ROOT,
+    get_docker_tag,
+    push_docker_image,
+)
 
 
-def _get_tag():
-    img_tag = "faasm/{}:{}".format(IMAGE_NAME, get_version())
-    return img_tag
-
-
-def _push_image(img_tag):
-    run("docker push {}".format(img_tag), check=True, shell=True)
+OPENMPI_IMAGE_NAME = "openmpi"
+OPENMPI_DOCKERFILE = join(PROJ_ROOT, "docker", "openmpi.dockerfile")
 
 
 @task(default=True)
 def build(ctx, nocache=False, push=False):
     """
-    Build the container image used for LAMMPS experiment
+    Build the container image used for native openmpi
     """
     shell_env = copy(environ)
     shell_env["DOCKER_BUILDKIT"] = "1"
-    img_tag = _get_tag()
+    img_tag = get_docker_tag(OPENMPI_IMAGE_NAME)
 
     cmd = [
         "docker",
         "build",
+        "-f {}".format(OPENMPI_DOCKERFILE),
         "--no-cache" if nocache else "",
         "-t {}".format(img_tag),
         ".",
@@ -38,13 +38,13 @@ def build(ctx, nocache=False, push=False):
     run(cmd_str, shell=True, check=True, cwd=PROJ_ROOT)
 
     if push:
-        _push_image(img_tag)
+        push_docker_image(img_tag)
 
 
 @task
 def push(ctx):
     """
-    Push the container image
+    Push the container image for native openmpi
     """
-    img_tag = _get_tag()
-    _push_image(img_tag)
+    img_tag = get_docker_tag(OPENMPI_IMAGE_NAME)
+    push_docker_image(img_tag)

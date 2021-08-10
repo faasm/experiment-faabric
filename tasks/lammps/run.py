@@ -1,4 +1,3 @@
-import math
 import re
 import time
 import requests
@@ -6,15 +5,20 @@ from os import makedirs
 from os.path import join
 from invoke import task
 
-from tasks.util import (
+from tasks.util.env import (
     RESULTS_DIR,
-    FAASM_USER,
-    FAASM_FUNC,
+    KNATIVE_HEADERS,
+)
+from tasks.util.openmpi import (
+    NATIVE_HOSTFILE,
+    get_pod_names_ips,
+    run_kubectl_cmd,
+)
+from tasks.lammps.env import (
+    LAMMPS_FAASM_USER,
+    LAMMPS_FAASM_FUNC,
     DOCKER_LAMMPS_BINARY,
     DOCKER_LAMMPS_DATA_FILE,
-    NATIVE_HOSTFILE,
-    run_kubectl_cmd,
-    get_pod_names_ips,
 )
 
 DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
@@ -23,20 +27,17 @@ LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
 NUM_PROCS = [1, 2, 3, 4, 5]
 
-KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
+def _init_csv_file(csv_name):
+    result_dir = join(RESULTS_DIR, "lammps")
+    makedirs(result_dir, exist_ok=True)
 
-def _init_csv_file(csv_path):
+    result_file = join(result_dir, csv_name)
     makedirs(RESULTS_DIR, exist_ok=True)
-    with open(csv_path, "w") as out_file:
+    with open(result_file, "w") as out_file:
         out_file.write("WorldSize,Run,Reported,Actual\n")
 
-
-def _write_result_line(csv_path, n_procs, run_num, reported, actual):
-    with open(csv_path, "a") as out_file:
-        out_file.write(
-            "{},{},{},{:.2f}\n".format(n_procs, run_num, reported, actual)
-        )
+    return result_file
 
 
 def _process_lammps_result(
@@ -59,18 +60,20 @@ def _process_lammps_result(
         + int(reported_time[2])
     )
 
-    _write_result_line(
-        result_file, num_procs, run_num, reported_time, actual_time
-    )
+    with open(result_file, "a") as out_file:
+        out_file.write(
+            "{},{},{},{:.2f}\n".format(
+                num_procs, run_num, reported_time, actual_time
+            )
+        )
 
 
 @task
 def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
-    Run the experiment on Faasm
+    Run LAMMPS experiment on Faasm
     """
-    result_file = join(RESULTS_DIR, "lammps_wasm.csv")
-    _init_csv_file(result_file)
+    result_file = _init_csv_file("lammps_wasm.csv")
 
     if nprocs:
         num_procs = [nprocs]
@@ -85,8 +88,8 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             url = "http://{}:{}".format(host, port)
             msg = {
-                "user": FAASM_USER,
-                "function": FAASM_FUNC,
+                "user": LAMMPS_FAASM_USER,
+                "function": LAMMPS_FAASM_FUNC,
                 "cmdline": LAMMPS_WASM_CMDLINE,
                 "mpi_world_size": np,
             }
@@ -107,21 +110,22 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 response.text, result_file, np, run_num, actual_time
             )
 
+    print("Results written to {}".format(result_file))
+
 
 @task
 def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     """
-    Run the experiment natively on OpenMPI
+    Run LAMMPS experiment on OpenMPI
     """
-    result_file = join(RESULTS_DIR, "lammps_native.csv")
-    _init_csv_file(result_file)
+    result_file = _init_csv_file("lammps_native.csv")
 
     if nprocs:
         num_procs = [nprocs]
     else:
         num_procs = NUM_PROCS
 
-    pod_names, pod_ips = get_pod_names_ips()
+    pod_names, pod_ips = get_pod_names_ips("lammps")
     master_pod = pod_names[0]
 
     for np in num_procs:
@@ -146,7 +150,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
                 "--",
                 "su mpirun -c '{}'".format(mpirun_cmd),
             ]
-            exec_output = run_kubectl_cmd(" ".join(exec_cmd))
+            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
             print(exec_output)
 
             end = time.time()

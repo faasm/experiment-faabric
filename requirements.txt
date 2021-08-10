@@ -1,5 +1,6 @@
 black
 invoke
+Jinja2
 matplotlib
 numpy
 pandas
