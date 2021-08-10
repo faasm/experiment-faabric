@@ -19,4 +19,3 @@ DOCKER_LAMMPS_DATA_FILE = join(
 
 LAMMPS_FAASM_USER = "lammps"
 LAMMPS_FAASM_FUNC = "main"
-

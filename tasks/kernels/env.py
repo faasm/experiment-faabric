@@ -8,4 +8,3 @@ KERNELS_FAASM_USER = "prk"
 
 KERNELS_IMAGE_NAME = "experiment-kernels"
 KERNELS_DOCKERFILE = join(PROJ_ROOT, "docker", "kernels.dockerfile")
-
