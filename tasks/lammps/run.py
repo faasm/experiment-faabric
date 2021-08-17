@@ -5,6 +5,8 @@ from os import makedirs
 from os.path import join
 from invoke import task
 
+from hoststats.client import HostStats
+
 from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
@@ -128,12 +130,21 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     pod_names, pod_ips = get_pod_names_ips("lammps")
     master_pod = pod_names[0]
 
+    stats = HostStats(pod_ips)
+
     for np in num_procs:
         print("Running natively with {} MPI processes".format(np))
         print("Chosen pod {} as master".format(master_pod))
 
         for run_num in range(repeats):
+            stats_csv = join(
+                RESULTS_DIR,
+                "lammps",
+                "hoststats_{}_{}.csv".format(np, run_num),
+            )
+
             start = time.time()
+            stats.start_collection()
 
             mpirun_cmd = [
                 "mpirun",
@@ -155,6 +166,9 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
+
+            stats.stop_and_write_to_csv(stats_csv)
+
             _process_lammps_result(
                 exec_output, result_file, np, run_num, actual_time
             )

@@ -48,7 +48,7 @@ RUN chown -R mpirun:mpirun .ssh
 EXPOSE 22
 
 # hoststats
-pip3 install hoststats
+RUN pip3 install hoststats
 EXPOSE 5000
 
 # Configure entrypoint
