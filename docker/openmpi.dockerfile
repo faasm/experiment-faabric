@@ -44,8 +44,14 @@ RUN chmod 700 .ssh
 RUN chmod 644 .ssh/id_rsa.pub
 RUN chown -R mpirun:mpirun .ssh
 
+# SSH
 EXPOSE 22
 
+# hoststats
+pip3 install hoststats
+EXPOSE 5000
+
+# Configure entrypoint
 COPY ssh/sshd_wrapper.sh /sshd_wrapper.sh
 COPY ssh/start.sh /start.sh
 ENTRYPOINT "/start.sh"
