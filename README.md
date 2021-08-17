@@ -7,19 +7,14 @@ This repo contains two MPI-based experiments, using
 The Faasm fork of LAMMPS can be found [here](https://github.com/faasm/lammps),
 and of ParRes Kernels [here](https://github.com/faasm/Kernels).
 
-For general info on running these experiments (e.g. setting up the cluster),
-see the [`experiment-base` repo](https://github.com/faasm/experiment-base).
+Note, this repo should be checked out as part of the Faasm/ Faabric experiment
+set-up covered in the [`experiment-base`
+repo](https://github.com/faasm/experiment-base).
+
+To check things are working:
 
 ```bash
-# Kernels
-./bin/cli.sh kernels
-```
-
-Note that this should be checked out as a submodule of `experiment-base`. To
-check things are working:
-
-```bash
-./bin/workon.sh
+../../bin/workon.sh
 
 inv -l
 ```
@@ -63,7 +58,7 @@ The experiment must be run _outside_ the container:
 
 ```bash
 # Set up local env
-./bin/workon.sh
+../../bin/workon.sh
 
 # Run the experiment
 inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
@@ -96,7 +91,7 @@ inv kernels.build.upload --host <faasm_upload_host>
 The experiment must be run _outside_ the container:
 
 ```bash
-./bin/workon.sh
+../../bin/workon.sh
 
 inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 ```
@@ -106,7 +101,7 @@ inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 To deploy:
 
 ```bash
-./bin/workon.sh
+../../bin/workon.sh
 
 inv lammps.native.deploy
 ```
@@ -140,7 +135,7 @@ inv lammps.native.delete
 To deploy:
 
 ```bash
-./bin/workon.sh
+../../bin/workon.sh
 
 inv kernels.native.deploy
 ```
@@ -174,7 +169,7 @@ inv kernels.native.delete
 To rebuild the containers:
 
 ```bash
-./bin/workon.sh
+../../bin/workon.sh
 
 # OpenMPI
 inv openmpi.container
