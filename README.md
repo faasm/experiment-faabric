@@ -28,29 +28,17 @@ experiment container:
 ./bin/cli.sh lammps
 ```
 
-To upload the data you can run:
-
-```bash
-# Local
-inv lammps.data.upload --local
-
-# Remote
-inv lammps.data.upload --host <faasm_upload_host>
-```
-
 You can build the code with:
 
 ```bash
 inv lammps.wasm
 ```
 
-and upload with:
+To upload the code and data you can run:
 
 ```bash
-# Local
-inv lammps.wasm.upload --local
+inv lammps.data.upload --host <faasm_upload_host>
 
-# Remote
 inv lammps.wasm.upload --host <faasm_upload_host>
 ```
 
@@ -81,10 +69,6 @@ inv kernels.build.wasm
 and upload with:
 
 ```bash
-# Local
-inv kernels.build.upload --local
-
-# Remote
 inv kernels.build.upload --host <faasm_upload_host>
 ```
 

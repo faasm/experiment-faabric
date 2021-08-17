@@ -11,6 +11,7 @@ from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
 )
+from tasks.util.faasm import get_faasm_worker_pods
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     get_pod_names_ips,
@@ -82,11 +83,22 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
+    # Set up hoststats
+    pod_names, pod_ips = get_faasm_worker_pods()
+    stats = HostStats(pod_ips)
+
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
         for run_num in range(repeats):
+            stats_csv = join(
+                RESULTS_DIR,
+                "lammps",
+                "hoststats_wasm_{}_{}.csv".format(np, run_num),
+            )
+
             start = time.time()
+            stats.start_collection()
 
             url = "http://{}:{}".format(host, port)
             msg = {
@@ -108,6 +120,9 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
+
+            stats.stop_and_write_to_csv(stats_csv)
+
             _process_lammps_result(
                 response.text, result_file, np, run_num, actual_time
             )
@@ -140,7 +155,7 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
             stats_csv = join(
                 RESULTS_DIR,
                 "lammps",
-                "hoststats_{}_{}.csv".format(np, run_num),
+                "hoststats_native_{}_{}.csv".format(np, run_num),
             )
 
             start = time.time()
