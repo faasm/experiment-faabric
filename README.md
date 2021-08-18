@@ -14,7 +14,7 @@ repo](https://github.com/faasm/experiment-base).
 To check things are working:
 
 ```bash
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 inv -l
 ```
@@ -46,7 +46,7 @@ The experiment must be run _outside_ the container:
 
 ```bash
 # Set up local env
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 # Run the experiment
 inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
@@ -75,7 +75,7 @@ inv kernels.build.upload --host <faasm_upload_host>
 The experiment must be run _outside_ the container:
 
 ```bash
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 ```
@@ -85,7 +85,7 @@ inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
 To deploy:
 
 ```bash
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 inv lammps.native.deploy
 ```
@@ -119,7 +119,7 @@ inv lammps.native.delete
 To deploy:
 
 ```bash
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 inv kernels.native.deploy
 ```
@@ -153,7 +153,7 @@ inv kernels.native.delete
 To rebuild the containers:
 
 ```bash
-../../bin/workon.sh
+source ../../bin/workon.sh
 
 # OpenMPI
 inv openmpi.container
@@ -164,3 +164,4 @@ inv lammps.container
 # Kernes
 inv kernels.container
 ```
+

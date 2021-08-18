@@ -16,6 +16,10 @@ RUN make install
 # NATIVE MPI SETUP
 # -------------------------------
 
+# Note that the following two repos are useful reference for this Dockerfile:
+# - https://github.com/everpeace/kube-openmpi/tree/master
+# - https://github.com/zakiournani/Simple-MPI-cluster-on-Kubernetes
+
 # Add an mpirun user
 RUN adduser --disabled-password --gecos "" mpirun
 RUN echo "mpirun ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
