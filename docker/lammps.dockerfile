@@ -2,6 +2,7 @@ FROM faasm/openmpi:0.0.2
 
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-mpi
+
 WORKDIR /code/experiment-mpi
 
 # TODO - remove, dev
