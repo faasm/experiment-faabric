@@ -51,10 +51,6 @@ RUN chown -R mpirun:mpirun .ssh
 # SSH
 EXPOSE 22
 
-# hoststats
-RUN pip3 install hoststats
-EXPOSE 5000
-
 # Configure entrypoint
 COPY ssh/sshd_wrapper.sh /sshd_wrapper.sh
 COPY ssh/start.sh /start.sh

@@ -2,6 +2,7 @@ from subprocess import run, PIPE
 from os.path import join
 from os import makedirs
 from jinja2 import Environment, FileSystemLoader
+import json
 
 from tasks.util.env import (
     PROJ_ROOT,
@@ -12,6 +13,24 @@ NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
 HOSTFILE_LOCAL_FILE = "/tmp/hostfile"
 SLOTS_PER_HOST = 2
+
+
+def get_hoststats_proxy_ip(experiment_name):
+    namespace = _get_native_mpi_namespace(experiment_name)
+
+    res = run(
+        "kubectl -n {} get service hoststats-proxy -o json".format(namespace),
+        stdout=PIPE,
+        stderr=PIPE,
+        cwd=PROJ_ROOT,
+        shell=True,
+        check=True,
+    )
+
+    data = json.loads(res.stdout.decode("utf-8"))
+    ip = data["spec"]["clusterIP"]
+    print("Got hoststats proxy IP {}".format(ip))
+    return ip
 
 
 def _get_native_mpi_namespace(experiment_name):
@@ -81,7 +100,9 @@ def run_kubectl_cmd(experiment_name, cmd):
 
 def get_pod_names_ips(experiment_name):
     # List all pods
-    cmd_out = run_kubectl_cmd(experiment_name, "get pods -o wide")
+    cmd_out = run_kubectl_cmd(
+        experiment_name, "get pods -o wide -l run=faasm-openmpi"
+    )
     print(cmd_out)
 
     # Split output into list of strings
