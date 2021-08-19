@@ -11,7 +11,7 @@ from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
 )
-from tasks.util.faasm import get_faasm_worker_pods
+from tasks.util.faasm import get_faasm_worker_pods, get_faasm_invoke_host_port
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     get_pod_names_ips,
@@ -72,7 +72,7 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def faasm(ctx, repeats=1, nprocs=None):
     """
     Run LAMMPS experiment on Faasm
     """
@@ -83,7 +83,9 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
-    # Set up hoststats
+    host, port = get_faasm_invoke_host_port()
+
+    # Set up hoststats, proxying through upload server
     pod_names, pod_ips = get_faasm_worker_pods()
     stats = HostStats(pod_ips)
 
@@ -131,7 +133,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
 
 @task
-def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def native(ctx, repeats=1, nprocs=None):
     """
     Run LAMMPS experiment on OpenMPI
     """

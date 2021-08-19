@@ -10,6 +10,7 @@ from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
 )
+from tasks.util.faasm import get_faasm_invoke_host_port
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
@@ -118,7 +119,6 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
             )
             exit(1)
 
-        expected_part = stat_parts[1]
         stat_val = re.findall(": ([0-9\.]*)".format(stat), kernels_out)
         stat_val = stat_val[0].strip()
         stat_val = float(stat_val)
@@ -148,9 +148,7 @@ def _validate_kernel(kernel, np):
 
 
 @task
-def wasm(
-    ctx, host="localhost", port=8080, repeats=1, nprocs=None, kernel=None
-):
+def wasm(ctx, repeats=1, nprocs=None, kernel=None):
     result_file = _init_csv_file("kernels_wasm.csv")
     if nprocs:
         num_procs = [nprocs]
@@ -161,6 +159,8 @@ def wasm(
         kernels = [kernel]
     else:
         kernels = PRK_STATS.keys()
+
+    host, port = get_faasm_invoke_host_port()
 
     for kernel in kernels:
         for np in num_procs:
@@ -193,9 +193,7 @@ def wasm(
 
 
 @task
-def native(
-    ctx, host="localhost", port=8080, repeats=1, nprocs=None, kernel=None
-):
+def native(ctx, repeats=1, nprocs=None, kernel=None):
     result_file = _init_csv_file("kernels_native.csv")
 
     if nprocs:

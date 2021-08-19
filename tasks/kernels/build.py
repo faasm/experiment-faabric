@@ -1,10 +1,9 @@
 from invoke import task
 from os.path import join
-from os import makedirs
 from subprocess import run
-from shutil import copyfile
 import requests
 
+from tasks.util.faasm import get_faasm_upload_host_port
 from tasks.kernels.env import (
     KERNELS_NATIVE_DIR,
     KERNELS_WASM_DIR,
@@ -60,29 +59,18 @@ def _do_build(src_dir, clean):
 
 
 @task
-def upload(ctx, host="localhost", port=8002, local=False):
+def upload(ctx):
     """
     Upload the LAMMPS function to Faasm
     """
+    host, port = get_faasm_upload_host_port()
+
     for target in [t[1] for t in MAKE_TARGETS]:
         wasm_file = join(KERNELS_WASM_DIR, "{}.wasm".format(target))
 
-        if local:
-            dest_dir = "/usr/local/faasm/wasm/{}/{}".format(
-                KERNELS_FAASM_USER, target
-            )
-            makedirs(dest_dir, exist_ok=True)
-
-            dest_file = join(dest_dir, "function.wasm")
-
-            print("Copying {} to {}".format(wasm_file, dest_file))
-            copyfile(wasm_file, dest_file)
-        else:
-            url = "http://{}:{}/f/{}/{}".format(
-                host, port, KERNELS_FAASM_USER, target
-            )
-            print("Putting function to {}".format(url))
-            response = requests.put(url, data=open(wasm_file, "rb"))
-            print(
-                "Response {}: {}".format(response.status_code, response.text)
-            )
+        url = "http://{}:{}/f/{}/{}".format(
+            host, port, KERNELS_FAASM_USER, target
+        )
+        print("Putting function to {}".format(url))
+        response = requests.put(url, data=open(wasm_file, "rb"))
+        print("Response {}: {}".format(response.status_code, response.text))

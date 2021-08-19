@@ -37,9 +37,9 @@ inv lammps.wasm
 To upload the code and data you can run:
 
 ```bash
-inv lammps.data.upload --host <faasm_upload_host>
+inv lammps.data.upload
 
-inv lammps.wasm.upload --host <faasm_upload_host>
+inv lammps.wasm.upload
 ```
 
 The experiment must be run _outside_ the container:
@@ -49,7 +49,7 @@ The experiment must be run _outside_ the container:
 source ../../bin/workon.sh
 
 # Run the experiment
-inv lammps.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+inv lammps.run.faasm
 ```
 
 ## Running Kernels on Faasm
@@ -69,7 +69,7 @@ inv kernels.build.wasm
 and upload with:
 
 ```bash
-inv kernels.build.upload --host <faasm_upload_host>
+inv kernels.build.upload
 ```
 
 The experiment must be run _outside_ the container:
@@ -77,7 +77,7 @@ The experiment must be run _outside_ the container:
 ```bash
 source ../../bin/workon.sh
 
-inv kernels.run.faasm --host <faasm_invoke_host> --port <faasm_invoke_port>
+inv kernels.run.faasm
 ```
 
 ## Running LAMMPS on OpenMPI
