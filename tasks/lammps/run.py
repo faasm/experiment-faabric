@@ -14,7 +14,6 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
-    get_faasm_upload_host_port,
     get_faasm_hoststats_proxy_ip,
 )
 from tasks.util.openmpi import (
