@@ -15,11 +15,12 @@ from tasks.util.faasm import (
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
     get_faasm_upload_host_port,
+    get_faasm_hoststats_proxy_ip,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     get_pod_names_ips,
-    get_hoststats_proxy_ip,
+    get_mpi_hoststats_proxy_ip,
     run_kubectl_cmd,
 )
 from tasks.lammps.env import (
@@ -94,8 +95,8 @@ def faasm(ctx, repeats=1, nprocs=None):
 
     # Set up hoststats, proxying through upload server
     _, pod_ips = get_faasm_worker_pods()
-    upload_pod_ip, upload_pod_port = get_faasm_upload_host_port()
-    stats = HostStats(pod_ips, proxy=upload_pod_ip)
+    proxy_ip = get_faasm_hoststats_proxy_ip()
+    stats = HostStats(pod_ips, proxy=proxy_ip)
 
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
@@ -153,7 +154,7 @@ def native(ctx, repeats=1, nprocs=None):
         num_procs = NUM_PROCS
 
     pod_names, pod_ips = get_pod_names_ips("lammps")
-    hoststats_proxy = get_hoststats_proxy_ip("lammps")
+    hoststats_proxy = get_mpi_hoststats_proxy_ip("lammps")
     master_pod = pod_names[0]
     stats = HostStats(pod_ips, proxy=hoststats_proxy)
 

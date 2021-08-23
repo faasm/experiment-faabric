@@ -2,35 +2,17 @@ from subprocess import run, PIPE
 from os.path import join
 from os import makedirs
 from jinja2 import Environment, FileSystemLoader
-import json
 
 from tasks.util.env import (
     PROJ_ROOT,
     get_docker_tag,
 )
+from tasks.util.hoststats import get_hoststats_proxy_ip
 
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
 HOSTFILE_LOCAL_FILE = "/tmp/hostfile"
 SLOTS_PER_HOST = 2
-
-
-def get_hoststats_proxy_ip(experiment_name):
-    namespace = _get_native_mpi_namespace(experiment_name)
-
-    res = run(
-        "kubectl -n {} get service hoststats-proxy -o json".format(namespace),
-        stdout=PIPE,
-        stderr=PIPE,
-        cwd=PROJ_ROOT,
-        shell=True,
-        check=True,
-    )
-
-    data = json.loads(res.stdout.decode("utf-8"))
-    ip = data["spec"]["clusterIP"]
-    print("Got hoststats proxy IP {}".format(ip))
-    return ip
 
 
 def _get_native_mpi_namespace(experiment_name):
@@ -80,6 +62,11 @@ def _template_k8s_files(experiment_name, image_name):
     )
 
     return namespace_yml, deployment_yml
+
+
+def get_mpi_hoststats_proxy_ip(experiment_name):
+    namespace = _get_native_mpi_namespace(experiment_name)
+    return get_hoststats_proxy_ip(namespace)
 
 
 def run_kubectl_cmd(experiment_name, cmd):

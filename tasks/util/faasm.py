@@ -2,6 +2,8 @@ from configparser import ConfigParser
 from subprocess import run, PIPE
 from os.path import expanduser, join, exists
 
+from tasks.util.hoststats import get_hoststats_proxy_ip
+
 FAASM_INI_FILE = join(expanduser("~"), ".config", "faasm.ini")
 
 
@@ -29,6 +31,10 @@ def get_faasm_invoke_host_port():
 
     print("Using faasm invoke {}:{}".format(host, port))
     return host, port
+
+
+def get_faasm_hoststats_proxy_ip():
+    return get_hoststats_proxy_ip("faasm")
 
 
 def get_faasm_worker_pods():
