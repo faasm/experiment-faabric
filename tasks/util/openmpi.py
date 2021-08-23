@@ -7,6 +7,7 @@ from tasks.util.env import (
     PROJ_ROOT,
     get_docker_tag,
 )
+from tasks.util.hoststats import get_hoststats_proxy_ip
 
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
@@ -63,6 +64,11 @@ def _template_k8s_files(experiment_name, image_name):
     return namespace_yml, deployment_yml
 
 
+def get_mpi_hoststats_proxy_ip(experiment_name):
+    namespace = _get_native_mpi_namespace(experiment_name)
+    return get_hoststats_proxy_ip(namespace)
+
+
 def run_kubectl_cmd(experiment_name, cmd):
     namespace = _get_native_mpi_namespace(experiment_name)
     kubecmd = "kubectl -n {} {}".format(namespace, cmd)
@@ -81,7 +87,9 @@ def run_kubectl_cmd(experiment_name, cmd):
 
 def get_pod_names_ips(experiment_name):
     # List all pods
-    cmd_out = run_kubectl_cmd(experiment_name, "get pods -o wide")
+    cmd_out = run_kubectl_cmd(
+        experiment_name, "get pods -o wide -l run=faasm-openmpi"
+    )
     print(cmd_out)
 
     # Split output into list of strings

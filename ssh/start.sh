@@ -2,6 +2,9 @@
 
 set -e
 
+# Run hoststats in the background
+nohup hoststats start > /var/log/hoststats.log 2>&1 &
+
 # Run sshd in the background. Running in the foreground makes container
 # impossible to kill nicely
 echo "Running sshd in background"

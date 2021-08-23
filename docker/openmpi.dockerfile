@@ -16,6 +16,10 @@ RUN make install
 # NATIVE MPI SETUP
 # -------------------------------
 
+# Note that the following two repos are useful reference for this Dockerfile:
+# - https://github.com/everpeace/kube-openmpi/tree/master
+# - https://github.com/zakiournani/Simple-MPI-cluster-on-Kubernetes
+
 # Add an mpirun user
 RUN adduser --disabled-password --gecos "" mpirun
 RUN echo "mpirun ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -44,8 +48,10 @@ RUN chmod 700 .ssh
 RUN chmod 644 .ssh/id_rsa.pub
 RUN chown -R mpirun:mpirun .ssh
 
+# SSH
 EXPOSE 22
 
+# Configure entrypoint
 COPY ssh/sshd_wrapper.sh /sshd_wrapper.sh
 COPY ssh/start.sh /start.sh
 ENTRYPOINT "/start.sh"

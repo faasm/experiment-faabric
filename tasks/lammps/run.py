@@ -5,13 +5,21 @@ from os import makedirs
 from os.path import join
 from invoke import task
 
+from hoststats.client import HostStats
+
 from tasks.util.env import (
     RESULTS_DIR,
     KNATIVE_HEADERS,
 )
+from tasks.util.faasm import (
+    get_faasm_worker_pods,
+    get_faasm_invoke_host_port,
+    get_faasm_hoststats_proxy_ip,
+)
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     get_pod_names_ips,
+    get_mpi_hoststats_proxy_ip,
     run_kubectl_cmd,
 )
 from tasks.lammps.env import (
@@ -43,6 +51,8 @@ def _init_csv_file(csv_name):
 def _process_lammps_result(
     lammps_output, result_file, num_procs, run_num, actual_time
 ):
+    print("Processing lammps output: \n{}\n".format(lammps_output))
+
     reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
 
     if len(reported_time) != 1:
@@ -69,7 +79,7 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def faasm(ctx, repeats=1, nprocs=None):
     """
     Run LAMMPS experiment on Faasm
     """
@@ -80,11 +90,25 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
+    host, port = get_faasm_invoke_host_port()
+
+    # Set up hoststats, proxying through upload server
+    _, pod_ips = get_faasm_worker_pods()
+    proxy_ip = get_faasm_hoststats_proxy_ip()
+    stats = HostStats(pod_ips, proxy=proxy_ip)
+
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
         for run_num in range(repeats):
+            stats_csv = join(
+                RESULTS_DIR,
+                "lammps",
+                "hoststats_wasm_{}_{}.csv".format(np, run_num),
+            )
+
             start = time.time()
+            stats.start_collection()
 
             url = "http://{}:{}".format(host, port)
             msg = {
@@ -106,6 +130,9 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
+
+            stats.stop_and_write_to_csv(stats_csv)
+
             _process_lammps_result(
                 response.text, result_file, np, run_num, actual_time
             )
@@ -114,7 +141,7 @@ def faasm(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
 
 @task
-def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
+def native(ctx, repeats=1, nprocs=None):
     """
     Run LAMMPS experiment on OpenMPI
     """
@@ -126,14 +153,23 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
         num_procs = NUM_PROCS
 
     pod_names, pod_ips = get_pod_names_ips("lammps")
+    hoststats_proxy = get_mpi_hoststats_proxy_ip("lammps")
     master_pod = pod_names[0]
+    stats = HostStats(pod_ips, proxy=hoststats_proxy)
 
     for np in num_procs:
         print("Running natively with {} MPI processes".format(np))
         print("Chosen pod {} as master".format(master_pod))
 
         for run_num in range(repeats):
+            stats_csv = join(
+                RESULTS_DIR,
+                "lammps",
+                "hoststats_native_{}_{}.csv".format(np, run_num),
+            )
+
             start = time.time()
+            stats.start_collection()
 
             mpirun_cmd = [
                 "mpirun",
@@ -155,6 +191,9 @@ def native(ctx, host="localhost", port=8080, repeats=1, nprocs=None):
 
             end = time.time()
             actual_time = end - start
+
+            stats.stop_and_write_to_csv(stats_csv)
+
             _process_lammps_result(
                 exec_output, result_file, np, run_num, actual_time
             )
