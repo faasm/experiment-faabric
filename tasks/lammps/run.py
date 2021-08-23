@@ -51,6 +51,8 @@ def _init_csv_file(csv_name):
 def _process_lammps_result(
     lammps_output, result_file, num_procs, run_num, actual_time
 ):
+    print("Processing lammps output: \n{}\n".format(lammps_output))
+
     reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
 
     if len(reported_time) != 1:
@@ -92,7 +94,7 @@ def faasm(ctx, repeats=1, nprocs=None):
 
     # Set up hoststats, proxying through upload server
     _, pod_ips = get_faasm_worker_pods()
-    _, upload_pod_ip = get_faasm_upload_host_port()
+    upload_pod_ip, upload_pod_port = get_faasm_upload_host_port()
     stats = HostStats(pod_ips, proxy=upload_pod_ip)
 
     for np in num_procs:

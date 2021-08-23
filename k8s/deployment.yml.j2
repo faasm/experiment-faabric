@@ -17,7 +17,6 @@ spec:
       containers:
         - name: mpi-worker
           image: {{ native_mpi_image }}
-          imagePullPolicy: Always
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -44,7 +43,6 @@ spec:
   containers:
     - name: hoststats-proxy
       image: shillaker/hoststats:0.0.7
-      imagePullPolicy: Always
       ports:
         - containerPort: 5000
 

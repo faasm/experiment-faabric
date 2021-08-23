@@ -10,7 +10,8 @@ def get_faasm_ini_value(section, key):
         print("Expected to find faasm config at {}".format(FAASM_INI_FILE))
         raise RuntimeError("Did not find faasm config")
 
-    config = ConfigParser(FAASM_INI_FILE)
+    config = ConfigParser()
+    config.read(FAASM_INI_FILE)
     return config[section].get(key, "")
 
 
@@ -18,6 +19,7 @@ def get_faasm_upload_host_port():
     host = get_faasm_ini_value("Faasm", "upload_host")
     port = get_faasm_ini_value("Faasm", "upload_port")
 
+    print("Using faasm upload {}:{}".format(host, port))
     return host, port
 
 
@@ -25,6 +27,7 @@ def get_faasm_invoke_host_port():
     host = get_faasm_ini_value("Faasm", "invoke_host")
     port = get_faasm_ini_value("Faasm", "invoke_port")
 
+    print("Using faasm invoke {}:{}".format(host, port))
     return host, port
 
 
@@ -62,4 +65,5 @@ def get_faasm_worker_pods():
         pod_names.append(line_parts[0])
         pod_ips.append(line_parts[5])
 
+    print("Using faasm worker pods: {}".format(pod_ips))
     return pod_names, pod_ips

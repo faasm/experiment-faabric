@@ -21,34 +21,28 @@ inv -l
 
 ## Running LAMMPS on Faasm
 
-Building the code and uploading the data must be done from within the LAMMPS
-experiment container:
+The code must be built within the LAMMPS container:
 
 ```bash
 ./bin/cli.sh lammps
-```
 
-You can build the code with:
-
-```bash
 inv lammps.wasm
 ```
 
-To upload the code and data you can run:
-
-```bash
-inv lammps.data.upload
-
-inv lammps.wasm.upload
-```
-
-The experiment must be run _outside_ the container:
+The code can then be uploaded from _outside_ the container:
 
 ```bash
 # Set up local env
 source ../../bin/workon.sh
 
-# Run the experiment
+inv lammps.data.upload
+
+inv lammps.wasm.upload
+```
+
+The experiment can then be run with:
+
+```bash
 inv lammps.run.faasm
 ```
 
