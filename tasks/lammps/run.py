@@ -14,7 +14,7 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
-    get_faasm_hoststats_proxy_ip,
+    get_faasm_hoststats_proxy_host_port,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -94,7 +94,7 @@ def faasm(ctx, repeats=1, nprocs=None):
 
     # Set up hoststats, proxying through upload server
     _, pod_ips = get_faasm_worker_pods()
-    proxy_ip = get_faasm_hoststats_proxy_ip()
+    proxy_ip, proxy_port = get_faasm_hoststats_proxy_host_port()
     stats = HostStats(pod_ips, proxy=proxy_ip)
 
     for np in num_procs:
