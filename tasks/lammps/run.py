@@ -9,9 +9,9 @@ from hoststats.client import HostStats
 
 from tasks.util.env import (
     RESULTS_DIR,
-    KNATIVE_HEADERS,
 )
 from tasks.util.faasm import (
+    get_knative_headers,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
     get_faasm_hoststats_proxy_host_port,
@@ -93,7 +93,7 @@ def faasm(ctx, repeats=1, nprocs=None):
     host, port = get_faasm_invoke_host_port()
 
     # Set up hoststats, proxying through upload server
-    _, pod_ips = get_faasm_worker_pods()
+    pod_ips = get_faasm_worker_pods()
     proxy_ip, proxy_port = get_faasm_hoststats_proxy_host_port()
     stats = HostStats(pod_ips, proxy=proxy_ip)
 
@@ -118,7 +118,8 @@ def faasm(ctx, repeats=1, nprocs=None):
                 "mpi_world_size": np,
             }
             print("Posting to {}".format(url))
-            response = requests.post(url, json=msg, headers=KNATIVE_HEADERS)
+            knative_headers = get_knative_headers()
+            response = requests.post(url, json=msg, headers=knative_headers)
 
             if response.status_code != 200:
                 print(

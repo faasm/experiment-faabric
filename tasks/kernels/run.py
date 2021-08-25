@@ -8,9 +8,8 @@ from os.path import join
 
 from tasks.util.env import (
     RESULTS_DIR,
-    KNATIVE_HEADERS,
 )
-from tasks.util.faasm import get_faasm_invoke_host_port
+from tasks.util.faasm import get_faasm_invoke_host_port, get_knative_headers
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
@@ -176,8 +175,10 @@ def wasm(ctx, repeats=1, nprocs=None, kernel=None):
                     "cmdline": cmdline,
                     "mpi_world_size": np,
                 }
+
+                knative_headers = get_knative_headers()
                 response = requests.post(
-                    url, json=msg, headers=KNATIVE_HEADERS
+                    url, json=msg, headers=knative_headers
                 )
                 if response.status_code != 200:
                     print(

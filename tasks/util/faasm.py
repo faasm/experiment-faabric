@@ -43,3 +43,12 @@ def get_faasm_worker_pods():
 
     print("Using faasm worker pods: {}".format(pods))
     return pods
+
+
+def get_knative_headers():
+    knative_host = get_faasm_ini_value("Faasm", "knative_host")
+
+    headers = {"Host": knative_host}
+    print("Using faasm knative headers: {}".format(headers))
+
+    return headers
