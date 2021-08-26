@@ -38,7 +38,7 @@ def get_faasm_hoststats_proxy_host_port():
 
 
 def get_faasm_worker_pods():
-    pods = get_faasm_ini_value("Faasm", "worker_hoststats_ips")
+    pods = get_faasm_ini_value("Faasm", "worker_names")
     pods = [p.strip() for p in pods.split(",") if p.strip()]
 
     print("Using faasm worker pods: {}".format(pods))

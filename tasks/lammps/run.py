@@ -14,7 +14,6 @@ from tasks.util.faasm import (
     get_knative_headers,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
-    get_faasm_hoststats_proxy_host_port,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -92,10 +91,13 @@ def faasm(ctx, repeats=1, nprocs=None):
 
     host, port = get_faasm_invoke_host_port()
 
-    # Set up hoststats, proxying through upload server
-    pod_ips = get_faasm_worker_pods()
-    proxy_ip, proxy_port = get_faasm_hoststats_proxy_host_port()
-    stats = HostStats(pod_ips, proxy=proxy_ip)
+    pod_names = get_faasm_worker_pods()
+    stats = HostStats(
+        pod_names,
+        kubectl=True,
+        kubectl_container="user-container",
+        kubectl_ns="faasm",
+    )
 
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
