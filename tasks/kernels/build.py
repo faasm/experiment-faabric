@@ -66,7 +66,7 @@ def upload(ctx):
     host, port = get_faasm_upload_host_port()
 
     for target in [t[1] for t in MAKE_TARGETS]:
-        wasm_file = join(KERNELS_WASM_DIR, "{}.wasm".format(target))
+        wasm_file = join(KERNELS_WASM_DIR, "wasm", "{}.wasm".format(target))
 
         url = "http://{}:{}/f/{}/{}".format(
             host, port, KERNELS_FAASM_USER, target

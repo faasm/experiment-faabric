@@ -7,7 +7,6 @@ from tasks.util.env import (
     PROJ_ROOT,
     get_docker_tag,
 )
-from tasks.util.hoststats import get_hoststats_proxy_ip
 
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
@@ -15,7 +14,7 @@ HOSTFILE_LOCAL_FILE = "/tmp/hostfile"
 SLOTS_PER_HOST = 2
 
 
-def _get_native_mpi_namespace(experiment_name):
+def get_native_mpi_namespace(experiment_name):
     return "openmpi-{}".format(experiment_name)
 
 
@@ -48,7 +47,7 @@ def _template_k8s_file(experiment_name, filename, template_vars):
 
 def _template_k8s_files(experiment_name, image_name):
     image_tag = get_docker_tag(image_name)
-    namespace = _get_native_mpi_namespace(experiment_name)
+    namespace = get_native_mpi_namespace(experiment_name)
     template_vars = {
         "native_mpi_namespace": namespace,
         "native_mpi_image": image_tag,
@@ -64,13 +63,8 @@ def _template_k8s_files(experiment_name, image_name):
     return namespace_yml, deployment_yml
 
 
-def get_mpi_hoststats_proxy_ip(experiment_name):
-    namespace = _get_native_mpi_namespace(experiment_name)
-    return get_hoststats_proxy_ip(namespace)
-
-
 def run_kubectl_cmd(experiment_name, cmd):
-    namespace = _get_native_mpi_namespace(experiment_name)
+    namespace = get_native_mpi_namespace(experiment_name)
     kubecmd = "kubectl -n {} {}".format(namespace, cmd)
     print(kubecmd)
     res = run(
@@ -85,7 +79,7 @@ def run_kubectl_cmd(experiment_name, cmd):
     return res.stdout.decode("utf-8")
 
 
-def get_pod_names_ips(experiment_name):
+def get_native_mpi_pods(experiment_name):
     # List all pods
     cmd_out = run_kubectl_cmd(
         experiment_name, "get pods -o wide -l run=faasm-openmpi"
@@ -141,7 +135,7 @@ def delete_native_mpi(experiment_name, image_name):
 
 
 def generate_native_mpi_hostfile(experiment_name):
-    pod_names, pod_ips = get_pod_names_ips(experiment_name)
+    pod_names, pod_ips = get_native_mpi_pods(experiment_name)
 
     with open(HOSTFILE_LOCAL_FILE, "w") as fh:
         for ip in pod_ips:

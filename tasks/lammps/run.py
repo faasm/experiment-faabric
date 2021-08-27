@@ -17,8 +17,8 @@ from tasks.util.faasm import (
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
-    get_pod_names_ips,
-    get_mpi_hoststats_proxy_ip,
+    get_native_mpi_namespace,
+    get_native_mpi_pods,
     run_kubectl_cmd,
 )
 from tasks.lammps.env import (
@@ -155,10 +155,10 @@ def native(ctx, repeats=1, nprocs=None):
     else:
         num_procs = NUM_PROCS
 
-    pod_names, pod_ips = get_pod_names_ips("lammps")
-    hoststats_proxy = get_mpi_hoststats_proxy_ip("lammps")
+    namespace = get_native_mpi_namespace("lammps")
+    pod_names, _ = get_native_mpi_pods("lammps")
     master_pod = pod_names[0]
-    stats = HostStats(pod_ips, proxy=hoststats_proxy)
+    stats = HostStats(pod_names, kubectl=True, kubectl_ns=namespace)
 
     for np in num_procs:
         print("Running natively with {} MPI processes".format(np))
