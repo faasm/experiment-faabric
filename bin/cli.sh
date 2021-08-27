@@ -10,11 +10,11 @@ pushd ${PROJ_ROOT} > /dev/null
 export VERSION=$(cat VERSION)
 
 if [[ -z "$LAMMPS_CLI_IMAGE" ]]; then
-    export LAMMPS_CLI_IMAGE=faasm/experiment-kernels:{VERSION}
+    export LAMMPS_CLI_IMAGE=faasm/experiment-lammps:${VERSION}
 fi
 
 if [[ -z "$KERNELS_CLI_IMAGE" ]]; then
-    export KERNELS_CLI_IMAGE=faasm/experiment-kernels:{VERSION}
+    export KERNELS_CLI_IMAGE=faasm/experiment-kernels:${VERSION}
 fi
 
 if [[ -z "$1" ]]; then
@@ -27,7 +27,7 @@ elif [[ "$1" == "lammps" ]]; then
 
 elif [[ "$1" == "kernels" ]]; then
     CLI_CONTAINER="kernels-cli"
-    echo "Kernels CLI (${FAASM_CLI_IMAGE})"
+    echo "Kernels CLI (${KERNELS_CLI_IMAGE})"
 
 else
     echo "Unrecognised CLI. Must be lammps or kernels"
@@ -38,14 +38,14 @@ export INNER_SHELL=${SHELL:-"/bin/bash"}
 
 # Make sure the CLI is running already in the background (avoids creating a new
 # container every time)
-docker-compose -f docker-compose.yml \
+docker-compose \
     up \
     --no-recreate \
     -d \
     ${CLI_CONTAINER}
 
 # Attach to the CLI container
-docker-compose -f docker-compose.yml \
+docker-compose \
     exec \
     ${CLI_CONTAINER} \
     ${INNER_SHELL}

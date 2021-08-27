@@ -1,7 +1,7 @@
 from os.path import dirname, realpath, expanduser, join, exists
 from shutil import rmtree
 from os import makedirs
-from subprocess import run, PIPE
+from subprocess import run
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
@@ -20,8 +20,6 @@ if IS_DOCKER:
     RESULTS_DIR = join(PROJ_ROOT, "results")
 else:
     RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results")
-
-KNATIVE_HEADERS = {"Host": "faasm-worker.faasm.example.com"}
 
 
 def get_version():

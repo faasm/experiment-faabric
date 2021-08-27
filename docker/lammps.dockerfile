@@ -5,13 +5,14 @@ RUN git clone https://github.com/faasm/experiment-mpi
 
 WORKDIR /code/experiment-mpi
 
-# TODO - remove, dev
-RUN git checkout hoststats
-
 RUN git submodule update --init
 
 # Install Python deps
 RUN pip3 install -r requirements.txt
+
+# Install curl for hoststats
+RUN apt update
+RUN apt install -y curl
 
 # Cross-compile and build LAMMPS for Faasm
 RUN inv lammps.wasm

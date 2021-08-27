@@ -1,5 +1,4 @@
 import math
-import re
 import requests
 
 from os import makedirs
@@ -8,17 +7,16 @@ from os.path import join
 
 from tasks.util.env import (
     RESULTS_DIR,
-    KNATIVE_HEADERS,
 )
-from tasks.util.faasm import get_faasm_invoke_host_port
+from tasks.util.faasm import get_faasm_invoke_host_port, get_knative_headers
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
-    get_pod_names_ips,
+    get_native_mpi_pods,
 )
 from tasks.kernels.env import KERNELS_FAASM_USER
 
-ITERATIONS = 20000
+ITERATIONS = 1000
 SPARSE_GRID_SIZE_2LOG = 10
 SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
 
@@ -119,14 +117,15 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
             )
             exit(1)
 
-        stat_val = re.findall(": ([0-9\.]*)".format(stat), kernels_out)
-        stat_val = stat_val[0].strip()
-        stat_val = float(stat_val)
+        stat_val = stat_parts[1].replace(":", "")
+        stat_val = [s.strip() for s in stat_val.split(" ") if s.strip()]
+        stat_val = stat_val[0]
         print("Got {} = {} for {}".format(stat, stat_val, kernel))
 
+        stat_val = float(stat_val)
         with open(result_file, "a") as out_file:
             out_file.write(
-                "{},{},{},{},{:.2f}\n".format(
+                "{},{},{},{},{:.8f}\n".format(
                     kernel, np, run_num, stat, stat_val
                 )
             )
@@ -148,7 +147,7 @@ def _validate_kernel(kernel, np):
 
 
 @task
-def wasm(ctx, repeats=1, nprocs=None, kernel=None):
+def faasm(ctx, repeats=1, nprocs=None, kernel=None):
     result_file = _init_csv_file("kernels_wasm.csv")
     if nprocs:
         num_procs = [nprocs]
@@ -167,7 +166,6 @@ def wasm(ctx, repeats=1, nprocs=None, kernel=None):
             np = int(np)
             _validate_kernel(kernel, np)
             for run_num in range(repeats):
-
                 cmdline = PRK_CMDLINE[kernel]
                 url = "http://{}:{}".format(host, port)
                 msg = {
@@ -176,8 +174,10 @@ def wasm(ctx, repeats=1, nprocs=None, kernel=None):
                     "cmdline": cmdline,
                     "mpi_world_size": np,
                 }
+
+                knative_headers = get_knative_headers()
                 response = requests.post(
-                    url, json=msg, headers=KNATIVE_HEADERS
+                    url, json=msg, headers=knative_headers
                 )
                 if response.status_code != 200:
                     print(
@@ -201,7 +201,7 @@ def native(ctx, repeats=1, nprocs=None, kernel=None):
     else:
         num_procs = NUM_PROCS
 
-    pod_names, pod_ips = get_pod_names_ips("kernels")
+    pod_names, pod_ips = get_native_mpi_pods("kernels")
     master_pod = pod_names[0]
 
     if kernel:

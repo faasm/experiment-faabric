@@ -52,24 +52,16 @@ Building the code must be done from within the kernels experiment container:
 
 ```bash
 ./bin/cli.sh kernels
-```
 
-You can build the code with:
-
-```basn
 inv kernels.build.wasm
 ```
 
-and upload with:
-
-```bash
-inv kernels.build.upload
-```
-
-The experiment must be run _outside_ the container:
+Then upload and run outside the container:
 
 ```bash
 source ../../bin/workon.sh
+
+inv kernels.build.upload
 
 inv kernels.run.faasm
 ```
