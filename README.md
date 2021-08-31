@@ -24,6 +24,8 @@ inv -l
 The code must be built within the LAMMPS container:
 
 ```bash
+git submodule update --init
+
 ./bin/cli.sh lammps
 
 inv lammps.wasm
@@ -51,6 +53,8 @@ inv lammps.run.faasm
 Building the code must be done from within the kernels experiment container:
 
 ```bash
+git submodule update --init
+
 ./bin/cli.sh kernels
 
 inv kernels.build.wasm
