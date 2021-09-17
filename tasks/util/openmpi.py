@@ -11,7 +11,7 @@ from tasks.util.env import (
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
 HOSTFILE_LOCAL_FILE = "/tmp/hostfile"
-SLOTS_PER_HOST = 2 # This must match the number of vCPUs in the VM used
+SLOTS_PER_HOST = 2  # This must match the number of vCPUs in the VM used
 
 
 def get_native_mpi_namespace(experiment_name):
