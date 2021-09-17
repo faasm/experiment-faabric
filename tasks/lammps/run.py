@@ -78,7 +78,7 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, repeats=1, nprocs=None):
+def faasm(ctx, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on Faasm
     """
@@ -86,6 +86,8 @@ def faasm(ctx, repeats=1, nprocs=None):
 
     if nprocs:
         num_procs = [nprocs]
+    elif procrange:
+        num_procs = range(1, int(procrange) + 1)
     else:
         num_procs = NUM_PROCS
 
@@ -117,7 +119,7 @@ def faasm(ctx, repeats=1, nprocs=None):
                 "user": LAMMPS_FAASM_USER,
                 "function": LAMMPS_FAASM_FUNC,
                 "cmdline": LAMMPS_WASM_CMDLINE,
-                "mpi_world_size": np,
+                "mpi_world_size": int(np),
             }
             print("Posting to {}".format(url))
             knative_headers = get_knative_headers()
@@ -129,7 +131,9 @@ def faasm(ctx, repeats=1, nprocs=None):
                         response.status_code, response.text
                     )
                 )
-                exit(1)
+
+                # On error, don't write the result line but continue experiment
+                continue
 
             end = time.time()
             actual_time = end - start
@@ -144,7 +148,7 @@ def faasm(ctx, repeats=1, nprocs=None):
 
 
 @task
-def native(ctx, repeats=1, nprocs=None):
+def native(ctx, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on OpenMPI
     """
@@ -152,6 +156,8 @@ def native(ctx, repeats=1, nprocs=None):
 
     if nprocs:
         num_procs = [nprocs]
+    elif procrange:
+        num_procs = range(1, int(procrange) + 1)
     else:
         num_procs = NUM_PROCS
 
