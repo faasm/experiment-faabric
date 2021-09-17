@@ -131,9 +131,7 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
                         response.status_code, response.text
                     )
                 )
-
-                # On error, don't write the result line but continue experiment
-                continue
+                exit(1)
 
             end = time.time()
             actual_time = end - start
