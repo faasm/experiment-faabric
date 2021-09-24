@@ -3,7 +3,8 @@ from tasks.util.env import PROJ_ROOT
 
 LAMMPS_DIR = join(PROJ_ROOT, "third-party", "lammps")
 LAMMPS_DATA_FILE = join(
-    LAMMPS_DIR, "examples", "controller", "in.controller.wall"
+    LAMMPS_DIR, "bench", "in.lj.faasm"
+    # LAMMPS_DIR, "examples", "controller", "in.controller.wall"
 )
 
 LAMMPS_IMAGE_NAME = "experiment-lammps"

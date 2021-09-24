@@ -11,7 +11,7 @@ RELATIVE_PATH = "lammps-data/in.controller"
 
 
 @task(default=True)
-def upload(ctx):
+def upload(ctx, host_path = LAMMPS_DATA_FILE, faasm_path = RELATIVE_PATH):
     """
     Upload LAMMPS data to Faasm
     """

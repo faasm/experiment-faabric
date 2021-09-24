@@ -29,6 +29,7 @@ def build(ctx, clean=False, verbose=False):
         "cmake",
         "-GNinja",
         "-DLAMMPS_FAASM=ON",
+        "-DPKG_MANYBODY=yes",
         "-DCMAKE_TOOLCHAIN_FILE={}".format(CMAKE_TOOLCHAIN_FILE),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX={}".format(WASM_INSTALL_DIR),

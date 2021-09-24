@@ -32,7 +32,8 @@ DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
 
 LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
-NUM_PROCS = [1, 2, 3, 4, 5]
+# NUM_PROCS = [1, 2, 3, 4, 5]
+NUM_PROCS = [11, 12, 13, 14, 15, 16]
 
 
 def _init_csv_file(csv_name):
@@ -94,25 +95,25 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
     host, port = get_faasm_invoke_host_port()
 
     pod_names = get_faasm_worker_pods()
-    stats = HostStats(
-        pod_names,
-        kubectl=True,
-        kubectl_container="user-container",
-        kubectl_ns="faasm",
-    )
+#     stats = HostStats(
+#         pod_names,
+#         kubectl=True,
+#         kubectl_container="user-container",
+#         kubectl_ns="faasm",
+#     )
 
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
         for run_num in range(repeats):
-            stats_csv = join(
-                RESULTS_DIR,
-                "lammps",
-                "hoststats_wasm_{}_{}.csv".format(np, run_num),
-            )
-
+#             stats_csv = join(
+#                 RESULTS_DIR,
+#                 "lammps",
+#                 "hoststats_wasm_{}_{}.csv".format(np, run_num),
+#             )
+#
             start = time.time()
-            stats.start_collection()
+            # stats.start_collection()
 
             url = "http://{}:{}".format(host, port)
             msg = {
@@ -136,7 +137,7 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
             end = time.time()
             actual_time = end - start
 
-            stats.stop_and_write_to_csv(stats_csv)
+            # stats.stop_and_write_to_csv(stats_csv)
 
             _process_lammps_result(
                 response.text, result_file, np, run_num, actual_time
@@ -176,7 +177,7 @@ def native(ctx, repeats=1, nprocs=None, procrange=None):
             )
 
             start = time.time()
-            stats.start_collection()
+            # stats.start_collection()
 
             mpirun_cmd = [
                 "mpirun",
@@ -199,7 +200,7 @@ def native(ctx, repeats=1, nprocs=None, procrange=None):
             end = time.time()
             actual_time = end - start
 
-            stats.stop_and_write_to_csv(stats_csv)
+            # stats.stop_and_write_to_csv(stats_csv)
 
             _process_lammps_result(
                 exec_output, result_file, np, run_num, actual_time
