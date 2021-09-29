@@ -29,7 +29,16 @@ BENCHMARKS = {
         "out_file": "network",
     },
     "eam": {"data": ["bench/in.eam", "bench/Cu_u3.eam"], "out_file": "eam"},
-    "chute": ["bench/in.chute", "bench/data.chute"],
-    "rhodo": ["bench/in.rhodo", "bench/data.rhodo"],
-    "chain": ["bench/in.chain", "bench/data.chain"],
+    "chute": {
+        "data": ["bench/in.chute", "bench/data.chute"],
+        "out_file": "chute",
+    },
+    "rhodo": {
+        "data": ["bench/in.rhodo", "bench/data.rhodo"],
+        "out_file": "rhodo",
+    },
+    "chain": {
+        "data": ["bench/in.chain", "bench/data.chain"],
+        "out_file": "chain",
+    },
 }
