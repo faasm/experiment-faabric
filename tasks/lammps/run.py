@@ -22,18 +22,13 @@ from tasks.util.openmpi import (
     run_kubectl_cmd,
 )
 from tasks.lammps.env import (
+    BENCHMARKS,
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
     DOCKER_LAMMPS_BINARY,
-    DOCKER_LAMMPS_DATA_FILE,
 )
 
-DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
-
-LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
-
-# NUM_PROCS = [1, 2, 3, 4, 5]
-NUM_PROCS = [11, 12, 13, 14, 15, 16]
+NUM_PROCS = [1, 2, 3, 4, 5]
 
 
 def _init_csv_file(csv_name):
@@ -79,11 +74,20 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, repeats=1, nprocs=None, procrange=None):
+def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on Faasm
     """
-    result_file = _init_csv_file("lammps_wasm.csv")
+    if bench not in BENCHMARKS:
+        print("Unrecognized benchmark: {}".format(bench))
+        print("Benchmark must be one in: {}".format(BENCHMARKS.keys()))
+        exit(1)
+
+    _bench = BENCHMARKS[bench]
+
+    result_file = _init_csv_file(
+        "lammps_wasm_{}.csv".format(_bench["out_file"])
+    )
 
     if nprocs:
         num_procs = [nprocs]
@@ -95,34 +99,36 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
     host, port = get_faasm_invoke_host_port()
 
     pod_names = get_faasm_worker_pods()
-#     stats = HostStats(
-#         pod_names,
-#         kubectl=True,
-#         kubectl_container="user-container",
-#         kubectl_ns="faasm",
-#     )
+    stats = HostStats(
+        pod_names,
+        kubectl=True,
+        kubectl_container="user-container",
+        kubectl_ns="faasm",
+    )
 
     for np in num_procs:
         print("Running on Faasm with {} MPI processes".format(np))
 
         for run_num in range(repeats):
-#             stats_csv = join(
-#                 RESULTS_DIR,
-#                 "lammps",
-#                 "hoststats_wasm_{}_{}.csv".format(np, run_num),
-#             )
-#
-            start = time.time()
-            # stats.start_collection()
+            stats_csv = join(
+                RESULTS_DIR,
+                "lammps",
+                "hoststats_wasm_{}_{}.csv".format(np, run_num),
+            )
 
+            start = time.time()
+            stats.start_collection()
+
+            file_name = _bench["data"][0].split("/")[-1]
+            cmdline = "-in faasm://lammps-data/{}".format(file_name)
             url = "http://{}:{}".format(host, port)
             msg = {
                 "user": LAMMPS_FAASM_USER,
                 "function": LAMMPS_FAASM_FUNC,
-                "cmdline": LAMMPS_WASM_CMDLINE,
+                "cmdline": cmdline,
                 "mpi_world_size": int(np),
             }
-            print("Posting to {}".format(url))
+            print("Posting msg {} to {}".format(msg, url))
             knative_headers = get_knative_headers()
             response = requests.post(url, json=msg, headers=knative_headers)
 
@@ -137,7 +143,7 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
             end = time.time()
             actual_time = end - start
 
-            # stats.stop_and_write_to_csv(stats_csv)
+            stats.stop_and_write_to_csv(stats_csv)
 
             _process_lammps_result(
                 response.text, result_file, np, run_num, actual_time
@@ -147,11 +153,20 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
 
 
 @task
-def native(ctx, repeats=1, nprocs=None, procrange=None):
+def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on OpenMPI
     """
-    result_file = _init_csv_file("lammps_native.csv")
+    if bench not in BENCHMARKS:
+        print("Unrecognized benchmark: {}".format(bench))
+        print("Benchmark must be one in: {}".format(BENCHMARKS.keys()))
+        exit(1)
+
+    _bench = BENCHMARKS[bench]
+
+    result_file = _init_csv_file(
+        "lammps_native_{}.csv".format(_bench["out_file"])
+    )
 
     if nprocs:
         num_procs = [nprocs]
@@ -177,14 +192,15 @@ def native(ctx, repeats=1, nprocs=None, procrange=None):
             )
 
             start = time.time()
-            # stats.start_collection()
+            stats.start_collection()
 
+            native_cmdline = "-in {}.faasm.native".format(_bench["data"][0])
             mpirun_cmd = [
                 "mpirun",
                 "-np {}".format(np),
                 "-hostfile {}".format(NATIVE_HOSTFILE),
                 DOCKER_LAMMPS_BINARY,
-                DOCKER_LAMMPS_CMDLINE,
+                native_cmdline,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
 
@@ -200,7 +216,7 @@ def native(ctx, repeats=1, nprocs=None, procrange=None):
             end = time.time()
             actual_time = end - start
 
-            # stats.stop_and_write_to_csv(stats_csv)
+            stats.stop_and_write_to_csv(stats_csv)
 
             _process_lammps_result(
                 exec_output, result_file, np, run_num, actual_time
