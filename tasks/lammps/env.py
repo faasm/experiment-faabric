@@ -41,4 +41,19 @@ BENCHMARKS = {
         "data": ["bench/in.chain", "bench/data.chain"],
         "out_file": "chain",
     },
+    "short": {
+        "data": ["examples/controller/in.controller.wall"],
+        "out_file": "short",
+    },
 }
+
+
+def get_faasm_benchmark(bench):
+    if bench not in BENCHMARKS:
+        print("Unrecognized benchmark: {}".format(bench))
+        print(
+            "The supported LAMMPS benchmarks are: {}".format(BENCHMARKS.keys())
+        )
+        raise RuntimeError("Unrecognized LAMMPS benchmark")
+
+    return BENCHMARKS[bench]

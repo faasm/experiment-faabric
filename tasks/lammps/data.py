@@ -3,9 +3,9 @@ from os.path import exists, join
 import requests
 
 from tasks.lammps.env import (
-    BENCHMARKS,
     LAMMPS_DIR,
     LAMMPS_FAASM_DATA_PREFIX,
+    get_faasm_benchmark,
 )
 from tasks.util.faasm import get_faasm_upload_host_port
 
@@ -15,13 +15,7 @@ def upload(ctx, bench):
     """
     Upload LAMMPS benchmark data to Faasm
     """
-    if bench not in BENCHMARKS:
-        print("Unrecognized benchmark: {}".format(bench))
-        print(
-            "The supported LAMMPS benchmarks are: {}".format(BENCHMARKS.keys())
-        )
-
-    _bench = BENCHMARKS[bench]
+    _bench = get_faasm_benchmark(bench)
 
     host, port = get_faasm_upload_host_port()
     url = "http://{}:{}/file".format(host, port)
