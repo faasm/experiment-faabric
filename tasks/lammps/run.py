@@ -1,9 +1,10 @@
 import re
 import time
 import requests
-from os import makedirs
-from os.path import join
 from invoke import task
+from os import makedirs
+from os.path import basename, join
+from pprint import pprint
 
 from hoststats.client import HostStats
 
@@ -22,15 +23,12 @@ from tasks.util.openmpi import (
     run_kubectl_cmd,
 )
 from tasks.lammps.env import (
+    DOCKER_LAMMPS_BINARY,
+    DOCKER_LAMMPS_DIR,
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
-    DOCKER_LAMMPS_BINARY,
-    DOCKER_LAMMPS_DATA_FILE,
+    get_faasm_benchmark,
 )
-
-DOCKER_LAMMPS_CMDLINE = "-in {}".format(DOCKER_LAMMPS_DATA_FILE)
-
-LAMMPS_WASM_CMDLINE = "-in faasm://lammps-data/in.controller"
 
 NUM_PROCS = [1, 2, 3, 4, 5]
 
@@ -78,11 +76,15 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, repeats=1, nprocs=None, procrange=None):
+def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on Faasm
     """
-    result_file = _init_csv_file("lammps_wasm.csv")
+    _bench = get_faasm_benchmark(bench)
+
+    result_file = _init_csv_file(
+        "lammps_wasm_{}.csv".format(_bench["out_file"])
+    )
 
     if nprocs:
         num_procs = [nprocs]
@@ -114,14 +116,17 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
             start = time.time()
             stats.start_collection()
 
+            file_name = basename(_bench["data"][0])
+            cmdline = "-in faasm://lammps-data/{}".format(file_name)
             url = "http://{}:{}".format(host, port)
             msg = {
                 "user": LAMMPS_FAASM_USER,
                 "function": LAMMPS_FAASM_FUNC,
-                "cmdline": LAMMPS_WASM_CMDLINE,
+                "cmdline": cmdline,
                 "mpi_world_size": int(np),
             }
-            print("Posting to {}".format(url))
+            print("Posting to {} msg:".format(msg, url))
+            pprint(msg)
             knative_headers = get_knative_headers()
             response = requests.post(url, json=msg, headers=knative_headers)
 
@@ -146,11 +151,15 @@ def faasm(ctx, repeats=1, nprocs=None, procrange=None):
 
 
 @task
-def native(ctx, repeats=1, nprocs=None, procrange=None):
+def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on OpenMPI
     """
-    result_file = _init_csv_file("lammps_native.csv")
+    _bench = get_faasm_benchmark(bench)
+
+    result_file = _init_csv_file(
+        "lammps_native_{}.csv".format(_bench["out_file"])
+    )
 
     if nprocs:
         num_procs = [nprocs]
@@ -178,12 +187,15 @@ def native(ctx, repeats=1, nprocs=None, procrange=None):
             start = time.time()
             stats.start_collection()
 
+            native_cmdline = "-in {}/{}.faasm.native".format(
+                DOCKER_LAMMPS_DIR, _bench["data"][0]
+            )
             mpirun_cmd = [
                 "mpirun",
                 "-np {}".format(np),
                 "-hostfile {}".format(NATIVE_HOSTFILE),
                 DOCKER_LAMMPS_BINARY,
-                DOCKER_LAMMPS_CMDLINE,
+                native_cmdline,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
 

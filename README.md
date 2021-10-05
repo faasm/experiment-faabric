@@ -146,7 +146,7 @@ To rebuild the containers:
 source ../../bin/workon.sh
 
 # OpenMPI
-inv openmpi.container
+inv openmpi.build
 
 # LAMMPS
 inv lammps.container

@@ -11,7 +11,10 @@ from tasks.util.env import (
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
 HOSTFILE_LOCAL_FILE = "/tmp/hostfile"
-SLOTS_PER_HOST = 2  # This must match the number of vCPUs in the VM used
+# NOTE: the slots per host must be the same as the number of vCPUs
+# in the VMs in the k8s deployment. The VM type is defined at:
+# https://github.com/faasm/experiment-base/blob/54501493187fa7a162b9aa27e67c5ef5e9389348/tasks/util/env.py#L16
+SLOTS_PER_HOST = 4
 
 
 def get_native_mpi_namespace(experiment_name):
