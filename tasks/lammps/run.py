@@ -30,8 +30,6 @@ from tasks.lammps.env import (
     get_faasm_benchmark,
 )
 
-NUM_PROCS = [1, 2, 3, 4, 5]
-
 
 def _init_csv_file(csv_name):
     result_dir = join(RESULTS_DIR, "lammps")
@@ -110,7 +108,9 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
             stats_csv = join(
                 RESULTS_DIR,
                 "lammps",
-                "hoststats_wasm_{}_{}.csv".format(np, run_num),
+                "hoststats_wasm_{}_{}_{}.csv".format(
+                    _bench["out_file"], np, run_num
+                ),
             )
 
             start = time.time()
@@ -124,22 +124,58 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
                 "function": LAMMPS_FAASM_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(np),
+                "async": True,
             }
             print("Posting to {} msg:".format(msg, url))
             pprint(msg)
-            knative_headers = get_knative_headers()
-            response = requests.post(url, json=msg, headers=knative_headers)
 
+            # Post asynch request
+            knative_headers = get_knative_headers()
+            response = requests.post(
+                url, json=msg, headers=knative_headers, timeout=None
+            )
+            # Get the async message id
             if response.status_code != 200:
                 print(
-                    "Invocation failed: {}:\n{}".format(
+                    "Initial request failed: {}:\n{}".format(
                         response.status_code, response.text
                     )
                 )
-                exit(1)
+            print("Response: {}".format(response.text))
+            msg_id = int(response.text.strip())
 
-            end = time.time()
-            actual_time = end - start
+            # Start polling for the result
+            print("Polling message {}".format(msg_id))
+            while True:
+                interval = 2
+                time.sleep(interval)
+
+                status_msg = {
+                    "user": LAMMPS_FAASM_USER,
+                    "function": LAMMPS_FAASM_FUNC,
+                    "status": True,
+                    "id": msg_id,
+                }
+                response = requests.post(
+                    url,
+                    json=status_msg,
+                    headers=knative_headers,
+                )
+
+                print(response.text)
+                if response.text.startswith("SUCCESS"):
+                    actual_time = time.time() - start
+                    break
+                elif response.text.startswith("RUNNING"):
+                    continue
+                elif response.text.startswith("FAILED"):
+                    raise RuntimeError("Call failed")
+                elif not response.text:
+                    raise RuntimeError("Empty status response")
+                else:
+                    raise RuntimeError(
+                        "Unexpected status response: {}".format(response.text)
+                    )
 
             stats.stop_and_write_to_csv(stats_csv)
 
@@ -181,7 +217,9 @@ def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
             stats_csv = join(
                 RESULTS_DIR,
                 "lammps",
-                "hoststats_native_{}_{}.csv".format(np, run_num),
+                "hoststats_native_{}_{}_{}.csv".format(
+                    _bench["out_file"], np, run_num
+                ),
             )
 
             start = time.time()
