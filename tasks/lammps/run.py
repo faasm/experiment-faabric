@@ -30,6 +30,8 @@ from tasks.lammps.env import (
     get_faasm_benchmark,
 )
 
+MESSAGE_TYPE_FLUSH = 3
+
 
 def _init_csv_file(csv_name):
     result_dir = join(RESULTS_DIR, "lammps")
@@ -111,7 +113,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
 
             # First, flush the host state
             print("Flushing functions, state, and shared files from workers")
-            msg = {"type": 3}
+            msg = {"type": MESSAGE_TYPE_FLUSH}
             response = requests.post(
                 url, json=msg, headers=knative_headers, timeout=None
             )
