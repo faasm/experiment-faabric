@@ -1,4 +1,4 @@
-FROM faasm/openmpi:0.0.2
+FROM faasm/openmpi:0.1.1
 
 WORKDIR /code
 RUN git clone https://github.com/faasm/experiment-mpi

@@ -1,4 +1,4 @@
-FROM faasm/cpp-sysroot:0.0.26
+FROM faasm/cpp-sysroot:0.1.0
 
 # Download and install OpenMPI
 WORKDIR /tmp
