@@ -30,6 +30,8 @@ from tasks.lammps.env import (
     get_faasm_benchmark,
 )
 
+MESSAGE_TYPE_FLUSH = 3
+
 
 def _init_csv_file(csv_name):
     result_dir = join(RESULTS_DIR, "lammps")
@@ -105,6 +107,26 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
         print("Running on Faasm with {} MPI processes".format(np))
 
         for run_num in range(repeats):
+            # Url and headers for requests
+            url = "http://{}:{}".format(host, port)
+            knative_headers = get_knative_headers()
+
+            # First, flush the host state
+            print("Flushing functions, state, and shared files from workers")
+            msg = {"type": MESSAGE_TYPE_FLUSH}
+            response = requests.post(
+                url, json=msg, headers=knative_headers, timeout=None
+            )
+            if response.status_code != 200:
+                print(
+                    "Flush request failed: {}:\n{}".format(
+                        response.status_code, response.text
+                    )
+                )
+            print("Waiting for flush to propagate...")
+            time.sleep(5)
+            print("Done waiting")
+
             stats_csv = join(
                 RESULTS_DIR,
                 "lammps",
@@ -118,7 +140,6 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
 
             file_name = basename(_bench["data"][0])
             cmdline = "-in faasm://lammps-data/{}".format(file_name)
-            url = "http://{}:{}".format(host, port)
             msg = {
                 "user": LAMMPS_FAASM_USER,
                 "function": LAMMPS_FAASM_FUNC,
@@ -126,11 +147,10 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
                 "mpi_world_size": int(np),
                 "async": True,
             }
-            print("Posting to {} msg:".format(msg, url))
+            print("Posting to {} msg:".format(url))
             pprint(msg)
 
             # Post asynch request
-            knative_headers = get_knative_headers()
             response = requests.post(
                 url, json=msg, headers=knative_headers, timeout=None
             )
