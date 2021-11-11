@@ -29,6 +29,7 @@ from tasks.lammps.env import (
     LAMMPS_FAASM_FUNC,
     get_faasm_benchmark,
 )
+from tasks.lammps.graph import plot_mpi_graph
 
 MESSAGE_TYPE_FLUSH = 3
 
@@ -76,7 +77,7 @@ def _process_lammps_result(
 
 
 @task
-def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
+def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
     """
     Run LAMMPS experiment on Faasm
     """
@@ -114,6 +115,8 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
             # First, flush the host state
             print("Flushing functions, state, and shared files from workers")
             msg = {"type": MESSAGE_TYPE_FLUSH}
+            print("Posting to {} msg:".format(url))
+            pprint(msg)
             response = requests.post(
                 url, json=msg, headers=knative_headers, timeout=None
             )
@@ -146,6 +149,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
                 "cmdline": cmdline,
                 "mpi_world_size": int(np),
                 "async": True,
+                "record_exec_graph": graph,
             }
             print("Posting to {} msg:".format(url))
             pprint(msg)
@@ -204,6 +208,36 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None):
             )
 
     print("Results written to {}".format(result_file))
+
+
+@task
+def exec_graph(ctx, call_id, msg_type = -1):
+    # Post request
+    host, port = get_faasm_invoke_host_port()
+    knative_headers = get_knative_headers()
+    url = "http://{}:{}".format(host, port)
+    msg = {
+        "user": "",
+        "function": "",
+        "exec_graph": True,
+        "id": int(call_id),
+    }
+    print("Posting to {} msg:".format(url))
+    pprint(msg)
+
+    # Get response
+    response = requests.post(
+        url, json=msg, headers=knative_headers, timeout=None
+    )
+    if response.status_code != 200:
+        print(
+            "Exec graph request failed: {}:\n{}".format(
+                response.status_code, response.text
+            )
+        )
+
+    # Plot graph
+    plot_mpi_graph(response.text, int(msg_type))
 
 
 @task
