@@ -13,6 +13,7 @@ HOST_COLOURS = [
     "plum1",
 ]
 MPI_GRAPH_PATH = "/tmp/faasm_mpi_graph.png"
+MPI_XMSG_PATH = "/tmp/faasm_mpi_xmsg.png"
 MIN_EDGE_WEIGHT = 10
 MPI_MSGCOUNT_PREFIX = "mpi-msgcount-torank-"
 MPI_MSGTYPE_PREFIX = "mpi-msgtype-torank-"  # mpi-msgtype-torank-0-6:31234
@@ -379,3 +380,62 @@ def plot_mpi_graph(json_str, msg_type=-1):
         )
 
     print("Saved graph in file: {}".format(MPI_GRAPH_PATH))
+
+
+def is_cross_host(mpi_nodes, edge):
+
+    out_node_key = edge[0][0]
+    in_node_key = edge[0][1]
+    return mpi_nodes[out_node_key]["host"] != mpi_nodes[in_node_key]["host"]
+
+
+def plot_mpi_cross_host_msg(json_str):
+    """
+    Plot the breakdown of cross-host messaging by message type
+    """
+    json_obj = json.loads(json_str)
+    root_node = json_obj["root"]
+    world_size = root_node["msg"].get("mpi_world_size")
+    mpi_nodes = get_mpi_details_from_node(root_node)
+
+    # ----- Plot bar chart -----
+
+    fig, ax = plt.subplots()
+
+    labels = MPI_MSG_TYPE_MAP.keys()
+    prev_values = [0 for _ in labels]
+
+    for node_rank in mpi_nodes:
+        values = [0 for _ in labels]
+        for m_type in mpi_nodes[node_rank]["msg_type_breakdown"]:
+            edge_list = mpi_nodes[node_rank]["msg_type_breakdown"][m_type]
+            values[m_type] += sum(
+                [e[1] for e in edge_list if is_cross_host(mpi_nodes, e)]
+            )
+
+        ax.bar(
+            labels,
+            values,
+            bottom=prev_values,
+            label="Rank: {}".format(node_rank),
+        )
+        prev_values = [sum(x) for x in zip(values, prev_values)]
+
+    ax.legend()
+
+    # Set labels
+    ax.set_xticks(list(MPI_MSG_TYPE_MAP.keys()))
+    ax.set_xticklabels(
+        list(MPI_MSG_TYPE_MAP.values()), fontdict={"fontsize": 7}
+    )
+    plt.setp(
+        ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+    )
+
+    plt.title(
+        "Breakdown of cross-host messages per message type and rank\n"
+        "World size: {}".format(world_size)
+    )
+    plt.savefig(MPI_XMSG_PATH)
+
+    print("Saved graph in file: {}".format(MPI_XMSG_PATH))

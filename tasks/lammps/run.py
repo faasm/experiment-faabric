@@ -29,7 +29,7 @@ from tasks.lammps.env import (
     LAMMPS_FAASM_FUNC,
     get_faasm_benchmark,
 )
-from tasks.lammps.graph import plot_mpi_graph
+from tasks.lammps.graph import plot_mpi_graph, plot_mpi_cross_host_msg
 
 MESSAGE_TYPE_FLUSH = 3
 
@@ -211,7 +211,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
 
 
 @task
-def exec_graph(ctx, call_id, msg_type = -1):
+def exec_graph(ctx, call_id, msg_type=-1, xhost=False):
     # Post request
     host, port = get_faasm_invoke_host_port()
     knative_headers = get_knative_headers()
@@ -237,7 +237,10 @@ def exec_graph(ctx, call_id, msg_type = -1):
         )
 
     # Plot graph
-    plot_mpi_graph(response.text, int(msg_type))
+    if xhost:
+        plot_mpi_cross_host_msg(response.text)
+    else:
+        plot_mpi_graph(response.text, int(msg_type))
 
 
 @task
