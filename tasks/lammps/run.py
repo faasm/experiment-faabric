@@ -32,6 +32,7 @@ from tasks.lammps.env import (
 from tasks.lammps.graph import plot_mpi_graph, plot_mpi_cross_host_msg
 
 MESSAGE_TYPE_FLUSH = 3
+FAASM_PID_FILE = "faasm_pids.txt"
 
 
 def _init_csv_file(csv_name):
@@ -76,17 +77,12 @@ def _process_lammps_result(
         )
 
 
-@task
+@task(iterable=["bench"])
 def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
     """
     Run LAMMPS experiment on Faasm
     """
-    _bench = get_faasm_benchmark(bench)
-
-    result_file = _init_csv_file(
-        "lammps_wasm_{}.csv".format(_bench["out_file"])
-    )
-
+    # Sort out the number of processes to use during experiments
     if nprocs:
         num_procs = [nprocs]
     elif procrange:
@@ -104,110 +100,137 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
         kubectl_ns="faasm",
     )
 
-    for np in num_procs:
-        print("Running on Faasm with {} MPI processes".format(np))
+    # Set up pid file
+    with open(FAASM_PID_FILE, "a+") as f:
+        f.write("========== BEGIN NEW EXP ==========\n")
 
-        for run_num in range(repeats):
-            # Url and headers for requests
-            url = "http://{}:{}".format(host, port)
-            knative_headers = get_knative_headers()
+    # Run multiple benchmarks if desired for convenience
+    for b in bench:
+        _bench = get_faasm_benchmark(b)
 
-            # First, flush the host state
-            print("Flushing functions, state, and shared files from workers")
-            msg = {"type": MESSAGE_TYPE_FLUSH}
-            print("Posting to {} msg:".format(url))
-            pprint(msg)
-            response = requests.post(
-                url, json=msg, headers=knative_headers, timeout=None
-            )
-            if response.status_code != 200:
+        result_file = _init_csv_file(
+            "lammps_wasm_{}.csv".format(_bench["out_file"])
+        )
+
+        for np in num_procs:
+            print("Running on Faasm with {} MPI processes".format(np))
+
+            for run_num in range(repeats):
+                # Url and headers for requests
+                url = "http://{}:{}".format(host, port)
+                knative_headers = get_knative_headers()
+
+                # First, flush the host state
                 print(
-                    "Flush request failed: {}:\n{}".format(
-                        response.status_code, response.text
-                    )
+                    "Flushing functions, state, and shared files from workers"
                 )
-            print("Waiting for flush to propagate...")
-            time.sleep(5)
-            print("Done waiting")
-
-            stats_csv = join(
-                RESULTS_DIR,
-                "lammps",
-                "hoststats_wasm_{}_{}_{}.csv".format(
-                    _bench["out_file"], np, run_num
-                ),
-            )
-
-            start = time.time()
-            stats.start_collection()
-
-            file_name = basename(_bench["data"][0])
-            cmdline = "-in faasm://lammps-data/{}".format(file_name)
-            msg = {
-                "user": LAMMPS_FAASM_USER,
-                "function": LAMMPS_FAASM_FUNC,
-                "cmdline": cmdline,
-                "mpi_world_size": int(np),
-                "async": True,
-                "record_exec_graph": graph,
-            }
-            print("Posting to {} msg:".format(url))
-            pprint(msg)
-
-            # Post asynch request
-            response = requests.post(
-                url, json=msg, headers=knative_headers, timeout=None
-            )
-            # Get the async message id
-            if response.status_code != 200:
-                print(
-                    "Initial request failed: {}:\n{}".format(
-                        response.status_code, response.text
-                    )
+                msg = {"type": MESSAGE_TYPE_FLUSH}
+                print("Posting to {} msg:".format(url))
+                pprint(msg)
+                response = requests.post(
+                    url, json=msg, headers=knative_headers, timeout=None
                 )
-            print("Response: {}".format(response.text))
-            msg_id = int(response.text.strip())
+                if response.status_code != 200:
+                    print(
+                        "Flush request failed: {}:\n{}".format(
+                            response.status_code, response.text
+                        )
+                    )
+                print("Waiting for flush to propagate...")
+                time.sleep(5)
+                print("Done waiting")
 
-            # Start polling for the result
-            print("Polling message {}".format(msg_id))
-            while True:
-                interval = 2
-                time.sleep(interval)
+                stats_csv = join(
+                    RESULTS_DIR,
+                    "lammps",
+                    "hoststats_wasm_{}_{}_{}.csv".format(
+                        _bench["out_file"], np, run_num
+                    ),
+                )
 
-                status_msg = {
+                start = time.time()
+                stats.start_collection()
+
+                file_name = basename(_bench["data"][0])
+                cmdline = "-in faasm://lammps-data/{}".format(file_name)
+                msg = {
                     "user": LAMMPS_FAASM_USER,
                     "function": LAMMPS_FAASM_FUNC,
-                    "status": True,
-                    "id": msg_id,
+                    "cmdline": cmdline,
+                    "mpi_world_size": int(np),
+                    "async": True,
+                    "record_exec_graph": graph,
                 }
-                response = requests.post(
-                    url,
-                    json=status_msg,
-                    headers=knative_headers,
-                )
+                print("Posting to {} msg:".format(url))
+                pprint(msg)
 
-                print(response.text)
-                if response.text.startswith("SUCCESS"):
-                    actual_time = time.time() - start
-                    break
-                elif response.text.startswith("RUNNING"):
-                    continue
-                elif response.text.startswith("FAILED"):
-                    raise RuntimeError("Call failed")
-                elif not response.text:
-                    raise RuntimeError("Empty status response")
-                else:
-                    raise RuntimeError(
-                        "Unexpected status response: {}".format(response.text)
+                # Post asynch request
+                response = requests.post(
+                    url, json=msg, headers=knative_headers, timeout=None
+                )
+                # Get the async message id
+                if response.status_code != 200:
+                    print(
+                        "Initial request failed: {}:\n{}".format(
+                            response.status_code, response.text
+                        )
+                    )
+                print("Response: {}".format(response.text))
+                msg_id = int(response.text.strip())
+
+                # Record message ids in a file
+                with open(FAASM_PID_FILE, "a+") as f:
+                    f.write("{}\n".format(msg_id))
+
+                # Start polling for the result
+                print("Polling message {}".format(msg_id))
+                while True:
+                    interval = 2
+                    time.sleep(interval)
+
+                    status_msg = {
+                        "user": LAMMPS_FAASM_USER,
+                        "function": LAMMPS_FAASM_FUNC,
+                        "status": True,
+                        "id": msg_id,
+                    }
+                    response = requests.post(
+                        url,
+                        json=status_msg,
+                        headers=knative_headers,
                     )
 
-            stats.stop_and_write_to_csv(stats_csv)
+                    print(response.text)
+                    if response.text.startswith("SUCCESS"):
+                        actual_time = time.time() - start
+                        break
+                    elif response.text.startswith("RUNNING"):
+                        continue
+                    elif response.text.startswith("FAILED"):
+                        raise RuntimeError("Call failed")
+                    elif not response.text:
+                        raise RuntimeError("Empty status response")
+                    else:
+                        raise RuntimeError(
+                            "Unexpected status response: {}".format(
+                                response.text
+                            )
+                        )
 
-            _process_lammps_result(
-                response.text, result_file, np, run_num, actual_time
-            )
+                stats.stop_and_write_to_csv(stats_csv)
 
-    print("Results written to {}".format(result_file))
+                _process_lammps_result(
+                    response.text, result_file, np, run_num, actual_time
+                )
+
+                if graph:
+                    exec_graph(ctx, msg_id, xhost=True)
+
+        print("Results written to {}".format(result_file))
+
+    # Set up pid file
+    with open(FAASM_PID_FILE, "a+") as f:
+        f.write("===================================\n")
 
 
 @task
@@ -243,17 +266,11 @@ def exec_graph(ctx, call_id, msg_type=-1, xhost=False):
         plot_mpi_graph(response.text, int(msg_type))
 
 
-@task
+@task(iterable=["bench"])
 def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
     """
     Run LAMMPS experiment on OpenMPI
     """
-    _bench = get_faasm_benchmark(bench)
-
-    result_file = _init_csv_file(
-        "lammps_native_{}.csv".format(_bench["out_file"])
-    )
-
     if nprocs:
         num_procs = [nprocs]
     elif procrange:
@@ -266,48 +283,55 @@ def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
     master_pod = pod_names[0]
     stats = HostStats(pod_names, kubectl=True, kubectl_ns=namespace)
 
-    for np in num_procs:
-        print("Running natively with {} MPI processes".format(np))
-        print("Chosen pod {} as master".format(master_pod))
+    for b in bench:
+        _bench = get_faasm_benchmark(b)
 
-        for run_num in range(repeats):
-            stats_csv = join(
-                RESULTS_DIR,
-                "lammps",
-                "hoststats_native_{}_{}_{}.csv".format(
-                    _bench["out_file"], np, run_num
-                ),
-            )
+        result_file = _init_csv_file(
+            "lammps_native_{}.csv".format(_bench["out_file"])
+        )
 
-            start = time.time()
-            stats.start_collection()
+        for np in num_procs:
+            print("Running natively with {} MPI processes".format(np))
+            print("Chosen pod {} as master".format(master_pod))
 
-            native_cmdline = "-in {}/{}.faasm.native".format(
-                DOCKER_LAMMPS_DIR, _bench["data"][0]
-            )
-            mpirun_cmd = [
-                "mpirun",
-                "-np {}".format(np),
-                "-hostfile {}".format(NATIVE_HOSTFILE),
-                DOCKER_LAMMPS_BINARY,
-                native_cmdline,
-            ]
-            mpirun_cmd = " ".join(mpirun_cmd)
+            for run_num in range(repeats):
+                stats_csv = join(
+                    RESULTS_DIR,
+                    "lammps",
+                    "hoststats_native_{}_{}_{}.csv".format(
+                        _bench["out_file"], np, run_num
+                    ),
+                )
 
-            exec_cmd = [
-                "exec",
-                master_pod,
-                "--",
-                "su mpirun -c '{}'".format(mpirun_cmd),
-            ]
-            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
-            print(exec_output)
+                start = time.time()
+                stats.start_collection()
 
-            end = time.time()
-            actual_time = end - start
+                native_cmdline = "-in {}/{}.faasm.native".format(
+                    DOCKER_LAMMPS_DIR, _bench["data"][0]
+                )
+                mpirun_cmd = [
+                    "mpirun",
+                    "-np {}".format(np),
+                    "-hostfile {}".format(NATIVE_HOSTFILE),
+                    DOCKER_LAMMPS_BINARY,
+                    native_cmdline,
+                ]
+                mpirun_cmd = " ".join(mpirun_cmd)
 
-            stats.stop_and_write_to_csv(stats_csv)
+                exec_cmd = [
+                    "exec",
+                    master_pod,
+                    "--",
+                    "su mpirun -c '{}'".format(mpirun_cmd),
+                ]
+                exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+                print(exec_output)
 
-            _process_lammps_result(
-                exec_output, result_file, np, run_num, actual_time
-            )
+                end = time.time()
+                actual_time = end - start
+
+                stats.stop_and_write_to_csv(stats_csv)
+
+                _process_lammps_result(
+                    exec_output, result_file, np, run_num, actual_time
+                )

@@ -20,6 +20,7 @@ LAMMPS_FAASM_DATA_PREFIX = "/lammps-data"
 BENCHMARKS = {
     "lj": {"data": ["bench/in.lj"], "out_file": "compute"},
     "compute": {"data": ["bench/in.lj"], "out_file": "compute"},
+    "compute-xl": {"data": ["bench/in.lj-xl"], "out_file": "compute"},
     "controller": {
         "data": ["examples/controller/in.controller.wall"],
         "out_file": "network",

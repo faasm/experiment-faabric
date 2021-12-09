@@ -16,7 +16,7 @@ MPI_GRAPH_PATH = "/tmp/faasm_mpi_graph.png"
 MPI_XMSG_PATH = "/tmp/faasm_mpi_xmsg.png"
 MIN_EDGE_WEIGHT = 10
 MPI_MSGCOUNT_PREFIX = "mpi-msgcount-torank-"
-MPI_MSGTYPE_PREFIX = "mpi-msgtype-torank-"  # mpi-msgtype-torank-0-6:31234
+MPI_MSGTYPE_PREFIX = "mpi-msgtype-torank-"
 MPI_MSG_TYPE_MAP = {
     0: "NORMAL",
     1: "BARRIER_JOIN",
@@ -29,10 +29,14 @@ MPI_MSG_TYPE_MAP = {
     8: "ALLREDUCE",
     9: "ALLTOALL",
     10: "SENDRECV",
+    11: "BROADCAST",
 }
 
 
 def get_hosts_from_node(node):
+    """
+    Return the host set for an MPI node in the graph and its children
+    """
     node_hosts = set()
     node_host = node["msg"].get("exec_host", "")
     node_hosts.add(node_host)
@@ -46,6 +50,9 @@ def get_hosts_from_node(node):
 
 
 def get_hosts_colour_map(root_node):
+    """
+    Map the host set to a color for colorful plots
+    """
     all_hosts = get_hosts_from_node(root_node)
 
     cmp = dict()
@@ -56,6 +63,10 @@ def get_hosts_colour_map(root_node):
 
 
 def get_mpi_messages_from_msg(msg):
+    """
+    Return a list with the message count per rank from a faabric message. The
+    list contains tuples of the form [(origin_rank, destination_rank), msg_count)]
+    """
     all_msg = msg.get("int_exec_graph_detail", "").split(",")
     all_mpi_msg = [
         m for m in all_msg if MPI_MSGCOUNT_PREFIX in m.split(":")[0]
@@ -71,6 +82,12 @@ def get_mpi_messages_from_msg(msg):
 
 
 def get_mpi_message_breakdown_from_msg(msg):
+    """
+    Given a message, return a dictionary where keys are message types, and
+    values are lists of tuples of the form ((send_rank, recv_rank), msg_count).
+    This way we know, for each message type, what ranks have sent messages of
+    this type, and the number of this messages.
+    """
     all_msg = msg.get("int_exec_graph_detail", "").split(",")
     all_mpi_msg = [m for m in all_msg if MPI_MSGTYPE_PREFIX in m.split(":")[0]]
     msg_type = [int(m.split(":")[0].split("-")[-2]) for m in all_mpi_msg]
@@ -88,6 +105,10 @@ def get_mpi_message_breakdown_from_msg(msg):
 
 
 def get_mpi_details_from_node(node):
+    """
+    Given a node in the graph, return a dict with the node's most relevant
+    properties parsed.
+    """
     mpi_nodes = {}
     node_rank = node["msg"].get("mpi_rank", 0)
     node_host = node["msg"].get("exec_host", "")
@@ -110,6 +131,11 @@ def get_mpi_details_from_node(node):
 
 
 def get_grid_size(world_size):
+    """
+    Return the grid dimensions given a world size. This method mimicks the
+    behaviour of the LAMMPS' grid generation process.
+    """
+
     def is_perfect_square(num):
         return int(sqrt(num) + 0.5) ** 2 == num
 
@@ -135,6 +161,10 @@ def get_grid_size(world_size):
 
 
 def get_node_pos(world_size, with_offset=False):
+    """
+    Given the world size, return a dictionary with the (X,Y) coordinates of
+    each rank in the plot.
+    """
     pos = {}
     nrows, ncols = get_grid_size(world_size)
 
@@ -154,6 +184,10 @@ def get_node_pos(world_size, with_offset=False):
 
 
 def are_neighbors(world_size, a, b):
+    """
+    Given the world size and two ranks, return wether two ranks are neighbours
+    or not.
+    """
     pos = get_node_pos(world_size, False)
 
     directions = [[0, 1], [0, -1], [1, 0], [-1, 0]]
@@ -165,6 +199,10 @@ def are_neighbors(world_size, a, b):
 
 
 def are_periodic_neighbors(world_size, a, b):
+    """
+    Given the world size and two ranks, return wether two ranks are periodic
+    neighbours (i.e. they are in opposite borders of the grid).
+    """
     nrows, ncols = get_grid_size(world_size)
     pos = get_node_pos(world_size, False)
 
@@ -211,6 +249,11 @@ def apply_zero_correction(nodes):
 
 
 def add_periodic_edge(graph, pos, world_size, key, e):
+    """
+    Add a periodic edge to the graph by creating a fake transparent node. These
+    edges are used to express that one node is messaging with its periodic
+    neighbour, in the opposite border of the grid.
+    """
     nrows, ncols = get_grid_size(world_size)
     pos = get_node_pos(world_size, False)
 
@@ -261,6 +304,9 @@ def plot_graph(
     zero_correction=True,
     msg_type=-1,
 ):
+    """
+    Auxiliary method to do the actual plotting of the graph.
+    """
     graph = nx.DiGraph()
     graph_cmp = []
     world_size = len(nodes.keys())
@@ -294,7 +340,6 @@ def plot_graph(
                             )
                         )
                     else:
-                        print("Adding periodic edge: {} - {}".format(key, e))
                         new_pos = add_periodic_edge(
                             graph, pos, world_size, key, e
                         )
@@ -308,7 +353,6 @@ def plot_graph(
     ax = plt.axes()
     plt.gca().set_aspect("equal", adjustable="box")
 
-    # nx.draw(graph, pos, with_labels=True, node_color=graph_cmp)
     real_nodes = [i for i in sorted(list(graph)) if i >= 0]
     periodic_nodes = [i for i in sorted(list(graph)) if i < 0]
     nx.draw_networkx_nodes(
@@ -383,7 +427,10 @@ def plot_mpi_graph(json_str, msg_type=-1):
 
 
 def is_cross_host(mpi_nodes, edge):
-
+    """
+    Return true if the supplied edge is a cross-host edge according to the
+    mpi nodes supplied.
+    """
     out_node_key = edge[0][0]
     in_node_key = edge[0][1]
     return mpi_nodes[out_node_key]["host"] != mpi_nodes[in_node_key]["host"]
@@ -398,21 +445,35 @@ def plot_mpi_cross_host_msg(json_str):
     world_size = root_node["msg"].get("mpi_world_size")
     mpi_nodes = get_mpi_details_from_node(root_node)
 
-    # ----- Plot bar chart -----
+    # ----- Plot bar chart's values -----
 
     fig, ax = plt.subplots()
 
     labels = MPI_MSG_TYPE_MAP.keys()
     prev_values = [0 for _ in labels]
+    abs_values = [0 for _ in labels]
 
+    # We iterate through all MPI ranks. For each rank we query the message type
+    # breakdown property; it indicates the number of messages of each type
+    # this rank has sent.
     for node_rank in mpi_nodes:
         values = [0 for _ in labels]
         for m_type in mpi_nodes[node_rank]["msg_type_breakdown"]:
             edge_list = mpi_nodes[node_rank]["msg_type_breakdown"][m_type]
+            # We need to count all messages of this type that are cross-host.
+            # Being cross-host depends on the send and recv rank that are
+            # included in the dict (see `get_mpi_message_breakdown_from_msg`
+            # for more details).
             values[m_type] += sum(
                 [e[1] for e in edge_list if is_cross_host(mpi_nodes, e)]
             )
+            # Also record the total number of messages sent
+            abs_values[m_type] += sum([e[1] for e in edge_list])
 
+        # To plot a stacked bar chart, we need to keep track of the `bottom`
+        # value, which is the Y-value where we stack the next bar. We keep
+        # track of the bottom values by adding (after plotting) the newly
+        # plotted bars.
         ax.bar(
             labels,
             values,
@@ -421,13 +482,29 @@ def plot_mpi_cross_host_msg(json_str):
         )
         prev_values = [sum(x) for x in zip(values, prev_values)]
 
+    # ----- Print total of cross-host messages to file -----
+    XHOST_MSG_FILE = "./xhost_msg.csv"
+    with open(XHOST_MSG_FILE, "a+") as f:
+        print(
+            "{},{},{}".format(
+                world_size,
+                sum(prev_values),
+                sum(abs_values),
+            )
+        )
+        f.write(
+            "{},{},{}\n".format(world_size, sum(prev_values), sum(abs_values))
+        )
+
     ax.legend()
 
-    # Set labels
+    # ----- Chart aesthetics -----
+
     ax.set_xticks(list(MPI_MSG_TYPE_MAP.keys()))
     ax.set_xticklabels(
         list(MPI_MSG_TYPE_MAP.values()), fontdict={"fontsize": 7}
     )
+    ax.set_ylim([0, 6e5])
     plt.setp(
         ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
     )

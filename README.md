@@ -138,6 +138,37 @@ Once finished, you can remove the OpenMPI deployment with:
 inv kernels.native.delete
 ```
 
+## Plotting the Execution Graph
+
+To plot any part of the execution graph we need to run the application with
+the graph flag set:
+
+```bash
+inv lammps.run.faasm --bench compute --nprocs 4 --graph
+```
+
+At the very beginning, the application will log out its call id, which we will
+need to plot the execution graph using:
+
+```bash
+inv lammps.run.exec-graph <call-id>
+```
+
+You can alternatively plot the same graph with just one type of message, where
+the message type is an integer as defined [here](https://github.com/faasm/faabric/blob/4d2c310c02da43d4b81156fea717856d8443eba4/src/proto/faabric.proto#L66-L76).
+By default, all message types will be plotted.
+
+```bash
+inv lammps.run.exec-graph <call-id> --msg-type <msg-type>
+```
+
+Lastly, you can also plot the breakdown of cross-host messages divided by
+message type, and sender rank.
+
+```bash
+inv lammps.run.exec-graph <call-id> --xhost
+```
+
 ## Rebuilding containers
 
 To rebuild the containers:
