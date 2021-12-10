@@ -19,7 +19,7 @@ from tasks.util.openmpi import (
 from tasks.kernels.env import KERNELS_FAASM_USER
 
 MESSAGE_TYPE_FLUSH = 3
-NUM_PROCS = [1, 2, 4, 8, 16]
+NUM_PROCS = [2, 4, 8, 16]
 
 ITERATIONS = 1000
 SPARSE_GRID_SIZE_2LOG = 10
@@ -28,22 +28,25 @@ SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
 PRK_CMDLINE = {
     "dgemm": "{} 500 32 1".format(
         ITERATIONS
-    ),  # iterations, matrix order, outer block size (?)
+    ),  # iterations, matrix order, outer block size
     "nstream": "{} 20000 0".format(
-        ITERATIONS
+        1000000,
     ),  # iterations, vector length, offset
     "random": "16 16",  # update ratio, table size
-    "reduce": "{} 20000".format(ITERATIONS),  # iterations, vector length
-    # sparse runs for relatively longer, so we scale down the iterations
+    "reduce": "{} 20000".format(
+        10000,
+    ),  # iterations, vector length
     "sparse": "{} {} 4".format(
-        ITERATIONS / 10, SPARSE_GRID_SIZE_2LOG
+        100, SPARSE_GRID_SIZE_2LOG
     ),  # iterations, log2 grid size, stencil radius
-    "stencil": "{} 1000".format(ITERATIONS),  # iterations, array dimension
+    "stencil": "{} 1000".format(
+        10000,
+    ),  # iterations, array dimension
     "global": "{} 10000".format(
         ITERATIONS
     ),  # iterations, scramble string length
     "p2p": "{} 1000 100".format(
-        ITERATIONS
+        10000,
     ),  # iterations, 1st array dimension, 2nd array dimension
     "transpose": "{} 2000 64".format(
         500,  # if iterations > 500, result overflows!
@@ -87,7 +90,7 @@ def _init_csv_file(csv_name):
     result_file = join(result_dir, csv_name)
     makedirs(RESULTS_DIR, exist_ok=True)
     with open(result_file, "w") as out_file:
-        out_file.write("Kernel,WorldSize,Run,StatName,StatValue\n")
+        out_file.write("Kernel,WorldSize,Run,StatName,StatValue,ActualTime\n")
 
     return result_file
 
@@ -103,7 +106,9 @@ def log_2(x):
     return math.log10(x) / math.log10(2)
 
 
-def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
+def _process_kernels_result(
+    kernels_out, result_file, kernel, np, run_num, real_time
+):
     stats = PRK_STATS.get(kernel)
 
     if not stats:
@@ -129,8 +134,8 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
         stat_val = float(stat_val)
         with open(result_file, "a") as out_file:
             out_file.write(
-                "{},{},{},{},{:.8f}\n".format(
-                    kernel, np, run_num, stat, stat_val
+                "{},{},{},{},{:.8f},{:.8f}\n".format(
+                    kernel, np, run_num, stat, stat_val, real_time
                 )
             )
 
@@ -230,7 +235,7 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 # Start polling for the result
                 print("Polling message {}".format(msg_id))
                 while True:
-                    interval = 2
+                    interval = 0.5
                     time.sleep(interval)
 
                     status_msg = {
@@ -263,7 +268,12 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                         )
 
                 _process_kernels_result(
-                    response.text, result_file, kernel, np, run_num
+                    response.text,
+                    result_file,
+                    kernel,
+                    np,
+                    run_num,
+                    time.time() - start,
                 )
 
 
@@ -292,6 +302,7 @@ def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 np = int(np)
                 _validate_kernel(kernel, np)
 
+                start = time.time()
                 cmdline = PRK_CMDLINE[kernel]
                 executable = PRK_NATIVE_EXECUTABLES[kernel]
                 mpirun_cmd = [
@@ -313,5 +324,10 @@ def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 print(exec_output)
 
                 _process_kernels_result(
-                    exec_output, result_file, kernel, np, run_num
+                    exec_output,
+                    result_file,
+                    kernel,
+                    np,
+                    run_num,
+                    time.time() - start,
                 )
