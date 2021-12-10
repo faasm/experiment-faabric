@@ -1,9 +1,11 @@
 import math
 import requests
+import time
 
 from os import makedirs
 from invoke import task
 from os.path import join
+from pprint import pprint
 
 from tasks.util.env import (
     RESULTS_DIR,
@@ -16,23 +18,25 @@ from tasks.util.openmpi import (
 )
 from tasks.kernels.env import KERNELS_FAASM_USER
 
+MESSAGE_TYPE_FLUSH = 3
+NUM_PROCS = [1, 2, 4, 8, 16]
+
 ITERATIONS = 1000
 SPARSE_GRID_SIZE_2LOG = 10
 SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
-
-NUM_PROCS = [1, 2, 3, 4, 5]
 
 PRK_CMDLINE = {
     "dgemm": "{} 500 32 1".format(
         ITERATIONS
     ),  # iterations, matrix order, outer block size (?)
-    "nstream": "{} 2000000 0".format(
+    "nstream": "{} 20000 0".format(
         ITERATIONS
     ),  # iterations, vector length, offset
     "random": "16 16",  # update ratio, table size
-    "reduce": "{} 2000000".format(ITERATIONS),  # iterations, vector length
+    "reduce": "{} 20000".format(ITERATIONS),  # iterations, vector length
+    # sparse runs for relatively longer, so we scale down the iterations
     "sparse": "{} {} 4".format(
-        ITERATIONS, SPARSE_GRID_SIZE_2LOG
+        ITERATIONS / 10, SPARSE_GRID_SIZE_2LOG
     ),  # iterations, log2 grid size, stencil radius
     "stencil": "{} 1000".format(ITERATIONS),  # iterations, array dimension
     "global": "{} 10000".format(
@@ -42,7 +46,7 @@ PRK_CMDLINE = {
         ITERATIONS
     ),  # iterations, 1st array dimension, 2nd array dimension
     "transpose": "{} 2000 64".format(
-        ITERATIONS
+        500,  # if iterations > 500, result overflows!
     ),  # iterations, matrix order, tile size
 }
 
@@ -61,13 +65,13 @@ PRK_NATIVE_EXECUTABLES = {
 }
 
 PRK_STATS = {
-    # "dgemm": ("Avg time (s)", "Rate (MFlops/s)"),
+    # "dgemm": ("Avg time (s)", "Rate (MFlops/s)"), uses MPI_Group_incl
     "nstream": ("Avg time (s)", "Rate (MB/s)"),
-    "random": ("Rate (GUPS/s)", "Time (s)"),
+    # "random": ("Rate (GUPS/s)", "Time (s)"), uses MPI_Alltoallv
     "reduce": ("Rate (MFlops/s)", "Avg time (s)"),
     "sparse": ("Rate (MFlops/s)", "Avg time (s)"),
     "stencil": ("Rate (MFlops/s)", "Avg time (s)"),
-    # "global": ("Rate (synch/s)", "time (s)"),
+    # "global": ("Rate (synch/s)", "time (s)"), uses MPI_Type_commit
     "p2p": ("Rate (MFlops/s)", "Avg time (s)"),
     "transpose": ("Rate (MB/s)", "Avg time (s)"),
 }
@@ -109,15 +113,15 @@ def _process_kernels_result(kernels_out, result_file, kernel, np, run_num):
     for stat in stats:
         stat_parts = kernels_out.split(stat)
         stat_parts = [s for s in stat_parts if s.strip()]
-        if len(stat_parts) != 2:
+        if len(stat_parts) < 2:
             print(
-                "Could not find stat {} for kernel {} in output".format(
+                "WARNING: Could not find stat {} for kernel {} in output".format(
                     stat, kernel
                 )
             )
-            exit(1)
+            return
 
-        stat_val = stat_parts[1].replace(":", "")
+        stat_val = stat_parts[-1].replace(":", "")
         stat_val = [s.strip() for s in stat_val.split(" ") if s.strip()]
         stat_val = stat_val[0]
         print("Got {} = {} for {}".format(stat, stat_val, kernel))
@@ -147,10 +151,17 @@ def _validate_kernel(kernel, np):
 
 
 @task
-def faasm(ctx, repeats=1, nprocs=None, kernel=None):
+def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
+    """
+    Run the kernels benchmark in faasm
+    """
     result_file = _init_csv_file("kernels_wasm.csv")
+
+    # First, work out the number of processes to run with
     if nprocs:
         num_procs = [nprocs]
+    elif procrange:
+        num_procs = range(1, int(procrange) + 1)
     else:
         num_procs = NUM_PROCS
 
@@ -166,26 +177,90 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None):
             np = int(np)
             _validate_kernel(kernel, np)
             for run_num in range(repeats):
-                cmdline = PRK_CMDLINE[kernel]
+                # Url and header for request
                 url = "http://{}:{}".format(host, port)
+                knative_headers = get_knative_headers()
+
+                # First, flush the host state
+                print(
+                    "Flushing functions, state, and shared files from workers"
+                )
+                msg = {"type": MESSAGE_TYPE_FLUSH}
+                print("Posting to {} msg:".format(url))
+                pprint(msg)
+                response = requests.post(
+                    url, json=msg, headers=knative_headers, timeout=None
+                )
+                if response.status_code != 200:
+                    print(
+                        "Flush request failed: {}:\n{}".format(
+                            response.status_code, response.text
+                        )
+                    )
+                print("Waiting for flush to propagate...")
+                time.sleep(5)
+                print("Done waiting")
+
+                start = time.time()
+                cmdline = PRK_CMDLINE[kernel]
                 msg = {
                     "user": KERNELS_FAASM_USER,
                     "function": kernel,
                     "cmdline": cmdline,
                     "mpi_world_size": np,
+                    "async": True,
                 }
+                print("Posting to {} msg:".format(url))
+                pprint(msg)
 
-                knative_headers = get_knative_headers()
+                # Post asynch request
                 response = requests.post(
-                    url, json=msg, headers=knative_headers
+                    url, json=msg, headers=knative_headers, timeout=None
                 )
+                # Get the async message id
                 if response.status_code != 200:
                     print(
-                        "Invocation failed: {}:\n{}".format(
+                        "Initial request failed: {}:\n{}".format(
                             response.status_code, response.text
                         )
                     )
-                    exit(1)
+                print("Response: {}".format(response.text))
+                msg_id = int(response.text.strip())
+
+                # Start polling for the result
+                print("Polling message {}".format(msg_id))
+                while True:
+                    interval = 2
+                    time.sleep(interval)
+
+                    status_msg = {
+                        "user": KERNELS_FAASM_USER,
+                        "function": kernel,
+                        "status": True,
+                        "id": msg_id,
+                    }
+                    response = requests.post(
+                        url,
+                        json=status_msg,
+                        headers=knative_headers,
+                    )
+
+                    print(response.text)
+                    if response.text.startswith("SUCCESS"):
+                        actual_time = time.time() - start
+                        break
+                    elif response.text.startswith("RUNNING"):
+                        continue
+                    elif response.text.startswith("FAILED"):
+                        raise RuntimeError("Call failed")
+                    elif not response.text:
+                        raise RuntimeError("Empty status response")
+                    else:
+                        raise RuntimeError(
+                            "Unexpected status response: {}".format(
+                                response.text
+                            )
+                        )
 
                 _process_kernels_result(
                     response.text, result_file, kernel, np, run_num
@@ -193,11 +268,13 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None):
 
 
 @task
-def native(ctx, repeats=1, nprocs=None, kernel=None):
+def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
     result_file = _init_csv_file("kernels_native.csv")
 
     if nprocs:
         num_procs = [nprocs]
+    elif procrange:
+        num_procs = range(1, int(procrange) + 1)
     else:
         num_procs = NUM_PROCS
 
