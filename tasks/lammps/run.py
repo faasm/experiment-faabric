@@ -14,6 +14,7 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_knative_headers,
+    get_faasm_exec_time_from_json,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
 )
@@ -52,24 +53,13 @@ def _process_lammps_result(
     lammps_output, result_file, num_procs, run_num, measured_time=None
 ):
     if "wasm" in result_file:
-        try:
-            result_json = json.loads(lammps_output, strict=False)
-        except json.decoder.JSONDecodeError:
-            print(
-                "WARNING: can't process result JSON for LAMMPS running w/ {} procs (run {})".format(
-                    num_procs, run_num
-                )
-            )
-            return
+        result_json = json.loads(lammps_output, strict=False)
         print(
             "Processing lammps output: \n{}\n".format(
                 result_json["output_data"]
             )
         )
-        actual_time = (
-            float(int(result_json["finished"]) - int(result_json["timestamp"]))
-            / 1000
-        )
+        actual_time = get_faasm_exec_time_from_json(result_json)
         reported_time = re.findall(
             "Total wall time: ([0-9:]*)", result_json["output_data"]
         )

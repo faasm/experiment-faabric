@@ -11,7 +11,11 @@ from pprint import pprint
 from tasks.util.env import (
     RESULTS_DIR,
 )
-from tasks.util.faasm import get_faasm_invoke_host_port, get_knative_headers
+from tasks.util.faasm import (
+    get_faasm_exec_time_from_json,
+    get_faasm_invoke_host_port,
+    get_knative_headers,
+)
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
     run_kubectl_cmd,
@@ -31,9 +35,9 @@ PRK_CMDLINE = {
     "nstream": "2000000 200000 0",
     # nstream: iterations, vector length, offset
     "random": "16 16",  # update ratio, table size
-    "reduce": "10000 20000",
+    "reduce": "40000 2000",
     # reduce: iterations, vector length
-    "sparse": "300 10 4",
+    "sparse": "400 10 4",
     # sparse: iterations, log2 grid size, stencil radius
     "stencil": "20000 1000",
     # stencil: iterations, array dimension
@@ -109,21 +113,9 @@ def _process_kernels_result(
 
     # Prepare response output and elapsed time
     if "wasm" in result_file:
-        try:
-            result_json = json.loads(result_txt, strict=False)
-        except json.decoder.JSONDecodeError:
-            print(
-                "WARNING: can't process result json for {}, {} (run {})".format(
-                    kernel, np, run_num
-                )
-            )
-            pprint(result_txt)
-            return
+        result_json = json.loads(result_txt, strict=False)
         kernels_out = result_json["output_data"]
-        real_time = (
-            float(int(result_json["finished"]) - int(result_json["timestamp"]))
-            / 1000
-        )
+        real_time = get_faasm_exec_time_from_json(result_json)
     else:
         kernels_out = result_txt
         if measured_time == None:
