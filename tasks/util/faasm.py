@@ -45,3 +45,15 @@ def get_knative_headers():
     print("Using faasm knative headers: {}".format(headers))
 
     return headers
+
+
+def get_faasm_exec_time_from_json(result_json):
+    """
+    Return the execution time (included in Faasm's response JSON) in ms
+    """
+    actual_time = (
+        float(int(result_json["finished"]) - int(result_json["timestamp"]))
+        / 1000
+    )
+
+    return actual_time

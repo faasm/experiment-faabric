@@ -1,3 +1,4 @@
+import json
 import re
 import time
 import requests
@@ -13,6 +14,7 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_knative_headers,
+    get_faasm_exec_time_from_json,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
 )
@@ -48,11 +50,24 @@ def _init_csv_file(csv_name):
 
 
 def _process_lammps_result(
-    lammps_output, result_file, num_procs, run_num, actual_time
+    lammps_output, result_file, num_procs, run_num, measured_time=None
 ):
-    print("Processing lammps output: \n{}\n".format(lammps_output))
-
-    reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
+    if "wasm" in result_file:
+        result_json = json.loads(lammps_output, strict=False)
+        print(
+            "Processing lammps output: \n{}\n".format(
+                result_json["output_data"]
+            )
+        )
+        actual_time = get_faasm_exec_time_from_json(result_json)
+        reported_time = re.findall(
+            "Total wall time: ([0-9:]*)", result_json["output_data"]
+        )
+    else:
+        actual_time = measured_time
+        reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
+        if measured_time == None:
+            raise RuntimeError("Empty measured time for non-WASM execution")
 
     if len(reported_time) != 1:
         print(
@@ -200,28 +215,19 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                         headers=knative_headers,
                     )
 
-                    print(response.text)
-                    if response.text.startswith("SUCCESS"):
-                        actual_time = time.time() - start
-                        break
-                    elif response.text.startswith("RUNNING"):
+                    if response.text.startswith("RUNNING"):
                         continue
                     elif response.text.startswith("FAILED"):
                         raise RuntimeError("Call failed")
                     elif not response.text:
                         raise RuntimeError("Empty status response")
                     else:
-                        raise RuntimeError(
-                            "Unexpected status response: {}".format(
-                                response.text
-                            )
-                        )
+                        # If we reach this point it means the call has succeeded
+                        break
 
                 stats.stop_and_write_to_csv(stats_csv)
 
-                _process_lammps_result(
-                    response.text, result_file, np, run_num, actual_time
-                )
+                _process_lammps_result(response.text, result_file, np, run_num)
 
                 if graph:
                     exec_graph(ctx, msg_id, xhost=True)
