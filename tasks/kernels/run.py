@@ -35,7 +35,7 @@ PRK_CMDLINE = {
     "nstream": "2000000 200000 0",
     # nstream: iterations, vector length, offset
     "random": "16 16",  # update ratio, table size
-    "reduce": "40000 2000",
+    "reduce": "40000 20000",
     # reduce: iterations, vector length
     "sparse": "400 10 4",
     # sparse: iterations, log2 grid size, stencil radius

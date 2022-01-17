@@ -1,5 +1,6 @@
 from invoke import Collection
 
+from . import migration
 from . import openmpi
 
 import logging
@@ -11,6 +12,7 @@ from tasks.lammps import ns as lammps_ns
 logging.getLogger().setLevel(logging.DEBUG)
 
 ns = Collection(
+    migration,
     openmpi,
 )
 
