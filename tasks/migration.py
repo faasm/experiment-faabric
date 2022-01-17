@@ -6,8 +6,6 @@ from os import makedirs
 from os.path import join
 from pprint import pprint
 
-from hoststats.client import HostStats
-
 from tasks.util.env import (
     RESULTS_DIR,
 )
@@ -55,12 +53,6 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
     host, port = get_faasm_invoke_host_port()
 
     pod_names = get_faasm_worker_pods()
-    stats = HostStats(
-        pod_names,
-        kubectl=True,
-        kubectl_container="user-container",
-        kubectl_ns="faasm",
-    )
 
     if check_in == None:
         check_array = [0, 2, 4, 6, 8, 10]
@@ -102,7 +94,6 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
             )
 
             start = time.time()
-            # stats.start_collection()
 
             # Setting a check fraction of 0 means we don't under-schedule as
             # a baseline
@@ -165,7 +156,6 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
                     # If we reach this point it means the call has succeeded
                     break
 
-            # stats.stop_and_write_to_csv(stats_csv)
             _process_output(response.text, result_file, nprocs, check, run_num)
 
             print("Sleeping after function is done, before flushing")
