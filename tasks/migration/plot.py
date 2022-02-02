@@ -4,7 +4,6 @@ from os import makedirs
 from os.path import join
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT

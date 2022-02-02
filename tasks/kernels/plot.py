@@ -2,7 +2,7 @@ from glob import glob
 from invoke import task
 from math import sqrt
 from os import makedirs
-from os.path import join, exists
+from os.path import join
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,13 +1,9 @@
 from os import makedirs, sysconf, sysconf_names
-from os.path import join, exists, expanduser
+from os.path import join, exists
 
 from math import sqrt
-from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from matplotlib.figure import figaspect
-import numpy as np
 import pandas as pd
 from invoke import task
 from hoststats.results import HostStatsResults
@@ -191,6 +187,9 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
 
 @task
 def plot_resources(ctx, world_size, run=0, gui=False):
+    """
+    Plot the resources used to execute the experiments
+    """
     native_file = join(
         RESULTS_DIR,
         "hoststats_native_compute_{}_{}.csv".format(world_size, run),

@@ -241,6 +241,9 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
 
 @task
 def exec_graph(ctx, call_id, msg_type=-1, xhost=False):
+    """
+    Plot the execution graph for the given call ID
+    """
     # Post request
     host, port = get_faasm_invoke_host_port()
     knative_headers = get_knative_headers()
