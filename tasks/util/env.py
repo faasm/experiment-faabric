@@ -12,14 +12,10 @@ NATIVE_INSTALL_DIR = join(PROJ_ROOT, "build", "native-install")
 WASM_BUILD_DIR = join(PROJ_ROOT, "build", "wasm")
 WASM_INSTALL_DIR = join(PROJ_ROOT, "build", "wasm-install")
 
-EXPERIMENTS_BASE_DIR = dirname(dirname(PROJ_ROOT))
+RESULTS_DIR = join(PROJ_ROOT, "results")
 
-IS_DOCKER = HOME_DIR.startswith("/root")
-
-if IS_DOCKER:
-    RESULTS_DIR = join(PROJ_ROOT, "results")
-else:
-    RESULTS_DIR = join(EXPERIMENTS_BASE_DIR, "results")
+PLOTS_ROOT = join(PROJ_ROOT, "plots")
+PLOTS_FORMAT = "pdf"
 
 
 def get_version():

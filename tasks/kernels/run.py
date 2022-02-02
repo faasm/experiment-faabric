@@ -283,6 +283,9 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
 
 @task
 def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
+    """
+    Run Kernels benchmark natively
+    """
     if nprocs:
         num_procs = [nprocs]
     elif procrange:
