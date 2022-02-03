@@ -37,15 +37,14 @@ The code can then be uploaded from _outside_ the container:
 # Set up local env
 source ../../bin/workon.sh
 
-inv lammps.data.upload
-
 inv lammps.wasm.upload
 ```
 
-The experiment can then be run with:
+Then, upload the experiment data and run it:
 
 ```bash
-inv lammps.run.faasm
+inv lammps.data.upload --bench [network|compute]
+inv lammps.run.faasm --bench [network|compute] --nprocs <num_procs>
 ```
 
 ## Running Kernels on Faasm
