@@ -1,14 +1,19 @@
+import json
+import requests
+import time
+
 from dataclasses import dataclass
-from invoke import task
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
-from os import makedirs
-from os.path import join
-from random import uniform
+from os.path import basename
+from pprint import pprint
 from typing import Dict, List, Tuple, Union
-import time
-from tasks.util.env import (
-    RESULTS_DIR,
+from tasks.util.faasm import (
+    get_knative_headers,
+    get_faasm_exec_time_from_json,
+    get_faasm_worker_pods,
+    get_faasm_invoke_host_port,
+    flush_hosts as flush_faasm_hosts,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -30,72 +35,11 @@ QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
 
 
-def _init_csv_file(workload):
-    result_dir = join(RESULTS_DIR, "makespan")
-    makedirs(result_dir, exist_ok=True)
-
-    csv_name_makespan = "makespan_{}_time.csv".format(workload)
-    csv_name_tiq = "makespan_{}_time_in_queue.csv".format(workload)
-
-    makedirs(RESULTS_DIR, exist_ok=True)
-    makespan_file = join(result_dir, csv_name_makespan)
-    with open(makespan_file, "w") as out_file:
-        out_file.write("NumTasks,Makespan\n")
-    tiq_file = join(result_dir, csv_name_tiq)
-    with open(tiq_file, "w") as out_file:
-        out_file.write("NumTasks,TaskId,TimeInQueue,ExecTime\n")
-
-
-def _write_line_to_csv(workload, file_name, *args):
-    result_dir = join(RESULTS_DIR, "makespan")
-
-    if file_name == "makespan":
-        csv_name = "makespan_{}_time.csv".format(workload)
-        makespan_file = join(result_dir, csv_name)
-        with open(makespan_file, "a") as out_file:
-            out_file.write("{},{}\n".format(*args))
-    elif file_name == "tiq":
-        csv_name = "makespan_{}_time_in_queue.csv".format(workload)
-        makespan_file = join(result_dir, csv_name)
-        with open(makespan_file, "a") as out_file:
-            out_file.write("{},{},{},{}\n".format(*args))
-    else:
-        raise RuntimeError("Unrecognised file name: {}".format(file_name))
-
-
 @dataclass
 class TaskObject:
     task_id: int
     app: str
     world_size: int
-
-
-# TODO - maybe move to a different file
-def generate_task_trace(
-    num_tasks: int, num_cores_per_vm: int
-) -> List[TaskObject]:
-    possible_world_sizes = [
-        int(num_cores_per_vm / 2),
-        int(num_cores_per_vm),
-        int(num_cores_per_vm * 1.5),
-        int(num_cores_per_vm * 2),
-    ]
-    possible_workloads = ["network", "compute"]
-
-    # Generate the random task trace
-    task_trace: List[TaskObject] = []
-    num_pos_ws = len(possible_world_sizes)
-    num_pos_wl = len(possible_workloads)
-    for idx in range(num_tasks):
-        ws_idx = int(uniform(0, num_pos_ws))
-        wl_idx = int(uniform(0, num_pos_wl))
-        task_trace.append(
-            TaskObject(
-                idx, possible_workloads[wl_idx], possible_world_sizes[ws_idx]
-            )
-        )
-
-    return task_trace
 
 
 @dataclass
@@ -153,38 +97,101 @@ def thread_pool_thread(
         if work_item.master_pod == QUEUE_SHUTDOWN:
             break
 
+        # WASM specific data
+        host, port = get_faasm_invoke_host_port()
+        url = "http://{}:{}".format(host, port)
+        knative_headers = get_knative_headers()
+
         data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
+        # TODO - maybe less hacky way to detect workload here
+        if "openmpi" in work_item.master_pod:
+            native_cmdline = "-in {}/{}.faasm.native".format(
+                DOCKER_LAMMPS_DIR, data_file
+            )
+            world_size = work_item.task.world_size
+            mpirun_cmd = [
+                "mpirun",
+                "-np {}".format(world_size),
+                "-hostfile {}".format(NATIVE_HOSTFILE),
+                DOCKER_LAMMPS_BINARY,
+                native_cmdline,
+            ]
+            mpirun_cmd = " ".join(mpirun_cmd)
 
-        # TODO: eventually make the difference here between native and wasm
-        native_cmdline = "-in {}/{}.faasm.native".format(
-            DOCKER_LAMMPS_DIR, data_file
-        )
-        world_size = work_item.task.world_size
-        mpirun_cmd = [
-            "mpirun",
-            "-np {}".format(world_size),
-            "-hostfile {}".format(NATIVE_HOSTFILE),
-            DOCKER_LAMMPS_BINARY,
-            native_cmdline,
-        ]
-        mpirun_cmd = " ".join(mpirun_cmd)
+            exec_cmd = [
+                "exec",
+                work_item.master_pod,
+                "--",
+                "su mpirun -c '{}'".format(mpirun_cmd),
+            ]
 
-        exec_cmd = [
-            "exec",
-            work_item.master_pod,
-            "--",
-            "su mpirun -c '{}'".format(mpirun_cmd),
-        ]
+            start = time.time()
+            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+            print(exec_output)
+            actual_time = int(time.time() - start)
+        else:
+            # Prepare Faasm request
+            file_name = basename(data_file)
+            cmdline = "-in faasm://lammps-data/{}".format(file_name)
+            # TODO - add migration check period here
+            msg = {
+                "user": LAMMPS_FAASM_USER,
+                "function": LAMMPS_FAASM_FUNC,
+                "cmdline": cmdline,
+                "mpi_world_size": work_item.task.world_size,
+                "async": True,
+            }
+            print("Posting to {} msg:".format(url))
+            pprint(msg)
 
-        start = time.time()
-        exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
-        print(exec_output)
-        #         print(
-        #             "{}: Instead of running the command, sleeping for {} secs".format(
-        #                 thread_idx, work_item.task.world_size
-        #             )
-        #         )
-        actual_time = int(time.time() - start)
+            # Post asynch request
+            response = requests.post(
+                url, json=msg, headers=knative_headers, timeout=None
+            )
+            # Get the async message id
+            if response.status_code != 200:
+                print(
+                    "Initial request failed: {}:\n{}".format(
+                        response.status_code, response.text
+                    )
+                )
+            print("Response: {}".format(response.text))
+            msg_id = int(response.text.strip())
+
+            # Start polling for the result
+            print("Polling message {}".format(msg_id))
+            while True:
+                interval = 2
+                time.sleep(interval)
+
+                status_msg = {
+                    "user": LAMMPS_FAASM_USER,
+                    "function": LAMMPS_FAASM_FUNC,
+                    "status": True,
+                    "id": msg_id,
+                }
+                response = requests.post(
+                    url,
+                    json=status_msg,
+                    headers=knative_headers,
+                )
+
+                if response.text.startswith("RUNNING"):
+                    continue
+                elif response.text.startswith("FAILED"):
+                    raise RuntimeError("Call failed")
+                elif not response.text:
+                    raise RuntimeError("Empty status response")
+                else:
+                    print("Call finished succesfully")
+
+                # Get the executed time from the response
+                result_json = json.loads(response.text, strict=False)
+                actual_time = int(get_faasm_exec_time_from_json(result_json))
+                print("Actual time: {}".format(actual_time))
+
+                # Finally exit the polling loop
+                break
 
         result_queue.put(ResultQueueItem(work_item.task.task_id, actual_time))
 
@@ -198,10 +205,16 @@ class SchedulerState:
     total_slots: int
     total_available_slots: int
 
-    pod_names: List[str]
-    pod_map: Dict[str, int] = {}
+    # Pod names and pod map
+    native_pod_names: List[str]
+    native_pod_map: Dict[str, int] = {}
+    wasm_pod_names: List[str]
+    wasm_pod_map: Dict[str, int] = {}
 
     in_flight_tasks: Dict[int, List[Tuple[str, int]]] = {}
+
+    # Keep track of the workload being executed
+    current_workload: str = ""
 
     def __init__(self, num_vms: int, num_cores_per_vm: int):
         self.num_vms = num_vms
@@ -209,11 +222,17 @@ class SchedulerState:
         self.total_slots = num_vms * num_cores_per_vm
         self.total_available_slots = self.total_slots
 
-        # Initialise pod names and pod map
-        # TODO - eventually different namespace for this experiment
-        self.pod_names, _ = get_native_mpi_pods("lammps")
-        for pod in self.pod_names:
-            self.pod_map[pod] = self.num_cores_per_vm
+    def init_pod_list(self):
+        # Initialise pod names and pod map depending on the experiment
+        if self.current_workload == "native":
+            # TODO - eventually different namespace for this experiment
+            self.native_pod_names, _ = get_native_mpi_pods("lammps")
+            for pod in self.native_pod_names:
+                self.native_pod_map[pod] = self.num_cores_per_vm
+        else:
+            self.wasm_pod_names = get_faasm_worker_pods()
+            for pod in self.wasm_pod_names:
+                self.wasm_pod_map[pod] = self.num_cores_per_vm
 
     def remove_in_flight_task(self, task_id: int) -> None:
         if task_id not in self.in_flight_tasks:
@@ -224,7 +243,10 @@ class SchedulerState:
             task_id
         ]
         for pod, slots in scheduling_decision:
-            self.pod_map[pod] += slots
+            if self.current_workload == "native":
+                self.native_pod_map[pod] += slots
+            else:
+                self.wasm_pod_map[pod] += slots
             self.total_available_slots += slots
 
 
@@ -291,7 +313,8 @@ class BatchScheduler:
     ) -> Union[str, List[Tuple[str, int]]]:
         if self.state.total_available_slots < task.world_size:
             print(
-                "Not enough slots to schedule task {} (needed: {} - have: {})".format(
+                "Not enough slots to schedule task "
+                "{} (needed: {} - have: {})".format(
                     task.task_id,
                     task.world_size,
                     self.state.total_available_slots,
@@ -301,15 +324,19 @@ class BatchScheduler:
 
         scheduling_decision: List[Tuple[str, int]] = []
         left_to_assign: int = task.world_size
+        if self.state.current_workload == "native":
+            pod_map = self.state.native_pod_map
+        else:
+            pod_map = self.state.wasm_pod_map
         for pod, num_slots in sorted(
-            self.state.pod_map.items(), key=lambda item: item[1], reverse=True
+            pod_map.items(), key=lambda item: item[1], reverse=True
         ):
             # Work out how many slots can we take up in this pod
             num_on_this_pod: int = min(num_slots, left_to_assign)
             scheduling_decision.append((pod, num_on_this_pod))
 
             # Update the global state, and the slots left to assign
-            self.state.pod_map[pod] -= num_on_this_pod
+            pod_map[pod] -= num_on_this_pod
             self.state.total_available_slots -= num_on_this_pod
             left_to_assign -= num_on_this_pod
 
@@ -318,9 +345,8 @@ class BatchScheduler:
                 break
         else:
             print(
-                "Ran out of pods to assign task slots to, but still {} to assign".format(
-                    left_to_assign
-                )
+                "Ran out of pods to assign task slots to, "
+                "but still {} to assign".format(left_to_assign)
             )
             raise RuntimeError(
                 "Scheduling error: inconsistent scheduler state"
@@ -331,7 +357,7 @@ class BatchScheduler:
 
         return scheduling_decision
 
-    def execute_native_tasks(
+    def execute_tasks(
         self, tasks: List[TaskObject]
     ) -> Dict[int, ExecutedTaskInfo]:
         """
@@ -341,6 +367,10 @@ class BatchScheduler:
         """
         time_per_task: Dict[int, ExecutedTaskInfo] = {}
         executed_task_count: int = 0
+
+        # If running a WASM workload, flush the hosts first
+        if self.state.current_workload == "wasm":
+            flush_faasm_hosts()
 
         for t in tasks:
             # First, try to schedule the task with the current available
@@ -415,52 +445,15 @@ class BatchScheduler:
                     len(tasks), workload
                 )
             )
+            self.state.current_workload = workload
+            # Initialise the scheduler state and pod list
+            self.state.init_pod_list()
         else:
             print("Unrecognised workload type: {}".format(workload))
             print("Allowed workloads are: {}".format(WORKLOAD_ALLOWLIST))
             raise RuntimeError("Unrecognised workload type")
 
         # Current limitations:
-        # - Only "native" workloads
         # - Only LAMMPS apps for native workloads (will need to implement an
         #   equivalent to our migration task)
-        if workload == "native":
-            return self.execute_native_tasks(tasks)
-        else:
-            # TODO: Flush host here
-            raise RuntimeError("WASM workloads still not supported")
-
-
-@task(default=True)
-def run(ctx):
-    # **Important** these numbers must match the ones used to create the AKS
-    # cluster
-    num_vms = 4
-    num_cores_per_vm = 4
-    num_tasks = [50, 100, 150]
-    _init_csv_file("native")
-
-    # Initialise batch scheduler
-    scheduler = BatchScheduler([num_vms, num_cores_per_vm], False)
-
-    for ntask in num_tasks:
-        task_trace = generate_task_trace(ntask, num_cores_per_vm)
-
-        makespan_start_time = time.time()
-        exec_info = scheduler.run("native", task_trace)
-        makespan_time = int(time.time() - makespan_start_time)
-        _write_line_to_csv("native", "makespan", ntask, makespan_time)
-
-        # TODO: move this in the loop
-        for key in exec_info:
-            _write_line_to_csv(
-                "native",
-                "tiq",
-                ntask,
-                exec_info[key].task_id,
-                exec_info[key].time_in_queue,
-                exec_info[key].time_executing,
-            )
-            print(exec_info[key])
-
-    scheduler.shutdown()
+        return self.execute_tasks(tasks)

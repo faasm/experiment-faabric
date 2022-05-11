@@ -1,6 +1,7 @@
 from invoke import Collection
 
+from . import native
 from . import plot
-from . import scheduler
+from . import run
 
-ns = Collection(plot, scheduler)
+ns = Collection(native, plot, run)
