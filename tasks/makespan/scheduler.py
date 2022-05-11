@@ -8,6 +8,7 @@ from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
 from pprint import pprint
 from typing import Dict, List, Tuple, Union
+from tasks.makespan.util import write_line_to_csv, TIQ_FILE_PREFIX
 from tasks.util.faasm import (
     get_knative_headers,
     get_faasm_exec_time_from_json,
@@ -17,7 +18,6 @@ from tasks.util.faasm import (
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
-    get_native_mpi_namespace,
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
@@ -29,7 +29,8 @@ from tasks.lammps.env import (
     get_faasm_benchmark,
 )
 
-WORKLOAD_ALLOWLIST = ["wasm", "native"]
+WORKLOAD_ALLOWLIST = ["wasm", "native", "batch"]
+NATIVE_WORKLOADS = ["native", "batch"]
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
@@ -97,11 +98,6 @@ def thread_pool_thread(
         if work_item.master_pod == QUEUE_SHUTDOWN:
             break
 
-        # WASM specific data
-        host, port = get_faasm_invoke_host_port()
-        url = "http://{}:{}".format(host, port)
-        knative_headers = get_knative_headers()
-
         data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
         # TODO - maybe less hacky way to detect workload here
         if "openmpi" in work_item.master_pod:
@@ -130,6 +126,11 @@ def thread_pool_thread(
             print(exec_output)
             actual_time = int(time.time() - start)
         else:
+            # WASM specific data
+            host, port = get_faasm_invoke_host_port()
+            url = "http://{}:{}".format(host, port)
+            knative_headers = get_knative_headers()
+
             # Prepare Faasm request
             file_name = basename(data_file)
             cmdline = "-in faasm://lammps-data/{}".format(file_name)
@@ -224,7 +225,7 @@ class SchedulerState:
 
     def init_pod_list(self):
         # Initialise pod names and pod map depending on the experiment
-        if self.current_workload == "native":
+        if self.current_workload in NATIVE_WORKLOADS:
             # TODO - eventually different namespace for this experiment
             self.native_pod_names, _ = get_native_mpi_pods("lammps")
             for pod in self.native_pod_names:
@@ -237,13 +238,14 @@ class SchedulerState:
     def remove_in_flight_task(self, task_id: int) -> None:
         if task_id not in self.in_flight_tasks:
             raise RuntimeError("Task {} not in-flight!".format(task_id))
+        print("Removing task {} from in-flight tasks".format(task_id))
 
         # Return the slots to each pod
         scheduling_decision: List[Tuple[str, int]] = self.in_flight_tasks[
             task_id
         ]
         for pod, slots in scheduling_decision:
-            if self.current_workload == "native":
+            if self.current_workload in NATIVE_WORKLOADS:
                 self.native_pod_map[pod] += slots
             else:
                 self.wasm_pod_map[pod] += slots
@@ -255,17 +257,10 @@ class BatchScheduler:
     result_queue: Queue = Queue()
     thread_pool: List[Process]
     state: SchedulerState
+    one_task_per_node: bool = False
 
-    def __init__(self, cluster_dims: List[int], one_task_per_node: bool):
-        if len(cluster_dims) != 2:
-            print(
-                "BatchScheduler expects a two-parameter list as its first"
-                "constructor argument: [num_vms, num_cores_per_vm]"
-            )
-            raise RuntimeError("Incorrect BatchScheduler constructor")
-
-        self.state = SchedulerState(cluster_dims[0], cluster_dims[1])
-        self.one_task_per_node = one_task_per_node
+    def __init__(self, num_vms: int, num_slots_per_vm: int):
+        self.state = SchedulerState(num_vms, num_slots_per_vm)
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Number of VMs: {}".format(self.state.num_vms))
@@ -324,7 +319,7 @@ class BatchScheduler:
 
         scheduling_decision: List[Tuple[str, int]] = []
         left_to_assign: int = task.world_size
-        if self.state.current_workload == "native":
+        if self.state.current_workload in NATIVE_WORKLOADS:
             pod_map = self.state.native_pod_map
         else:
             pod_map = self.state.wasm_pod_map
@@ -332,7 +327,12 @@ class BatchScheduler:
             pod_map.items(), key=lambda item: item[1], reverse=True
         ):
             # Work out how many slots can we take up in this pod
-            num_on_this_pod: int = min(num_slots, left_to_assign)
+            if self.one_task_per_node:
+                # If we only allow one task per node, regardless of how many
+                # slots we have left to assign, we take up all the node
+                num_on_this_pod = self.state.num_cores_per_vm
+            else:
+                num_on_this_pod: int = min(num_slots, left_to_assign)
             scheduling_decision.append((pod, num_on_this_pod))
 
             # Update the global state, and the slots left to assign
@@ -341,7 +341,7 @@ class BatchScheduler:
             left_to_assign -= num_on_this_pod
 
             # If no more slots to assign, exit the loop
-            if left_to_assign == 0:
+            if left_to_assign <= 0:
                 break
         else:
             print(
@@ -361,9 +361,7 @@ class BatchScheduler:
         self, tasks: List[TaskObject]
     ) -> Dict[int, ExecutedTaskInfo]:
         """
-        Execute a list of tasks, and return the time it took to run each task.
-        Note that for the moment we only measure execution time (not time in
-        the queue)
+        Execute a list of tasks, and return details on the task execution
         """
         time_per_task: Dict[int, ExecutedTaskInfo] = {}
         executed_task_count: int = 0
@@ -371,6 +369,11 @@ class BatchScheduler:
         # If running a WASM workload, flush the hosts first
         if self.state.current_workload == "wasm":
             flush_faasm_hosts()
+
+        # If running the `batch` workload, set the scheduler to allocate at
+        # most one task per host
+        if self.state.current_workload == "batch":
+            self.one_task_per_node = True
 
         for t in tasks:
             # First, try to schedule the task with the current available
@@ -394,7 +397,15 @@ class BatchScheduler:
                 time_per_task[result.task_id].time_executing = result.exec_time
                 executed_task_count += 1
 
-                # write to file here
+                # Write line to file
+                write_line_to_csv(
+                    self.state.current_workload,
+                    TIQ_FILE_PREFIX,
+                    self.num_tasks,
+                    time_per_task[result.task_id].task_id,
+                    time_per_task[result.task_id].time_in_queue,
+                    time_per_task[result.task_id].time_executing,
+                )
 
                 # Try to schedule again
                 scheduling_decision = self.schedule_task_to_pod(t)
@@ -409,7 +420,8 @@ class BatchScheduler:
             # Log the scheduling decision
             master_pod = scheduling_decision[0][0]
             print(
-                "Scheduling native task {} ({} slots) with master pod {}".format(
+                "Scheduling native task "
+                "{} ({} slots) with master pod {}".format(
                     t.task_id, t.world_size, master_pod
                 )
             )
@@ -428,6 +440,21 @@ class BatchScheduler:
             time_per_task[result.task_id].time_executing = result.exec_time
             executed_task_count += 1
 
+            # Write line to file
+            write_line_to_csv(
+                self.state.current_workload,
+                TIQ_FILE_PREFIX,
+                self.num_tasks,
+                time_per_task[result.task_id].task_id,
+                time_per_task[result.task_id].time_in_queue,
+                time_per_task[result.task_id].time_executing,
+            )
+
+        # If running the `batch` workload, revert the changes made to allocate
+        # at most one task per host
+        if self.state.current_workload == "batch":
+            self.one_task_per_node = False
+
         return time_per_task
 
     def run(
@@ -435,19 +462,19 @@ class BatchScheduler:
     ) -> Dict[int, ExecutedTaskInfo]:
         """
         Main entrypoint to run a number of tasks. The required parameters are:
-            - workload: either "native" or "wasm"
+            - workload: "native", "batch" or "wasm"
             - tasks: a list of TaskObject's
         The method returns a dictionary with timing information to be plotted
         """
         if workload in WORKLOAD_ALLOWLIST:
             print(
-                "Batch scheduler received request to execute {} {} tasks".format(
-                    len(tasks), workload
-                )
+                "Batch scheduler received request to execute "
+                "{} {} tasks".format(len(tasks), workload)
             )
             self.state.current_workload = workload
             # Initialise the scheduler state and pod list
             self.state.init_pod_list()
+            self.num_tasks = len(tasks)
         else:
             print("Unrecognised workload type: {}".format(workload))
             print("Allowed workloads are: {}".format(WORKLOAD_ALLOWLIST))

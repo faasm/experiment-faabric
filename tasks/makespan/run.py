@@ -1,90 +1,46 @@
 from invoke import task
-from os import makedirs
-from os.path import join
-from tasks.makespan.scheduler import BatchScheduler
-from tasks.makespan.trace import generate_task_trace
-from tasks.util.env import (
-    RESULTS_DIR,
+from tasks.makespan.scheduler import BatchScheduler, WORKLOAD_ALLOWLIST
+from tasks.makespan.trace import load_task_trace_from_file
+from tasks.makespan.util import (
+    init_csv_file,
+    write_line_to_csv,
+    MAKESPAN_FILE_PREFIX,
 )
 import time
 
 
-def _init_csv_file(workload):
-    result_dir = join(RESULTS_DIR, "makespan")
-    makedirs(result_dir, exist_ok=True)
-
-    csv_name_makespan = "makespan_{}_time.csv".format(workload)
-    csv_name_tiq = "makespan_{}_time_in_queue.csv".format(workload)
-
-    makedirs(RESULTS_DIR, exist_ok=True)
-    makespan_file = join(result_dir, csv_name_makespan)
-    with open(makespan_file, "w") as out_file:
-        out_file.write("NumTasks,Makespan\n")
-    tiq_file = join(result_dir, csv_name_tiq)
-    with open(tiq_file, "w") as out_file:
-        out_file.write("NumTasks,TaskId,TimeInQueue,ExecTime\n")
-
-
-def _write_line_to_csv(workload, file_name, *args):
-    result_dir = join(RESULTS_DIR, "makespan")
-
-    if file_name == "makespan":
-        csv_name = "makespan_{}_time.csv".format(workload)
-        makespan_file = join(result_dir, csv_name)
-        with open(makespan_file, "a") as out_file:
-            out_file.write("{},{}\n".format(*args))
-    elif file_name == "tiq":
-        csv_name = "makespan_{}_time_in_queue.csv".format(workload)
-        makespan_file = join(result_dir, csv_name)
-        with open(makespan_file, "a") as out_file:
-            out_file.write("{},{},{},{}\n".format(*args))
-    else:
-        raise RuntimeError("Unrecognised file name: {}".format(file_name))
-
-
 @task(default=True)
-def run(ctx, num_vms, num_cores_per_vm, workload="both"):
-    # num_tasks = [50, 100, 150]
+def run(ctx, num_vms, num_cores_per_vm, workload="all"):
     num_vms = int(num_vms)
     num_cores_per_vm = int(num_cores_per_vm)
-    num_tasks = [20, 40, 60]
+    num_tasks = [10, 15, 20]
+    # num_tasks = [50, 100, 150]
 
-    # Choose workloads
-    if workload == "both":
-        workloads = ["native", "wasm"]
-    elif workload == "native":
-        workloads = ["native"]
-    elif workload == "wasm":
-        workloads = ["wasm"]
+    # Choose workloads: "native", "wasm", "batch", or "all"
+    if workload == "all":
+        workloads = WORKLOAD_ALLOWLIST
+    elif workload in WORKLOAD_ALLOWLIST:
+        workloads = [workload]
     else:
-        print("Workload must be one in: 'native', 'wasm', or 'both'")
+        print("Workload must be one in: 'native', 'wasm', 'batch' or 'all'")
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
     for wl in workloads:
-        _init_csv_file(wl)
+        init_csv_file(wl)
 
     # Initialise batch scheduler
-    scheduler = BatchScheduler([num_vms, num_cores_per_vm], False)
+    scheduler = BatchScheduler(num_vms, num_cores_per_vm)
 
     for ntask in num_tasks:
-        task_trace = generate_task_trace(ntask, num_cores_per_vm)
+        task_trace = load_task_trace_from_file(ntask)
 
         for wl in workloads:
             makespan_start_time = time.time()
             exec_info = scheduler.run(wl, task_trace)
             makespan_time = int(time.time() - makespan_start_time)
-            _write_line_to_csv(wl, "makespan", ntask, makespan_time)
+            write_line_to_csv(wl, MAKESPAN_FILE_PREFIX, ntask, makespan_time)
 
-            # TODO: move this in the loop
             for key in exec_info:
-                _write_line_to_csv(
-                    "native",
-                    "tiq",
-                    ntask,
-                    exec_info[key].task_id,
-                    exec_info[key].time_in_queue,
-                    exec_info[key].time_executing,
-                )
                 print(exec_info[key])
 
     # Finally shutdown the scheduler
