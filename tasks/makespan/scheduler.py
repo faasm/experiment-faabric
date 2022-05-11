@@ -148,16 +148,14 @@ def thread_pool_thread(
     work_queue: WorkQueueItem
     while True:
         work_item = dequeue_with_timeout(work_queue, "work queue", silent=True)
-        #         print("Running native task {}/{}:", num + 1, len(tasks))
-        #         print("\t- Application: {}".format(tasks[0]))
-        #         print("\t- World Size: {}".format(world_size))
-        #         print("\t- Master pod: {}".format(tasks[1]))
 
         # Check for shutdown message
         if work_item.master_pod == QUEUE_SHUTDOWN:
             break
 
-        data_file = get_faasm_benchmark(work_item.task.app)
+        data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
+
+        # TODO: eventually make the difference here between native and wasm
         native_cmdline = "-in {}/{}.faasm.native".format(
             DOCKER_LAMMPS_DIR, data_file
         )
@@ -179,20 +177,15 @@ def thread_pool_thread(
         ]
 
         start = time.time()
-        # exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
-        # print(exec_output)
-        print(
-            "{}: Instead of running the command, sleeping for {} secs".format(
-                thread_idx, work_item.task.world_size
-            )
-        )
-        time.sleep(work_item.task.world_size)
-
+        exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+        print(exec_output)
+        #         print(
+        #             "{}: Instead of running the command, sleeping for {} secs".format(
+        #                 thread_idx, work_item.task.world_size
+        #             )
+        #         )
         actual_time = int(time.time() - start)
 
-        print(
-            "{}: Done sleeping and putting to result queue".format(thread_idx)
-        )
         result_queue.put(ResultQueueItem(work_item.task.task_id, actual_time))
 
     print("Pool thread {} shutting down".format(thread_idx))
@@ -434,35 +427,40 @@ class BatchScheduler:
         if workload == "native":
             return self.execute_native_tasks(tasks)
         else:
-            # Flush host here
+            # TODO: Flush host here
             raise RuntimeError("WASM workloads still not supported")
 
 
 @task(default=True)
 def run(ctx):
-    scheduler = BatchScheduler([4, 4], False)
-
-    # Prepare output files and random task trace
+    # **Important** these numbers must match the ones used to create the AKS
+    # cluster
+    num_vms = 4
+    num_cores_per_vm = 4
+    num_tasks = [50, 100, 150]
     _init_csv_file("native")
-    num_tasks = 10
-    task_trace = generate_task_trace(num_tasks, 4)
 
-    makespan_start_time = time.time()
-    exec_info = scheduler.run("native", task_trace)
-    makespan_time = int(time.time() - makespan_start_time)
-    _write_line_to_csv(
-        "native", "makespan", num_tasks, makespan_time
-    )
+    # Initialise batch scheduler
+    scheduler = BatchScheduler([num_vms, num_cores_per_vm], False)
+
+    for ntask in num_tasks:
+        task_trace = generate_task_trace(ntask, num_cores_per_vm)
+
+        makespan_start_time = time.time()
+        exec_info = scheduler.run("native", task_trace)
+        makespan_time = int(time.time() - makespan_start_time)
+        _write_line_to_csv("native", "makespan", ntask, makespan_time)
+
+        # TODO: move this in the loop
+        for key in exec_info:
+            _write_line_to_csv(
+                "native",
+                "tiq",
+                ntask,
+                exec_info[key].task_id,
+                exec_info[key].time_in_queue,
+                exec_info[key].time_executing,
+            )
+            print(exec_info[key])
 
     scheduler.shutdown()
-
-    for key in exec_info:
-        _write_line_to_csv(
-            "native",
-            "tiq",
-            num_tasks,
-            exec_info[key].task_id,
-            exec_info[key].time_in_queue,
-            exec_info[key].time_executing,
-        )
-        print(exec_info[key])

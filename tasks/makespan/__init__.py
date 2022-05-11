@@ -1,5 +1,6 @@
 from invoke import Collection
 
+from . import plot
 from . import scheduler
 
-ns = Collection(scheduler)
+ns = Collection(plot, scheduler)
