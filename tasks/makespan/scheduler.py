@@ -17,7 +17,6 @@ from tasks.util.faasm import (
     flush_hosts as flush_faasm_hosts,
 )
 from tasks.util.openmpi import (
-    NATIVE_HOSTFILE,
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
@@ -47,6 +46,7 @@ class TaskObject:
 class ResultQueueItem:
     task_id: int
     exec_time: float
+    end_ts: float
 
 
 @dataclass
@@ -59,7 +59,7 @@ class ExecutedTaskInfo:
 
 @dataclass
 class WorkQueueItem:
-    master_pod: str
+    allocated_pods: List[str]
     task: TaskObject
 
 
@@ -82,7 +82,11 @@ def dequeue_with_timeout(
 
 
 def thread_pool_thread(
-    work_queue: Queue, result_queue: Queue, thread_idx: int
+    work_queue: Queue,
+    result_queue: Queue,
+    thread_idx: int,
+    pod_name_to_ip: Dict[str, str],
+    num_slots_per_vm: int,
 ) -> None:
     """
     Loop for the worker threads in the thread pool. Each thread performs a
@@ -94,21 +98,28 @@ def thread_pool_thread(
     while True:
         work_item = dequeue_with_timeout(work_queue, "work queue", silent=True)
 
+        master_pod = work_item.allocated_pods[0]
         # Check for shutdown message
-        if work_item.master_pod == QUEUE_SHUTDOWN:
+        if master_pod == QUEUE_SHUTDOWN:
             break
 
         data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
         # TODO - maybe less hacky way to detect workload here
-        if "openmpi" in work_item.master_pod:
+        if "openmpi" in master_pod:
             native_cmdline = "-in {}/{}.faasm.native".format(
                 DOCKER_LAMMPS_DIR, data_file
             )
             world_size = work_item.task.world_size
+            allocated_pod_ips = [
+                "{}:{}".format(pod_name_to_ip[pn], num_slots_per_vm)
+                for pn in work_item.allocated_pods
+            ]
             mpirun_cmd = [
                 "mpirun",
                 "-np {}".format(world_size),
-                "-hostfile {}".format(NATIVE_HOSTFILE),
+                # To improve OpenMPI performance, we tell it exactly where to
+                # run each rank. Could we be more specific about it?
+                "-host {}".format(",".join(allocated_pod_ips)),
                 DOCKER_LAMMPS_BINARY,
                 native_cmdline,
             ]
@@ -116,7 +127,7 @@ def thread_pool_thread(
 
             exec_cmd = [
                 "exec",
-                work_item.master_pod,
+                master_pod,
                 "--",
                 "su mpirun -c '{}'".format(mpirun_cmd),
             ]
@@ -156,6 +167,13 @@ def thread_pool_thread(
                         response.status_code, response.text
                     )
                 )
+                print("--------------- ERROR ---------------")
+                print(
+                    "Marking task {} as failed".format(work_item.task.task_id)
+                )
+                print("-------------------------------------")
+                result_queue.put(ResultQueueItem(work_item.task.task_id, -1, time.time()))
+                continue
             print("Response: {}".format(response.text))
             msg_id = int(response.text.strip())
 
@@ -177,24 +195,42 @@ def thread_pool_thread(
                     headers=knative_headers,
                 )
 
-                if response.text.startswith("RUNNING"):
+                if not response.text or response.text.startswith("FAILED"):
+                    print("--------------- ERROR ---------------")
+                    print(
+                        "Marking task {} as failed".format(
+                            work_item.task.task_id
+                        )
+                    )
+                    print("-------------------------------------")
+                    actual_time = -1
+                    break
+                elif response.text.startswith("RUNNING"):
                     continue
-                elif response.text.startswith("FAILED"):
-                    raise RuntimeError("Call failed")
-                elif not response.text:
-                    raise RuntimeError("Empty status response")
                 else:
                     print("Call finished succesfully")
 
                 # Get the executed time from the response
-                result_json = json.loads(response.text, strict=False)
+                try:
+                    result_json = json.loads(response.text, strict=False)
+                except json.decoder.JSONDecodeError:
+                    print("--------------- ERROR ---------------")
+                    print(
+                        "Marking task {} as failed".format(
+                            work_item.task.task_id
+                        )
+                    )
+                    print("-------------------------------------")
+                    actual_time = -1
+                    break
+
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 print("Actual time: {}".format(actual_time))
 
                 # Finally exit the polling loop
                 break
 
-        result_queue.put(ResultQueueItem(work_item.task.task_id, actual_time))
+        result_queue.put(ResultQueueItem(work_item.task.task_id, actual_time, time.time()))
 
     print("Pool thread {} shutting down".format(thread_idx))
 
@@ -208,6 +244,7 @@ class SchedulerState:
 
     # Pod names and pod map
     native_pod_names: List[str]
+    native_pod_ips: List[str]
     native_pod_map: Dict[str, int] = {}
     wasm_pod_names: List[str]
     wasm_pod_map: Dict[str, int] = {}
@@ -217,17 +254,25 @@ class SchedulerState:
     # Keep track of the workload being executed
     current_workload: str = ""
 
-    def __init__(self, num_vms: int, num_cores_per_vm: int):
+    def __init__(
+        self, current_workload: str, num_vms: int, num_cores_per_vm: int
+    ):
+        self.current_workload = current_workload
         self.num_vms = num_vms
         self.num_cores_per_vm = num_cores_per_vm
         self.total_slots = num_vms * num_cores_per_vm
         self.total_available_slots = self.total_slots
 
+        # Initialise the pod list depending on the workload
+        self.init_pod_list()
+
     def init_pod_list(self):
         # Initialise pod names and pod map depending on the experiment
         if self.current_workload in NATIVE_WORKLOADS:
             # TODO - eventually different namespace for this experiment
-            self.native_pod_names, _ = get_native_mpi_pods("lammps")
+            self.native_pod_names, self.native_pod_ips = get_native_mpi_pods(
+                "lammps"
+            )
             for pod in self.native_pod_names:
                 self.native_pod_map[pod] = self.num_cores_per_vm
         else:
@@ -258,9 +303,10 @@ class BatchScheduler:
     thread_pool: List[Process]
     state: SchedulerState
     one_task_per_node: bool = False
+    start_ts: float = 0.0
 
-    def __init__(self, num_vms: int, num_slots_per_vm: int):
-        self.state = SchedulerState(num_vms, num_slots_per_vm)
+    def __init__(self, workload: str, num_vms: int, num_slots_per_vm: int):
+        self.state = SchedulerState(workload, num_vms, num_slots_per_vm)
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Number of VMs: {}".format(self.state.num_vms))
@@ -269,6 +315,9 @@ class BatchScheduler:
             "\t- Schedule one task per node: {}".format(self.one_task_per_node)
         )
 
+        pod_name_to_ip = dict(
+            zip(self.state.native_pod_names, self.state.native_pod_ips)
+        )
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
@@ -280,6 +329,8 @@ class BatchScheduler:
                     self.work_queue,
                     self.result_queue,
                     i,
+                    pod_name_to_ip,
+                    self.state.num_cores_per_vm,
                 ),
             )
             for i in range(self.num_threads_in_pool)
@@ -294,7 +345,9 @@ class BatchScheduler:
             thread.start()
 
     def shutdown(self):
-        shutdown_msg = WorkQueueItem(QUEUE_SHUTDOWN, TaskObject(-1, "-1", -1))
+        shutdown_msg = WorkQueueItem(
+            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1)
+        )
         for _ in range(self.num_threads_in_pool):
             self.work_queue.put(shutdown_msg)
 
@@ -375,6 +428,9 @@ class BatchScheduler:
         if self.state.current_workload == "batch":
             self.one_task_per_node = True
 
+        # Mark the initial timestamp
+        self.start_ts = time.time()
+
         for t in tasks:
             # First, try to schedule the task with the current available
             # resources
@@ -400,11 +456,13 @@ class BatchScheduler:
                 # Write line to file
                 write_line_to_csv(
                     self.state.current_workload,
+                    self.num_tasks,
                     TIQ_FILE_PREFIX,
                     self.num_tasks,
                     time_per_task[result.task_id].task_id,
                     time_per_task[result.task_id].time_in_queue,
                     time_per_task[result.task_id].time_executing,
+                    int(result.end_ts - self.start_ts),
                 )
 
                 # Try to schedule again
@@ -427,7 +485,8 @@ class BatchScheduler:
             )
 
             # Lastly, put the scheduled task in the work queue
-            self.work_queue.put(WorkQueueItem(master_pod, t))
+            pods = [it[0] for it in scheduling_decision]
+            self.work_queue.put(WorkQueueItem(pods, t))
 
         # Once we are done scheduling tasks, drain the result queue
         while executed_task_count < len(tasks):
@@ -443,11 +502,13 @@ class BatchScheduler:
             # Write line to file
             write_line_to_csv(
                 self.state.current_workload,
+                self.num_tasks,
                 TIQ_FILE_PREFIX,
                 self.num_tasks,
                 time_per_task[result.task_id].task_id,
                 time_per_task[result.task_id].time_in_queue,
                 time_per_task[result.task_id].time_executing,
+                int(result.end_ts - self.start_ts),
             )
 
         # If running the `batch` workload, revert the changes made to allocate

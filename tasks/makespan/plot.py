@@ -24,7 +24,9 @@ def _read_results():
         else:
             result_type = "makespan"
         if result_type not in result_dict:
-            result_dict[result_type] = {"native": {}, "wasm": {}}
+            # result_dict[result_type] =
+            #   {"native": {}, "wasm": {}, "batch": {}}
+            result_dict[result_type] = {"wasm": {}, "batch": {}}
 
         # Read results
         results = pd.read_csv(csv)
@@ -59,6 +61,7 @@ def plot(ctx):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
     # First plot the CDF of the time spent in queue
+    """
     for workload in results["tiq"]:
         for num_tasks in results["tiq"][workload]:
             data = results["tiq"][workload][num_tasks]
@@ -76,6 +79,33 @@ def plot(ctx):
     ax1.legend(loc="upper left")
     ax1.set_xlabel("Time in queue [s]")
     ax1.set_ylabel("CDF")
+    """
+    # Alternatively, plot the mean and stdev of the time spent in queue
+    """
+    for workload in results["tiq"]:
+        means = []
+        stds = []
+        for num_tasks in results["tiq"][workload]:
+            means.append(np.mean(results["tiq"][workload][num_tasks]))
+            stds.append(np.std(results["tiq"][workload][num_tasks]))
+        ax1.errorbar(
+            [nt for nt in results["tiq"][workload]],
+            means,
+            yerr=stds,
+            fmt=".-",
+            label="{}".format(workload),
+            ecolor="gray",
+            elinewidth=0.8,
+        )
+    # Plot aesthetics
+    ax1.set_xlim(left=0)
+    ax1.set_ylim(bottom=0, top=400)
+    ax1.legend(loc="upper left")
+    ax1.set_xlabel("Number of tasks")
+    ax1.set_ylabel("Average time in queue [s]")
+    """
+    # First, plot the progress of execution per step
+    num_steps = 100
     # Second, plot the makespan time
     for workload in results["makespan"]:
         data = results["makespan"][workload].items()

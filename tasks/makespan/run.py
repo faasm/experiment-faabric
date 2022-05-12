@@ -10,38 +10,38 @@ import time
 
 
 @task(default=True)
-def run(ctx, num_vms, num_cores_per_vm, workload="all"):
+def run(ctx, num_vms, num_cores_per_vm, workload, num_tasks=None):
     num_vms = int(num_vms)
     num_cores_per_vm = int(num_cores_per_vm)
-    num_tasks = [10, 15, 20]
-    # num_tasks = [50, 100, 150]
+    if not num_tasks:
+        num_tasks = [10, 20, 30, 40, 50, 60, 70]
+    else:
+        num_tasks = [int(num_tasks)]
 
     # Choose workloads: "native", "wasm", "batch", or "all"
-    if workload == "all":
-        workloads = WORKLOAD_ALLOWLIST
-    elif workload in WORKLOAD_ALLOWLIST:
-        workloads = [workload]
-    else:
-        print("Workload must be one in: 'native', 'wasm', 'batch' or 'all'")
+    if workload not in WORKLOAD_ALLOWLIST:
+        print("Workload must be one in: 'native', 'wasm' or 'batch'")
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
-    for wl in workloads:
-        init_csv_file(wl)
-
     # Initialise batch scheduler
-    scheduler = BatchScheduler(num_vms, num_cores_per_vm)
+    scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm)
 
     for ntask in num_tasks:
+
+        # Use one file for num tasks and workload for reliabaility
+        init_csv_file(workload, ntask)
+
         task_trace = load_task_trace_from_file(ntask)
 
-        for wl in workloads:
-            makespan_start_time = time.time()
-            exec_info = scheduler.run(wl, task_trace)
-            makespan_time = int(time.time() - makespan_start_time)
-            write_line_to_csv(wl, MAKESPAN_FILE_PREFIX, ntask, makespan_time)
+        makespan_start_time = time.time()
+        exec_info = scheduler.run(workload, task_trace)
+        makespan_time = int(time.time() - makespan_start_time)
+        write_line_to_csv(
+            workload, ntask, MAKESPAN_FILE_PREFIX, ntask, makespan_time
+        )
 
-            for key in exec_info:
-                print(exec_info[key])
+        for key in exec_info:
+            print(exec_info[key])
 
     # Finally shutdown the scheduler
     scheduler.shutdown()

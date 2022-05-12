@@ -22,11 +22,13 @@ def dump_task_trace_to_file(task_trace):
 
 
 def load_task_trace_from_file(num_tasks):
-    file_name = "trace_{}.csv".format(num_tasks)
+    file_name = "trace_100.csv"
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     task_trace = []
     with open(task_file, "r") as in_file:
         for line in in_file:
+            if len(task_trace) == num_tasks:
+                break
             tokens = line.rstrip().split(",")
             task_trace.append(
                 TaskObject(int(tokens[0]), tokens[1], int(tokens[2]))
