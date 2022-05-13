@@ -2,21 +2,20 @@ import requests
 
 from invoke import task
 from os.path import join
-from tasks.lammps.env import LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
 from tasks.lammps.wasm import upload as lammps_upload
 from tasks.lammps.data import upload as lammps_data_upload
-from task.makespan.env import (
+from tasks.makespan.env import (
     MAKESPAN_IMAGE_NAME,
     MAKESPAN_WASM_DIR,
     MIGRATE_FAASM_USER,
     MIGRATE_FAASM_FUNC,
 )
-from task.util.env import PROJ_ROOT, get_version, WASM_INSTALL_DIR
+from tasks.util.env import PROJ_ROOT, get_version, WASM_INSTALL_DIR
 from tasks.util.faasm import get_faasm_upload_host_port
 from subprocess import run
 
 
-@task(default=True)
+@task
 def build(ctx):
     """
     Build the WASM functions needed for the makespan experiment: mpi/migration,
@@ -55,8 +54,9 @@ def build(ctx):
     run(docker_cmd, check=True, shell=True, cwd=PROJ_ROOT)
     docker_cmd = [
         "docker exec",
+        "--workdir /code/cpp",
         tmp_image_name,
-        "cd /code/cpp && inv func mpi migrate",
+        "inv func mpi migrate",
     ]
     docker_cmd = " ".join(docker_cmd)
     print(docker_cmd)
@@ -64,7 +64,7 @@ def build(ctx):
     docker_cmd = [
         "docker cp",
         "{}:/code/cpp/build/func/mpi/migrate.wasm".format(tmp_image_name),
-        join(WASM_INSTALL_DIR, "migrate.wasm"),
+        join(MAKESPAN_WASM_DIR, "migrate.wasm"),
     ]
     docker_cmd = " ".join(docker_cmd)
     print(docker_cmd)
@@ -89,11 +89,11 @@ def upload(ctx):
     lammps_data_upload(ctx, ["compute", "network"])
 
     # Migration wasm file
-    lammps_wasm_file = join(WASM_INSTALL_DIR, "bin", "lmp")
+    wasm_file = join(MAKESPAN_WASM_DIR, "migrate.wasm")
     host, port = get_faasm_upload_host_port()
     url = "http://{}:{}/f/{}/{}".format(
-        host, port, LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
+        host, port, MIGRATE_FAASM_USER, MIGRATE_FAASM_FUNC
     )
     print("Putting function to {}".format(url))
-    response = requests.put(url, data=open(lammps_wasm_file, "rb"))
+    response = requests.put(url, data=open(wasm_file, "rb"))
     print("Response {}: {}".format(response.status_code, response.text))

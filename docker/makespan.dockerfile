@@ -1,11 +1,6 @@
 ARG EXPERIMENT_VERSION
 FROM faasm/experiment-lammps:${EXPERIMENT_VERSION}
 
-# Fetch sufficiently new CPP version
-WORKDIR /code/cpp
-RUN git fetch origin
-RUN git checkout v0.1.6
-
 WORKDIR /code/experiment-mpi
 
 # TODO - remove before merging in

@@ -52,7 +52,7 @@ def generate_task_trace(ctx, num_cores_per_vm, num_tasks):
             int(num_cores_per_vm * 1.5),
             int(num_cores_per_vm * 2),
         ]
-        possible_workloads = ["network", "compute"]
+        possible_workloads = ["migration", "compute"]
 
         # Generate the random task trace
         task_trace: List[TaskObject] = []

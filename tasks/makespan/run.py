@@ -10,7 +10,14 @@ import time
 
 
 @task(default=True)
-def run(ctx, num_vms, num_cores_per_vm, workload, num_tasks=None):
+def run(
+    ctx,
+    num_vms,
+    num_cores_per_vm,
+    workload,
+    num_tasks=None,
+    enable_migration=False,
+):
     num_vms = int(num_vms)
     num_cores_per_vm = int(num_cores_per_vm)
     if not num_tasks:
@@ -24,7 +31,9 @@ def run(ctx, num_vms, num_cores_per_vm, workload, num_tasks=None):
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
     # Initialise batch scheduler
-    scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm)
+    scheduler = BatchScheduler(
+        workload, num_vms, num_cores_per_vm, enable_migration
+    )
 
     for ntask in num_tasks:
 

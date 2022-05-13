@@ -2,6 +2,7 @@ from invoke import task
 from os.path import join
 from subprocess import run
 from tasks.makespan.env import (
+    DOCKER_MIGRATE_BINARY,
     MAKESPAN_NATIVE_DIR,
     MAKESPAN_IMAGE_NAME,
     MIGRATE_NATIVE_BINARY,
@@ -19,10 +20,10 @@ from tasks.util.openmpi import (
 @task(default=True)
 def build(ctx, clean=False, verbose=False):
     """
-    Build the native migration kernel
+    Build the native migration kernel (run inside the container)
     """
     clang_cmd = "clang++-10 mpi_migrate.cpp -lmpi -o {}".format(
-        join(NATIVE_INSTALL_DIR, MIGRATE_NATIVE_BINARY),
+        DOCKER_MIGRATE_BINARY
     )
     print(clang_cmd)
     run(clang_cmd, check=True, shell=True, cwd=MAKESPAN_NATIVE_DIR)

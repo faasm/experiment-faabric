@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
-from os.path import basename
+from os.path import basename, join
 from pprint import pprint
 from typing import Dict, List, Tuple, Union
 from tasks.makespan.util import write_line_to_csv, TIQ_FILE_PREFIX
@@ -16,6 +16,7 @@ from tasks.util.faasm import (
     get_faasm_invoke_host_port,
     flush_hosts as flush_faasm_hosts,
 )
+from tasks.util.env import NATIVE_INSTALL_DIR
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
@@ -27,12 +28,19 @@ from tasks.lammps.env import (
     LAMMPS_FAASM_FUNC,
     get_faasm_benchmark,
 )
+from tasks.makespan.env import (
+    DOCKER_MIGRATE_BINARY,
+    MIGRATE_FAASM_USER,
+    MIGRATE_FAASM_FUNC,
+    MIGRATE_NATIVE_BINARY,
+)
 
 WORKLOAD_ALLOWLIST = ["wasm", "native", "batch"]
 NATIVE_WORKLOADS = ["native", "batch"]
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
+NUM_MIGRATION_LOOPS = 5000000
 
 
 @dataclass
@@ -87,6 +95,7 @@ def thread_pool_thread(
     thread_idx: int,
     pod_name_to_ip: Dict[str, str],
     num_slots_per_vm: int,
+    enable_migration: bool,
 ) -> None:
     """
     Loop for the worker threads in the thread pool. Each thread performs a
@@ -103,12 +112,18 @@ def thread_pool_thread(
         if master_pod == QUEUE_SHUTDOWN:
             break
 
-        data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
+        if work_item.task.app != "migration":
+            data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
         # TODO - maybe less hacky way to detect workload here
         if "openmpi" in master_pod:
-            native_cmdline = "-in {}/{}.faasm.native".format(
-                DOCKER_LAMMPS_DIR, data_file
-            )
+            if work_item.task.app == "migration":
+                native_cmdline = "50000"
+                binary = DOCKER_MIGRATE_BINARY
+            else:
+                binary = DOCKER_LAMMPS_BINARY
+                native_cmdline = "-in {}/{}.faasm.native".format(
+                    DOCKER_LAMMPS_DIR, data_file
+                )
             world_size = work_item.task.world_size
             allocated_pod_ips = [
                 "{}:{}".format(pod_name_to_ip[pn], num_slots_per_vm)
@@ -120,7 +135,7 @@ def thread_pool_thread(
                 # To improve OpenMPI performance, we tell it exactly where to
                 # run each rank. Could we be more specific about it?
                 "-host {}".format(",".join(allocated_pod_ips)),
-                DOCKER_LAMMPS_BINARY,
+                binary,
                 native_cmdline,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
@@ -133,7 +148,7 @@ def thread_pool_thread(
             ]
 
             start = time.time()
-            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+            exec_output = run_kubectl_cmd("makespan", " ".join(exec_cmd))
             print(exec_output)
             actual_time = int(time.time() - start)
         else:
@@ -143,14 +158,26 @@ def thread_pool_thread(
             knative_headers = get_knative_headers()
 
             # Prepare Faasm request
-            file_name = basename(data_file)
-            cmdline = "-in faasm://lammps-data/{}".format(file_name)
+            if work_item.task.app == "migration":
+                user = MIGRATE_FAASM_USER
+                func = MIGRATE_FAASM_FUNC
+                cmdline = "2"
+            else:
+                user = LAMMPS_FAASM_USER
+                func = LAMMPS_FAASM_FUNC
+                file_name = basename(data_file)
+                cmdline = "-in faasm://lammps-data/{}".format(file_name)
+            if enable_migration:
+                check_period = 3
+            else:
+                check_period = 0
             # TODO - add migration check period here
             msg = {
-                "user": LAMMPS_FAASM_USER,
-                "function": LAMMPS_FAASM_FUNC,
+                "user": user,
+                "function": func,
                 "cmdline": cmdline,
                 "mpi_world_size": work_item.task.world_size,
+                "migration_check_period": check_period,
                 "async": True,
             }
             print("Posting to {} msg:".format(url))
@@ -172,7 +199,9 @@ def thread_pool_thread(
                     "Marking task {} as failed".format(work_item.task.task_id)
                 )
                 print("-------------------------------------")
-                result_queue.put(ResultQueueItem(work_item.task.task_id, -1, time.time()))
+                result_queue.put(
+                    ResultQueueItem(work_item.task.task_id, -1, time.time())
+                )
                 continue
             print("Response: {}".format(response.text))
             msg_id = int(response.text.strip())
@@ -230,7 +259,9 @@ def thread_pool_thread(
                 # Finally exit the polling loop
                 break
 
-        result_queue.put(ResultQueueItem(work_item.task.task_id, actual_time, time.time()))
+        result_queue.put(
+            ResultQueueItem(work_item.task.task_id, actual_time, time.time())
+        )
 
     print("Pool thread {} shutting down".format(thread_idx))
 
@@ -271,7 +302,7 @@ class SchedulerState:
         if self.current_workload in NATIVE_WORKLOADS:
             # TODO - eventually different namespace for this experiment
             self.native_pod_names, self.native_pod_ips = get_native_mpi_pods(
-                "lammps"
+                "makespan"
             )
             for pod in self.native_pod_names:
                 self.native_pod_map[pod] = self.num_cores_per_vm
@@ -305,7 +336,13 @@ class BatchScheduler:
     one_task_per_node: bool = False
     start_ts: float = 0.0
 
-    def __init__(self, workload: str, num_vms: int, num_slots_per_vm: int):
+    def __init__(
+        self,
+        workload: str,
+        num_vms: int,
+        num_slots_per_vm: int,
+        enable_migration: bool = False,
+    ):
         self.state = SchedulerState(workload, num_vms, num_slots_per_vm)
 
         print("Initialised batch scheduler with the following parameters:")
@@ -315,9 +352,12 @@ class BatchScheduler:
             "\t- Schedule one task per node: {}".format(self.one_task_per_node)
         )
 
-        pod_name_to_ip = dict(
-            zip(self.state.native_pod_names, self.state.native_pod_ips)
-        )
+        if workload in NATIVE_WORKLOADS:
+            pod_name_to_ip = dict(
+                zip(self.state.native_pod_names, self.state.native_pod_ips)
+            )
+        else:
+            pod_name_to_ip = dict()
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
@@ -331,6 +371,7 @@ class BatchScheduler:
                     i,
                     pod_name_to_ip,
                     self.state.num_cores_per_vm,
+                    enable_migration,
                 ),
             )
             for i in range(self.num_threads_in_pool)
