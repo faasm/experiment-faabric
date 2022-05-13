@@ -9,6 +9,7 @@ from tasks.util.openmpi import (
 )
 from tasks.makespan.env import (
     MAKESPAN_DIR,
+    MAKESPAN_IMAGE_NAME,
     MIGRATE_NATIVE_BINARY,
 )
 
@@ -32,7 +33,7 @@ def deploy(ctx, local=False):
     """
     Deploy the native MPI setup to K8s
     """
-    deploy_native_mpi("lammps", LAMMPS_IMAGE_NAME)
+    deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME)
 
 
 @task
@@ -40,7 +41,7 @@ def delete(ctx):
     """
     Delete the native MPI setup from K8s
     """
-    delete_native_mpi("lammps", LAMMPS_IMAGE_NAME)
+    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME)
 
 
 @task
@@ -48,4 +49,4 @@ def hostfile(ctx, slots):
     """
     Set up the native MPI hostfile
     """
-    generate_native_mpi_hostfile("lammps", slots=slots)
+    generate_native_mpi_hostfile("makespan", slots=slots)
