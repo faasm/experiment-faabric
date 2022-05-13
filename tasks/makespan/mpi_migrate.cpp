@@ -2,10 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_LOOPS 50000
-int checkEvery = 1;
-
-int doAlltoAll(int rank, int worldSize, int i, int nLoops, int checkEvery)
+int doAlltoAll(int rank, int worldSize, int i)
 {
     int retVal = 0;
     int chunkSize = 2;
@@ -30,10 +27,6 @@ int doAlltoAll(int rank, int worldSize, int i, int nLoops, int checkEvery)
     MPI_Alltoall(
       sendBuf, chunkSize, MPI_INT, actual, chunkSize, MPI_INT, MPI_COMM_WORLD);
 
-    if (!faasm::compareArrays<int>(actual, expected, fullSize)) {
-        retVal = 1;
-    }
-
     delete[] sendBuf;
     delete[] actual;
     delete[] expected;
@@ -44,8 +37,6 @@ int doAlltoAll(int rank, int worldSize, int i, int nLoops, int checkEvery)
 // Outer wrapper, and re-entry point after migration
 void doBenchmark(int nLoops)
 {
-    bool mustCheck = nLoops == NUM_LOOPS;
-
     // Initialisation
     int res = MPI_Init(NULL, NULL);
     if (res != MPI_SUCCESS) {
@@ -67,20 +58,7 @@ void doBenchmark(int nLoops)
         // migrated)
         MPI_Barrier(MPI_COMM_WORLD);
 
-        doAlltoAll(rank, worldSize, i, nLoops, checkEvery);
-
-        if (mustCheck && i % checkEvery == 0 && i / checkEvery > 0) {
-            mustCheck = false;
-            if (rank == 0) {
-                printf(
-                  "Checking for migrations at iteration %i/%i\n", i, nLoops);
-            }
-            // Migration point, which may or may not resume the
-            // benchmark on another host for the remaining iterations.
-            // This would eventually be MPI_Barrier
-            MPI_Barrier(MPI_COMM_WORLD);
-            // __faasm_migrate_point(&doBenchmark, (nLoops - i - 1));
-        }
+        doAlltoAll(rank, worldSize, i);
     }
 
     printf("Rank %i exitting the loop\n", rank);
@@ -93,7 +71,7 @@ void doBenchmark(int nLoops)
 int main(int argc, char* argv[])
 {
     if (argc != 2) {
-        printf("Must provide one input argument: <check_period>\n");
+        printf("Must provide one input argument: <NUM_LOOPS>\n");
         return 1;
     }
 
@@ -101,14 +79,12 @@ int main(int argc, char* argv[])
     // signature. Note that the migrated functions won't see the updated
     // value as we don't migrate global variables, but that's OK as we don't
     // support migrating a function twice.
-    int checkEveryIn = atoi(argv[1]);
-    int* checkEveryPtr = &checkEvery;
-    *checkEveryPtr = (int)(NUM_LOOPS * ((float)checkEveryIn / 10.0));
+    int numLoops = atoi(argv[1]);
 
     printf(
-      "Starting MPI migration checking at iter %i/%i\n", checkEvery, NUM_LOOPS);
+      "Starting MPI migration with %i loops!\n", numLoops);
 
-    doBenchmark(NUM_LOOPS);
+    doBenchmark(numLoops);
 
     printf("MPI migration benchmark finished succesfully\n");
 }

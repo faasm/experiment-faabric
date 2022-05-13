@@ -7,43 +7,24 @@ from tasks.util.openmpi import (
     delete_native_mpi,
     generate_native_mpi_hostfile,
 )
-from tasks.lammps.env import (
-    LAMMPS_IMAGE_NAME,
+from tasks.makespan.env import (
+    MAKESPAN_DIR,
+    MIGRATE_NATIVE_BINARY,
 )
 
 # TODO - all these tasks must eventually include the migration task
 
 
-# @task(default=True)
-# def build(ctx, clean=False, verbose=False):
-#     """
-#     Build and install LAMMPS natively
-#     """
-#     # The LAMMPS CMake build instructions can be found in the following link
-#     # https://lammps.sandia.gov/doc/Build_cmake.html
-#
-#     cmake_dir = join(LAMMPS_DIR, "cmake")
-#
-#     clean_dir(NATIVE_BUILD_DIR, clean)
-#     clean_dir(NATIVE_INSTALL_DIR, clean)
-#
-#     cmake_cmd = [
-#         "cmake",
-#         "-GNinja",
-#         "-DCMAKE_C_COMPILER=/usr/bin/clang-10",
-#         "-DCMAKE_CXX_COMPILER=/usr/bin/clang++-10",
-#         "-DCMAKE_INSTALL_PREFIX={}".format(NATIVE_INSTALL_DIR),
-#         cmake_dir,
-#     ]
-#
-#     cmake_str = " ".join(cmake_cmd)
-#     print(cmake_str)
-#
-#     run(cmake_str, check=True, shell=True, cwd=NATIVE_BUILD_DIR)
-#
-#     run("ninja", check=True, shell=True, cwd=NATIVE_BUILD_DIR)
-#
-#     run("ninja install", check=True, shell=True, cwd=NATIVE_BUILD_DIR)
+@task(default=True)
+def build(ctx, clean=False, verbose=False):
+    """
+    Build the native migration kernel
+    """
+    clang_cmd = "clang++-10 mpi_migrate.cpp -lmpi -o {}".format(
+        MIGRATE_NATIVE_BINARY
+    )
+    print(clang_cmd)
+    run(clang_cmd, check=True, shell=True, cwd=MAKESPAN_DIR)
 
 
 @task
