@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <faasm/compare.h>
-#include <faasm/faasm.h>
-#include <faasm/migrate.h>
-
 #define NUM_LOOPS 50000
 int checkEvery = 1;
 
@@ -83,7 +79,7 @@ void doBenchmark(int nLoops)
             // benchmark on another host for the remaining iterations.
             // This would eventually be MPI_Barrier
             MPI_Barrier(MPI_COMM_WORLD);
-            __faasm_migrate_point(&doBenchmark, (nLoops - i - 1));
+            // __faasm_migrate_point(&doBenchmark, (nLoops - i - 1));
         }
     }
 
