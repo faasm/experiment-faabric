@@ -111,7 +111,7 @@ def propagate_error(wasm_results, native_results, num_proc):
     return yerr
 
 
-@task
+@task(default=True)
 def plot(ctx):
     """
     Plot slowdown for MPI kernels

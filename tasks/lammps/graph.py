@@ -146,7 +146,7 @@ def get_grid_size(world_size):
         while num % 2 == 0 and num > 2:
             num /= 2
             factor += 1
-        return 2**factor
+        return 2 ** factor
 
     if is_perfect_square(world_size):
         return [int(sqrt(world_size)), int(sqrt(world_size))]
