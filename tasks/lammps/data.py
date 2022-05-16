@@ -42,4 +42,6 @@ def upload(ctx, bench):
                 headers={"FilePath": faasm_path},
             )
 
-            print("Response {}: {}".format(response.status_code, response.text))
+            print(
+                "Response {}: {}".format(response.status_code, response.text)
+            )

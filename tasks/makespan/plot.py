@@ -4,7 +4,6 @@ from os import makedirs
 from os.path import join
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
@@ -12,6 +11,7 @@ from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 RESULTS_DIR = join(PROJ_ROOT, "results", "makespan")
 PLOTS_DIR = join(PLOTS_ROOT, "makespan")
 OUT_FILE_TIQ = join(PLOTS_DIR, "time_in_queue.{}".format(PLOTS_FORMAT))
+WORKLOAD_TO_LABEL = {"wasm": "Granny", "batch": "Batch OpenMPI"}
 
 
 def _read_results():
@@ -74,7 +74,7 @@ def plot(ctx):
             (num + 1) / len(time_points) * 100
             for num in range(len(time_points))
         ]
-        ax1.plot(xs, ys, label=workload)
+        ax1.plot(xs, ys, label=WORKLOAD_TO_LABEL[workload])
     # Plot aesthetics
     ax1.set_xlim(left=0)
     ax1.set_ylim(bottom=0, top=100)
@@ -88,9 +88,7 @@ def plot(ctx):
         data = results["makespan"][workload]
         xs = [k for k in results["makespan"][workload].keys()]
         xs.sort()
-        ax2.plot(
-            xs, [data[x] for x in xs], label=workload
-        )
+        ax2.plot(xs, [data[x] for x in xs], label=WORKLOAD_TO_LABEL[workload])
     # Plot aesthetics
     ax2.set_xlim(left=0)
     ax2.set_ylim(bottom=0)

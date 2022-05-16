@@ -8,7 +8,7 @@ import pandas as pd
 from invoke import task
 from hoststats.results import HostStatsResults
 
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "lammps")
 PLOTS_DIR = join(PLOTS_ROOT, "lammps")
@@ -58,13 +58,12 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
     """
     Plot the LAMMPS results
     """
+    # Use our matplotlib style file
+    plt.style.use(MPL_STYLE_FILE)
+
     fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, figsize=(6, 3))
     makedirs(PLOTS_DIR, exist_ok=True)
     plot_file = join(PLOTS_DIR, "runtime.{}".format(PLOTS_FORMAT))
-
-    #     fig.suptitle(
-    #         "LAMMPS speed-up Faasm vs OpenMPI\n(overlayed with elapsed time)"
-    #     )
 
     for bench, coords in zip(BENCHMARKS, PLOT_COORDS):
         # Process data
@@ -114,8 +113,7 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
             wasm_times["WorldSize"],
             wasm_speedup,
             yerr=wasm_speedup_errs,
-            fmt=".-",
-            label="Faabric",
+            label="Granny",
             ecolor="gray",
             elinewidth=0.8,
             capsize=1.0,
@@ -124,7 +122,6 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
             native_times["WorldSize"],
             native_speedup,
             yerr=native_speedup_errs,
-            fmt=".-",
             label="OpenMPI",
             ecolor="gray",
             elinewidth=0.8,
@@ -138,8 +135,7 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
                 wasm_times["WorldSize"],
                 wasm_times["Actual"],
                 yerr=wasm_errs["Actual"],
-                fmt=".--",
-                label="Faabric",
+                label="Granny",
                 ecolor="gray",
                 elinewidth=0.8,
                 capsize=1.0,
@@ -149,7 +145,6 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
                 native_times["WorldSize"],
                 native_times["Actual"],
                 yerr=native_errs["Actual"],
-                fmt=".--",
                 label="OpenMPI",
                 ecolor="gray",
                 elinewidth=0.8,
@@ -164,7 +159,7 @@ def plot(ctx, gui=False, plot_elapsed_times=True):
         ax[coords].set_ylim(bottom=0)
         ax[coords].set_xlim(left=0)
         ax[coords].set_xticks([2 * i for i in range(9)])
-        ax[coords].set_xlabel("# of parallel functions")
+        ax[coords].set_xlabel("# of processes")
         if coords == 0:
             ax[coords].set_ylabel("Speed Up (vs 1 MPI Proc performance)")
 

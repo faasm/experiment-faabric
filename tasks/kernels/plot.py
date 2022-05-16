@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "kernels")
 PLOTS_DIR = join(PLOTS_ROOT, "kernels")
@@ -181,7 +181,7 @@ def plot(ctx):
     plt.ylim(0, 1.5)
     ax.set_xticks(xs)
     ax.set_xticklabels([XLABELS[key] for key in wasm_results.keys()])
-    ax.set_ylabel("Slowdown [Faabric / OpenMPI]")
+    ax.set_ylabel("Slowdown [Granny / OpenMPI]")
     plt.gca().set_aspect("equal")
     # ax.set_title("Kernels time to completion slowdown Faasm vs Native")
     fig.tight_layout()
