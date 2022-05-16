@@ -35,12 +35,14 @@ from tasks.makespan.env import (
     MIGRATE_NATIVE_BINARY,
 )
 
-WORKLOAD_ALLOWLIST = ["wasm", "native", "batch"]
+WORKLOAD_ALLOWLIST = ["wasm-migration", "wasm", "native", "batch"]
+WASM_WORKLOADS = ["wasm-migration", "wasm"]
+MIGRATION_WORKLOAD = "wasm-migration"
 NATIVE_WORKLOADS = ["native", "batch"]
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
-NUM_MIGRATION_LOOPS = 5000000
+NUM_MIGRATION_LOOPS = 50000
 
 
 @dataclass
@@ -55,6 +57,7 @@ class ResultQueueItem:
     task_id: int
     exec_time: float
     end_ts: float
+    master_ip: str
 
 
 @dataclass
@@ -112,12 +115,15 @@ def thread_pool_thread(
         if master_pod == QUEUE_SHUTDOWN:
             break
 
+        # Choose the right data file if running a LAMMPS simulation (i.e. not
+        # the migration job)
         if work_item.task.app != "migration":
             data_file = get_faasm_benchmark(work_item.task.app)["data"][0]
+
         # TODO - maybe less hacky way to detect workload here
         if "openmpi" in master_pod:
             if work_item.task.app == "migration":
-                native_cmdline = "50000"
+                native_cmdline = "{}".format(NUM_MIGRATION_LOOPS)
                 binary = DOCKER_MIGRATE_BINARY
             else:
                 binary = DOCKER_LAMMPS_BINARY
@@ -151,6 +157,7 @@ def thread_pool_thread(
             exec_output = run_kubectl_cmd("makespan", " ".join(exec_cmd))
             print(exec_output)
             actual_time = int(time.time() - start)
+            master_ip = pod_name_to_ip[work_item.allocated_pods[0]]
         else:
             # WASM specific data
             host, port = get_faasm_invoke_host_port()
@@ -254,13 +261,18 @@ def thread_pool_thread(
                     break
 
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
+                master_ip = "master-{}:exec-{}".format(
+                    result_json["master_host"], result_json["exec_host"]
+                )
                 print("Actual time: {}".format(actual_time))
 
                 # Finally exit the polling loop
                 break
 
         result_queue.put(
-            ResultQueueItem(work_item.task.task_id, actual_time, time.time())
+            ResultQueueItem(
+                work_item.task.task_id, actual_time, time.time(), master_ip
+            )
         )
 
     print("Pool thread {} shutting down".format(thread_idx))
@@ -341,7 +353,6 @@ class BatchScheduler:
         workload: str,
         num_vms: int,
         num_slots_per_vm: int,
-        enable_migration: bool = False,
     ):
         self.state = SchedulerState(workload, num_vms, num_slots_per_vm)
 
@@ -352,12 +363,18 @@ class BatchScheduler:
             "\t- Schedule one task per node: {}".format(self.one_task_per_node)
         )
 
+        # If running a native workload, initialise both the pod names, and the
+        # pod IPs for specific OpenMPI scheduling
         if workload in NATIVE_WORKLOADS:
             pod_name_to_ip = dict(
                 zip(self.state.native_pod_names, self.state.native_pod_ips)
             )
         else:
             pod_name_to_ip = dict()
+
+        # Work out if we need to enable migration
+        enable_migration = workload == MIGRATION_WORKLOAD
+
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
@@ -461,7 +478,7 @@ class BatchScheduler:
         executed_task_count: int = 0
 
         # If running a WASM workload, flush the hosts first
-        if self.state.current_workload == "wasm":
+        if self.state.current_workload in WASM_WORKLOADS:
             flush_faasm_hosts()
 
         # If running the `batch` workload, set the scheduler to allocate at
@@ -504,6 +521,7 @@ class BatchScheduler:
                     time_per_task[result.task_id].time_in_queue,
                     time_per_task[result.task_id].time_executing,
                     int(result.end_ts - self.start_ts),
+                    result.master_ip,
                 )
 
                 # Try to schedule again
@@ -550,6 +568,7 @@ class BatchScheduler:
                 time_per_task[result.task_id].time_in_queue,
                 time_per_task[result.task_id].time_executing,
                 int(result.end_ts - self.start_ts),
+                result.master_ip,
             )
 
         # If running the `batch` workload, revert the changes made to allocate

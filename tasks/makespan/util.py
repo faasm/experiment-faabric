@@ -23,7 +23,9 @@ def init_csv_file(workload, num_tasks):
         out_file.write("NumTasks,Makespan\n")
     tiq_file = join(result_dir, csv_name_tiq)
     with open(tiq_file, "w") as out_file:
-        out_file.write("NumTasks,TaskId,TimeInQueue,ExecTime,TimeSinceStart\n")
+        out_file.write(
+            "NumTasks,TaskId,TimeInQueue,ExecTime,TimeSinceStart,ExecutedAt\n"
+        )
 
 
 def write_line_to_csv(workload, num_tasks, file_name, *args):
@@ -40,6 +42,6 @@ def write_line_to_csv(workload, num_tasks, file_name, *args):
         )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
-            out_file.write("{},{},{},{},{}\n".format(*args))
+            out_file.write("{},{},{},{},{},{}\n".format(*args))
     else:
         raise RuntimeError("Unrecognised file name: {}".format(file_name))

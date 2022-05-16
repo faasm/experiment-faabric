@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "makespan")
 PLOTS_DIR = join(PLOTS_ROOT, "makespan")
@@ -33,11 +33,11 @@ def _read_results():
 
         if result_type == "tiq":
             groupped_results = results.groupby("NumTasks", as_index=False).agg(
-                {"TimeInQueue": list}
+                {"TimeSinceStart": list}
             )
             for num_tasks in groupped_results["NumTasks"]:
                 result_dict["tiq"][workload][num_tasks] = groupped_results.loc[
-                    groupped_results["NumTasks"] == num_tasks, "TimeInQueue"
+                    groupped_results["NumTasks"] == num_tasks, "TimeSinceStart"
                 ].item()
         else:
             for num_tasks in results["NumTasks"]:
@@ -55,62 +55,41 @@ def plot(ctx):
     """
     Plot makespan figures: CDF for time in queue and makespan plot
     """
+    # Use our matplotlib style file
+    plt.style.use(MPL_STYLE_FILE)
+
     makedirs(PLOTS_DIR, exist_ok=True)
 
     results = _read_results()
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-    # First plot the CDF of the time spent in queue
-    """
-    for workload in results["tiq"]:
-        for num_tasks in results["tiq"][workload]:
-            data = results["tiq"][workload][num_tasks]
-            ax1.hist(
-                data,
-                len(data),
-                density=1,
-                histtype="step",
-                cumulative=True,
-                label="{}: {} tasks".format(workload, num_tasks),
-            )
-    # Plot aesthetics
-    ax1.set_xlim(left=0)
-    ax1.set_ylim(bottom=0, top=1)
-    ax1.legend(loc="upper left")
-    ax1.set_xlabel("Time in queue [s]")
-    ax1.set_ylabel("CDF")
-    """
-    # Alternatively, plot the mean and stdev of the time spent in queue
-    """
-    for workload in results["tiq"]:
-        means = []
-        stds = []
-        for num_tasks in results["tiq"][workload]:
-            means.append(np.mean(results["tiq"][workload][num_tasks]))
-            stds.append(np.std(results["tiq"][workload][num_tasks]))
-        ax1.errorbar(
-            [nt for nt in results["tiq"][workload]],
-            means,
-            yerr=stds,
-            fmt=".-",
-            label="{}".format(workload),
-            ecolor="gray",
-            elinewidth=0.8,
-        )
-    # Plot aesthetics
-    ax1.set_xlim(left=0)
-    ax1.set_ylim(bottom=0, top=400)
-    ax1.legend(loc="upper left")
-    ax1.set_xlabel("Number of tasks")
-    ax1.set_ylabel("Average time in queue [s]")
-    """
     # First, plot the progress of execution per step
-    num_steps = 100
+    # Pick the highest task for a better progress line
+    max_num_tasks = max(results["tiq"]["wasm"].keys())
+    for workload in results["tiq"]:
+        time_points = results["tiq"][workload][max_num_tasks]
+        time_points.sort()
+        xs = time_points
+        ys = [
+            (num + 1) / len(time_points) * 100
+            for num in range(len(time_points))
+        ]
+        ax1.plot(xs, ys, label=workload)
+    # Plot aesthetics
+    ax1.set_xlim(left=0)
+    ax1.set_ylim(bottom=0, top=100)
+    ax1.legend(loc="upper left")
+    ax1.set_xlabel("Time [s]")
+    ax1.set_ylabel(
+        "Workload completion (# tasks = {}) [%]".format(max_num_tasks)
+    )
     # Second, plot the makespan time
     for workload in results["makespan"]:
-        data = results["makespan"][workload].items()
+        data = results["makespan"][workload]
+        xs = [k for k in results["makespan"][workload].keys()]
+        xs.sort()
         ax2.plot(
-            [i[0] for i in data], [i[1] for i in data], ".-", label=workload
+            xs, [data[x] for x in xs], label=workload
         )
     # Plot aesthetics
     ax2.set_xlim(left=0)
@@ -121,7 +100,3 @@ def plot(ctx):
     # Save multiplot to file
     fig.tight_layout()
     plt.savefig(OUT_FILE_TIQ, format=PLOTS_FORMAT, bbox_inches="tight")
-
-
-#     n, bins, patches = ax.hist(x, n_bins, normed=1, histtype='step',
-#                                cumulative=True, label='Empirical')

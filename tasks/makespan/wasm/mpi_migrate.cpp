@@ -6,7 +6,7 @@
 #include <faasm/faasm.h>
 #include <faasm/migrate.h>
 
-#define NUM_LOOPS 1000
+#define NUM_LOOPS 50000
 int checkEvery = 1;
 
 int doAlltoAll(int rank, int worldSize, int i, int nLoops, int checkEvery)
@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
     *checkEveryPtr = (int)(NUM_LOOPS * ((float)checkEveryIn / 10.0));
 
     printf(
-      "StARTing MPI migration checking at iter %i/%i\n", checkEvery, NUM_LOOPS);
+      "Truly starting MPI migration checking at iter %i/%i\n", checkEvery, NUM_LOOPS);
 
     doBenchmark(NUM_LOOPS);
 

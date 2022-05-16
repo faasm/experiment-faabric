@@ -16,7 +16,6 @@ def run(
     num_cores_per_vm,
     workload,
     num_tasks=None,
-    enable_migration=False,
 ):
     num_vms = int(num_vms)
     num_cores_per_vm = int(num_cores_per_vm)
@@ -27,13 +26,13 @@ def run(
 
     # Choose workloads: "native", "wasm", "batch", or "all"
     if workload not in WORKLOAD_ALLOWLIST:
-        print("Workload must be one in: 'native', 'wasm' or 'batch'")
+        print(
+            "Workload must be one in: 'native', 'wasm', 'wasm-migration', or 'batch'"
+        )
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
     # Initialise batch scheduler
-    scheduler = BatchScheduler(
-        workload, num_vms, num_cores_per_vm, enable_migration
-    )
+    scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm)
 
     for ntask in num_tasks:
 

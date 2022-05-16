@@ -42,17 +42,17 @@ def load_task_trace_from_file(num_tasks):
 
 
 @task(iterable=["num_tasks"])
-def generate_task_trace(ctx, num_cores_per_vm, num_tasks):
+def generate(ctx, num_cores_per_vm, num_tasks):
     for nt in num_tasks:
         nt = int(nt)
         num_cores_per_vm = int(num_cores_per_vm)
         possible_world_sizes = [
-            int(num_cores_per_vm / 2),
-            int(num_cores_per_vm),
+            int(num_cores_per_vm * 1.25),
             int(num_cores_per_vm * 1.5),
-            int(num_cores_per_vm * 2),
+            int(num_cores_per_vm * 1.75),
         ]
-        possible_workloads = ["migration", "compute"]
+        # possible_workloads = ["migration", "compute"]
+        possible_workloads = ["compute"]
 
         # Generate the random task trace
         task_trace: List[TaskObject] = []
