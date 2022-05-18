@@ -7,6 +7,7 @@ from tasks.util.env import (
 TIQ_FILE_PREFIX = "tiq"
 MAKESPAN_FILE_PREFIX = "makespan"
 
+
 def get_workload_name(workload, num_users):
     if num_users > 1:
         workload = "{}{}".format(workload, num_users)

@@ -15,7 +15,7 @@ from tasks.makespan.env import MAKESPAN_IMAGE_NAME, MAKESPAN_DOCKERFILE
 @task(default=True)
 def build(ctx, nocache=False, push=False):
     """
-    Build the container image used for LAMMPS experiment
+    Build the container image used for makespan experiment
     """
     shell_env = copy(environ)
     shell_env["DOCKER_BUILDKIT"] = "1"
@@ -42,7 +42,7 @@ def build(ctx, nocache=False, push=False):
 @task
 def push(ctx):
     """
-    Push the LAMMPS container image
+    Push the makespan container image
     """
     img_tag = get_docker_tag(MAKESPAN_IMAGE_NAME)
     push_docker_image(img_tag)

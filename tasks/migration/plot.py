@@ -92,7 +92,6 @@ def plot(ctx):
     )
 
     fig.tight_layout()
-    # plt.gca().set_aspect(0.4)
     plt.savefig(OUT_FILE, format=PLOTS_FORMAT, bbox_inches="tight")
 
     return
