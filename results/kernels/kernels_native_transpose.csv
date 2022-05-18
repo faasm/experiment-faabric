@@ -1,0 +1,41 @@
+Kernel,WorldSize,Run,StatName,StatValue,ActualTime
+transpose,2,0,Rate (MB/s),6030.09730200,9.47710967
+transpose,2,0,Avg time (s),0.01061300,9.47710967
+transpose,2,1,Rate (MB/s),6066.70100200,6.44547153
+transpose,2,1,Avg time (s),0.01054900,6.44547153
+transpose,2,2,Rate (MB/s),6034.80298600,6.53584623
+transpose,2,2,Avg time (s),0.01060500,6.53584623
+transpose,2,3,Rate (MB/s),6108.99295500,6.49664640
+transpose,2,3,Avg time (s),0.01047600,6.49664640
+transpose,2,4,Rate (MB/s),5985.89156900,6.56181979
+transpose,2,4,Avg time (s),0.01069200,6.56181979
+transpose,4,0,Rate (MB/s),8448.22303500,5.04585314
+transpose,4,0,Avg time (s),0.00757600,5.04585314
+transpose,4,1,Rate (MB/s),8666.47985100,4.95101643
+transpose,4,1,Avg time (s),0.00738500,4.95101643
+transpose,4,2,Rate (MB/s),8844.16397100,4.85096788
+transpose,4,2,Avg time (s),0.00723600,4.85096788
+transpose,4,3,Rate (MB/s),9135.93766700,4.72748303
+transpose,4,3,Avg time (s),0.00700500,4.72748303
+transpose,4,4,Rate (MB/s),8864.55951700,4.85927248
+transpose,4,4,Avg time (s),0.00722000,4.85927248
+transpose,8,0,Rate (MB/s),7681.21002400,5.44744086
+transpose,8,0,Avg time (s),0.00833200,5.44744086
+transpose,8,1,Rate (MB/s),7919.52215800,5.30249691
+transpose,8,1,Avg time (s),0.00808100,5.30249691
+transpose,8,2,Rate (MB/s),7751.88625800,5.40601611
+transpose,8,2,Avg time (s),0.00825600,5.40601611
+transpose,8,3,Rate (MB/s),8621.89023000,5.00516605
+transpose,8,3,Avg time (s),0.00742300,5.00516605
+transpose,8,4,Rate (MB/s),7771.24769200,5.34725881
+transpose,8,4,Avg time (s),0.00823500,5.34725881
+transpose,16,0,Rate (MB/s),5662.93232800,6.94175410
+transpose,16,0,Avg time (s),0.01130200,6.94175410
+transpose,16,1,Rate (MB/s),6215.31681700,6.44073653
+transpose,16,1,Avg time (s),0.01029700,6.44073653
+transpose,16,2,Rate (MB/s),6239.71332700,6.60970998
+transpose,16,2,Avg time (s),0.01025700,6.60970998
+transpose,16,3,Rate (MB/s),6304.24329600,6.40063405
+transpose,16,3,Avg time (s),0.01015200,6.40063405
+transpose,16,4,Rate (MB/s),6168.97219400,6.48117375
+transpose,16,4,Avg time (s),0.01037400,6.48117375

@@ -1,0 +1,41 @@
+Kernel,WorldSize,Run,StatName,StatValue,ActualTime
+sparse,2,0,Rate (MFlops/s),1050.75705100,15.01576424
+sparse,2,0,Avg time (s),0.03392900,15.01576424
+sparse,2,1,Rate (MFlops/s),1049.06091600,15.01523590
+sparse,2,1,Avg time (s),0.03398400,15.01523590
+sparse,2,2,Rate (MFlops/s),1030.70358100,15.27558589
+sparse,2,2,Avg time (s),0.03459000,15.27558589
+sparse,2,3,Rate (MFlops/s),1060.45224400,14.93041229
+sparse,2,3,Avg time (s),0.03361900,14.93041229
+sparse,2,4,Rate (MFlops/s),1074.46818400,14.73464704
+sparse,2,4,Avg time (s),0.03318100,14.73464704
+sparse,4,0,Rate (MFlops/s),999.24100400,16.11701512
+sparse,4,0,Avg time (s),0.03567900,16.11701512
+sparse,4,1,Rate (MFlops/s),1005.79052900,15.68126702
+sparse,4,1,Avg time (s),0.03544600,15.68126702
+sparse,4,2,Rate (MFlops/s),1011.26651800,15.56128883
+sparse,4,2,Avg time (s),0.03525400,15.56128883
+sparse,4,3,Rate (MFlops/s),972.71366900,16.11139131
+sparse,4,3,Avg time (s),0.03665200,16.11139131
+sparse,4,4,Rate (MFlops/s),983.70870500,15.93103123
+sparse,4,4,Avg time (s),0.03624200,15.93103123
+sparse,8,0,Rate (MFlops/s),1211.33046100,13.16793561
+sparse,8,0,Avg time (s),0.02943200,13.16793561
+sparse,8,1,Rate (MFlops/s),1207.98707300,13.22728753
+sparse,8,1,Avg time (s),0.02951300,13.22728753
+sparse,8,2,Rate (MFlops/s),1281.34841300,12.74688387
+sparse,8,2,Avg time (s),0.02782300,12.74688387
+sparse,8,3,Rate (MFlops/s),1241.67043600,12.88672972
+sparse,8,3,Avg time (s),0.02871300,12.88672972
+sparse,8,4,Rate (MFlops/s),1310.10674100,12.29153943
+sparse,8,4,Avg time (s),0.02721300,12.29153943
+sparse,16,0,Rate (MFlops/s),1411.86162600,11.46588516
+sparse,16,0,Avg time (s),0.02525100,11.46588516
+sparse,16,1,Rate (MFlops/s),1387.96343100,11.63049173
+sparse,16,1,Avg time (s),0.02568600,11.63049173
+sparse,16,2,Rate (MFlops/s),1411.12575500,11.51698780
+sparse,16,2,Avg time (s),0.02526500,11.51698780
+sparse,16,3,Rate (MFlops/s),1401.38222600,11.52704263
+sparse,16,3,Avg time (s),0.02544000,11.52704263
+sparse,16,4,Rate (MFlops/s),1410.16418400,11.46747088
+sparse,16,4,Avg time (s),0.02528200,11.46747088

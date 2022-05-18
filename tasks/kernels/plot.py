@@ -19,7 +19,7 @@ XLABELS = {
     "p2p": "p2p\nMPI_{Send,Recv}",
     "transpose": "transpose\nMPI_{Isend,Irecv}",
     "reduce": "reduce\nMPI_Reduce",
-    "sparse": "sparse\nMPI_Allgather",
+    # "sparse": "sparse\nMPI_Allgather",
 }
 PATTERNS = ["//", "\\\\", "||", "-"]
 
@@ -29,7 +29,7 @@ def _read_results(exp):
 
     for csv in glob(join(RESULTS_DIR, "kernels_{}_*.csv".format(exp))):
         # Blacklist two experiments we don't plot
-        if ("stencil" in csv) or ("nstream" in csv):
+        if ("stencil" in csv) or ("nstream" in csv) or ("sparse" in csv):
             continue
 
         results = pd.read_csv(csv)
