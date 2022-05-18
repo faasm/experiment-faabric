@@ -1,9 +1,9 @@
 Kernel,WorldSize,Run,StatName,StatValue,ActualTime
-sparse,2,0,Rate (MFlops/s),698.68591200,21.00300000
-sparse,2,0,Avg time (s),0.05102700,21.00300000
-sparse,2,1,Rate (MFlops/s),1009.71561000,14.70300000
-sparse,2,1,Avg time (s),0.03530900,14.70300000
-sparse,4,0,Rate (MFlops/s),731.80736900,20.15200000
-sparse,4,0,Avg time (s),0.04871700,20.15200000
-sparse,4,1,Rate (MFlops/s),666.70420500,22.05400000
-sparse,4,1,Avg time (s),0.05347400,22.05400000
+sparse,2,0,Avg time (s),0.0254200,11.257642424
+sparse,2,1,Avg time (s),0.02645400,11.33333590
+sparse,4,0,Avg time (s),0.02967200,12.62234712
+sparse,4,1,Avg time (s),0.03011200,12.73345102
+sparse,8,0,Avg time (s),0.02943200,13.66712361
+sparse,8,1,Avg time (s),0.02951300,13.93348753
+sparse,16,0,Avg time (s),0.02525100,9.52461916
+sparse,16,1,Avg time (s),0.02568600,9.00123073
