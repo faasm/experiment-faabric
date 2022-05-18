@@ -288,9 +288,12 @@ class SchedulerState:
     # Pod names and pod map
     native_pod_names: List[str]
     native_pod_ips: List[str]
-    native_pod_map: Dict[str, int] = {}
+    native_pod_map: Dict[int, Dict[str, int]] = {}
     wasm_pod_names: List[str]
     wasm_pod_map: Dict[str, int] = {}
+
+    # Multi-tenant config
+    num_users: int
 
     in_flight_tasks: Dict[int, List[Tuple[str, int]]] = {}
 
@@ -298,13 +301,21 @@ class SchedulerState:
     current_workload: str = ""
 
     def __init__(
-        self, current_workload: str, num_vms: int, num_cores_per_vm: int
+        self,
+        current_workload: str,
+        num_vms: int,
+        num_cores_per_vm: int,
+        num_users: int,
     ):
         self.current_workload = current_workload
         self.num_vms = num_vms
         self.num_cores_per_vm = num_cores_per_vm
         self.total_slots = num_vms * num_cores_per_vm
         self.total_available_slots = self.total_slots
+        if current_workload in NATIVE_WORKLOADS:
+            self.num_users = num_users
+        else:
+            self.num_users = 1
 
         # Initialise the pod list depending on the workload
         self.init_pod_list()
@@ -312,12 +323,22 @@ class SchedulerState:
     def init_pod_list(self):
         # Initialise pod names and pod map depending on the experiment
         if self.current_workload in NATIVE_WORKLOADS:
-            # TODO - eventually different namespace for this experiment
             self.native_pod_names, self.native_pod_ips = get_native_mpi_pods(
                 "makespan"
             )
-            for pod in self.native_pod_names:
-                self.native_pod_map[pod] = self.num_cores_per_vm
+            if not len(self.native_pod_names) % self.num_users == 0:
+                raise RuntimeError(
+                    "Can not distribute evenly pods among users"
+                    " (pods: {} - num users: {})".format(
+                        self.native_pod_names, self.num_users
+                    )
+                )
+            # Initialise pod list and distribute across users
+            for num, pod in enumerate(self.native_pod_names):
+                user = num % self.num_users
+                if user not in self.native_pod_map:
+                    self.native_pod_map[user] = {}
+                self.native_pod_map[user][pod] = self.num_cores_per_vm
         else:
             self.wasm_pod_names = get_faasm_worker_pods()
             for pod in self.wasm_pod_names:
@@ -334,7 +355,8 @@ class SchedulerState:
         ]
         for pod, slots in scheduling_decision:
             if self.current_workload in NATIVE_WORKLOADS:
-                self.native_pod_map[pod] += slots
+                user = task_id % self.num_users
+                self.native_pod_map[user][pod] += slots
             else:
                 self.wasm_pod_map[pod] += slots
             self.total_available_slots += slots
@@ -353,8 +375,11 @@ class BatchScheduler:
         workload: str,
         num_vms: int,
         num_slots_per_vm: int,
+        num_users: int,
     ):
-        self.state = SchedulerState(workload, num_vms, num_slots_per_vm)
+        self.state = SchedulerState(
+            workload, num_vms, num_slots_per_vm, num_users
+        )
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Number of VMs: {}".format(self.state.num_vms))
@@ -417,13 +442,17 @@ class BatchScheduler:
     def schedule_task_to_pod(
         self, task: TaskObject
     ) -> Union[str, List[Tuple[str, int]]]:
-        if self.state.total_available_slots < task.world_size:
+        if (
+            self.state.total_available_slots / self.state.num_users
+        ) < task.world_size:
             print(
                 "Not enough slots to schedule task "
                 "{} (needed: {} - have: {})".format(
                     task.task_id,
                     task.world_size,
-                    self.state.total_available_slots,
+                    int(
+                        self.state.total_available_slots / self.state.num_users
+                    ),
                 )
             )
             return NOT_ENOUGH_SLOTS
@@ -431,7 +460,8 @@ class BatchScheduler:
         scheduling_decision: List[Tuple[str, int]] = []
         left_to_assign: int = task.world_size
         if self.state.current_workload in NATIVE_WORKLOADS:
-            pod_map = self.state.native_pod_map
+            user = task.task_id % self.state.num_users
+            pod_map = self.state.native_pod_map[user]
         else:
             pod_map = self.state.wasm_pod_map
         for pod, num_slots in sorted(
@@ -516,6 +546,7 @@ class BatchScheduler:
                     self.state.current_workload,
                     self.num_tasks,
                     TIQ_FILE_PREFIX,
+                    self.state.num_users,
                     self.num_tasks,
                     time_per_task[result.task_id].task_id,
                     time_per_task[result.task_id].time_in_queue,
@@ -563,6 +594,7 @@ class BatchScheduler:
                 self.state.current_workload,
                 self.num_tasks,
                 TIQ_FILE_PREFIX,
+                self.state.num_users,
                 self.num_tasks,
                 time_per_task[result.task_id].task_id,
                 time_per_task[result.task_id].time_in_queue,

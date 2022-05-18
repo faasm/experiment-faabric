@@ -1,5 +1,9 @@
 from invoke import task
-from tasks.makespan.scheduler import BatchScheduler, WORKLOAD_ALLOWLIST
+from tasks.makespan.scheduler import (
+    BatchScheduler,
+    NATIVE_WORKLOADS,
+    WORKLOAD_ALLOWLIST,
+)
 from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
     init_csv_file,
@@ -16,6 +20,7 @@ def run(
     num_cores_per_vm,
     workload,
     num_tasks=None,
+    num_users=1,
 ):
     num_vms = int(num_vms)
     num_cores_per_vm = int(num_cores_per_vm)
@@ -27,17 +32,17 @@ def run(
     # Choose workloads: "native", "wasm", "batch", or "all"
     if workload not in WORKLOAD_ALLOWLIST:
         print(
-            "Workload must be one in: 'native', 'wasm', 'wasm-migration', or 'batch'"
+            "Workload must be one in: 'native', 'wasm', 'wasm-migration', or "
+            "'batch'"
         )
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
-    # Initialise batch scheduler
-    scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm)
+    scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm, num_users)
 
     for ntask in num_tasks:
 
         # Use one file for num tasks and workload for reliabaility
-        init_csv_file(workload, ntask)
+        init_csv_file(workload, ntask, num_users)
 
         task_trace = load_task_trace_from_file(ntask)
 
@@ -45,7 +50,12 @@ def run(
         exec_info = scheduler.run(workload, task_trace)
         makespan_time = int(time.time() - makespan_start_time)
         write_line_to_csv(
-            workload, ntask, MAKESPAN_FILE_PREFIX, ntask, makespan_time
+            workload,
+            ntask,
+            MAKESPAN_FILE_PREFIX,
+            num_users,
+            ntask,
+            makespan_time,
         )
 
         for key in exec_info:

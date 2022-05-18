@@ -61,6 +61,8 @@ def plot(ctx):
         disp_x = [xs + factor * col_width / 2 for xs in x]
 
         y = [migration_results[nproc][xs][0] for xs in x]
+        print(x)
+        print(y)
         yerr = [migration_results[nproc][xs][1] for xs in x]
         ax.bar(
             disp_x,

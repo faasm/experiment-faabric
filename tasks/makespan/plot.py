@@ -11,7 +11,11 @@ from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 RESULTS_DIR = join(PROJ_ROOT, "results", "makespan")
 PLOTS_DIR = join(PLOTS_ROOT, "makespan")
 OUT_FILE_TIQ = join(PLOTS_DIR, "time_in_queue.{}".format(PLOTS_FORMAT))
-WORKLOAD_TO_LABEL = {"wasm": "Granny", "batch": "Batch OpenMPI"}
+WORKLOAD_TO_LABEL = {
+    "wasm": "Granny",
+    "batch": "Batch (1 usr)",
+    "batch2": "Batch (2 usr)",
+}
 
 
 def _read_results():
@@ -24,9 +28,7 @@ def _read_results():
         else:
             result_type = "makespan"
         if result_type not in result_dict:
-            # result_dict[result_type] =
-            #   {"native": {}, "wasm": {}, "batch": {}}
-            result_dict[result_type] = {"wasm": {}, "batch": {}}
+            result_dict[result_type] = {"wasm": {}, "batch": {}, "batch2": {}}
 
         # Read results
         results = pd.read_csv(csv)
@@ -45,15 +47,13 @@ def _read_results():
                     results["NumTasks"] == num_tasks, "Makespan"
                 ].item()
 
-    print(result_dict["makespan"])
-
     return result_dict
 
 
 @task(default=True)
 def plot(ctx):
     """
-    Plot makespan figures: CDF for time in queue and makespan plot
+    Plot makespan figures: percentage of progression and makespan time
     """
     # Use our matplotlib style file
     plt.style.use(MPL_STYLE_FILE)
@@ -62,7 +62,7 @@ def plot(ctx):
 
     results = _read_results()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
     # First, plot the progress of execution per step
     # Pick the highest task for a better progress line
     max_num_tasks = max(results["tiq"]["wasm"].keys())
@@ -78,22 +78,24 @@ def plot(ctx):
     # Plot aesthetics
     ax1.set_xlim(left=0)
     ax1.set_ylim(bottom=0, top=100)
-    ax1.legend(loc="upper left")
+    ax1.legend(loc="lower right")
     ax1.set_xlabel("Time [s]")
     ax1.set_ylabel(
-        "Workload completion (# tasks = {}) [%]".format(max_num_tasks)
+        "Workload completion (# jobs = {}) [%]".format(max_num_tasks)
     )
     # Second, plot the makespan time
     for workload in results["makespan"]:
         data = results["makespan"][workload]
         xs = [k for k in results["makespan"][workload].keys()]
         xs.sort()
+        print("{}: {}".format(workload, xs))
+        print("{}: {}".format(workload, [data[x] for x in xs]))
         ax2.plot(xs, [data[x] for x in xs], label=WORKLOAD_TO_LABEL[workload])
     # Plot aesthetics
     ax2.set_xlim(left=0)
     ax2.set_ylim(bottom=0)
-    ax2.legend(loc="upper left")
-    ax2.set_xlabel("Number of tasks")
+    # ax2.legend(loc="lower right")
+    ax2.set_xlabel("Number of jobs")
     ax2.set_ylabel("Makespan [s]")
     # Save multiplot to file
     fig.tight_layout()

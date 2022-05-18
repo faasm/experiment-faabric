@@ -7,10 +7,18 @@ from tasks.util.env import (
 TIQ_FILE_PREFIX = "tiq"
 MAKESPAN_FILE_PREFIX = "makespan"
 
+def get_workload_name(workload, num_users):
+    if num_users > 1:
+        workload = "{}{}".format(workload, num_users)
 
-def init_csv_file(workload, num_tasks):
+    return workload
+
+
+def init_csv_file(workload, num_tasks, num_users):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
+
+    workload = get_workload_name(workload, num_users)
 
     csv_name_makespan = "makespan_{}_{}_time.csv".format(workload, num_tasks)
     csv_name_tiq = "makespan_{}_{}_time_in_queue.csv".format(
@@ -28,9 +36,10 @@ def init_csv_file(workload, num_tasks):
         )
 
 
-def write_line_to_csv(workload, num_tasks, file_name, *args):
-    result_dir = join(RESULTS_DIR, "makespan")
+def write_line_to_csv(workload, num_tasks, file_name, num_users, *args):
+    workload = get_workload_name(workload, num_users)
 
+    result_dir = join(RESULTS_DIR, "makespan")
     if file_name == "makespan":
         csv_name = "makespan_{}_{}_time.csv".format(workload, num_tasks)
         makespan_file = join(result_dir, csv_name)
