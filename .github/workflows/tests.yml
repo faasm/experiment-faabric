@@ -16,5 +16,7 @@ jobs:
       # --- Formatting checks ---
       - name: "Install black"
         run: pip3 install black==22.1.0
+      - name: "Install pip3 dependencies"
+        run: pip3 install -r requirements.txt
       - name: "Python formatting check"
         run: ./bin/check_python.sh
