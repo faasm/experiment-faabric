@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "kernels")
 PLOTS_DIR = join(PLOTS_ROOT, "kernels")
@@ -21,6 +21,7 @@ XLABELS = {
     "reduce": "reduce\nMPI_Reduce",
     "sparse": "sparse\nMPI_Allgather",
 }
+PATTERNS = ["//", "\\\\", "||", "-"]
 
 
 def _read_results(exp):
@@ -116,6 +117,9 @@ def plot(ctx):
     """
     Plot slowdown for MPI kernels
     """
+    # Use our matplotlib style file
+    plt.style.use(MPL_STYLE_FILE)
+
     makedirs(PLOTS_DIR, exist_ok=True)
 
     # Load results and sanity check
@@ -146,7 +150,7 @@ def plot(ctx):
     y = []
     # We group the results by kernel, but plot them world size by world size,
     # in order to get the right x offset
-    for num_proc in range(num_procs):
+    for num, num_proc in enumerate(range(num_procs)):
         wasm_times = [
             wasm_results[kern][0]["ActualTime"].tolist()[num_proc]
             for kern in wasm_results.keys()
@@ -164,14 +168,13 @@ def plot(ctx):
             y,
             width=col_width,
             yerr=propagate_error(wasm_results, native_results, num_proc),
+            hatch=PATTERNS[num],
+            edgecolor="black",
         )
 
     # Prepare legend
     ax.legend(
-        [
-            "{} parallel functions".format(2 ** (num + 1))
-            for num in range(num_procs)
-        ],
+        ["{} processes".format(2 ** (num + 1)) for num in range(num_procs)],
         ncol=2,
     )
 
@@ -181,7 +184,7 @@ def plot(ctx):
     plt.ylim(0, 1.5)
     ax.set_xticks(xs)
     ax.set_xticklabels([XLABELS[key] for key in wasm_results.keys()])
-    ax.set_ylabel("Slowdown [Faabric / OpenMPI]")
+    ax.set_ylabel("Slowdown [Granny / OpenMPI]")
     plt.gca().set_aspect("equal")
     # ax.set_title("Kernels time to completion slowdown Faasm vs Native")
     fig.tight_layout()

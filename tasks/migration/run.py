@@ -45,7 +45,7 @@ def _process_output(migration_output, result_file, nprocs, check, run_num):
         )
 
 
-@task
+@task(default=True)
 def run(ctx, nprocs=4, check_in=None, repeats=1):
     """
     Run migration experiment
@@ -95,12 +95,15 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
 
             start = time.time()
 
+            num_loops = 100000
             # Setting a check fraction of 0 means we don't under-schedule as
             # a baseline
             if check == 0:
                 migration_check_period = 0
+                topology_hint = "NONE"
             else:
                 migration_check_period = 2
+                topology_hint = "UNDERFULL"
 
             msg = {
                 "user": "mpi",
@@ -109,7 +112,10 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
                 "mpi_world_size": int(nprocs),
                 "async": True,
                 "migration_check_period": migration_check_period,
-                "cmdline": "{}".format(check if check != 0 else 5),
+                "cmdline": "{} {}".format(
+                    check if check != 0 else 5, num_loops
+                ),
+                "topology_hint": "{}".format(topology_hint),
             }
             print("Posting to {} msg:".format(url))
             pprint(msg)

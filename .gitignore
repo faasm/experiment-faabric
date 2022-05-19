@@ -1,9 +1,10 @@
 build/
-results/
+*.bup
 hostfile
 
 # Templated k8s files
 k8s/templated
+hoststats*
 
 # Python
 __pycache__/

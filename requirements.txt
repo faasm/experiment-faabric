@@ -1,4 +1,4 @@
-black==22.1.0
+black==22.3.0
 hoststats==0.1.0
 invoke==1.5.0
 Jinja2==3.0.3

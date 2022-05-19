@@ -1,0 +1,41 @@
+Kernel,WorldSize,Run,StatName,StatValue,ActualTime
+reduce,2,0,Rate (MFlops/s),1907.79130500,2.42726660
+reduce,2,0,Avg time (s),0.00003100,2.42726660
+reduce,2,1,Rate (MFlops/s),1930.45040100,2.49125791
+reduce,2,1,Avg time (s),0.00003100,2.49125791
+reduce,2,2,Rate (MFlops/s),1925.13507900,2.45285153
+reduce,2,2,Avg time (s),0.00003100,2.45285153
+reduce,2,3,Rate (MFlops/s),1936.94091600,2.38164234
+reduce,2,3,Avg time (s),0.00003100,2.38164234
+reduce,2,4,Rate (MFlops/s),1935.96263100,2.41199088
+reduce,2,4,Avg time (s),0.00003100,2.41199088
+reduce,4,0,Rate (MFlops/s),1241.76295800,5.71964717
+reduce,4,0,Avg time (s),0.00011300,5.71964717
+reduce,4,1,Rate (MFlops/s),1091.99910400,6.33590674
+reduce,4,1,Avg time (s),0.00012800,6.33590674
+reduce,4,2,Rate (MFlops/s),1205.95830100,5.85144353
+reduce,4,2,Avg time (s),0.00011600,5.85144353
+reduce,4,3,Rate (MFlops/s),1181.58271800,6.00157452
+reduce,4,3,Avg time (s),0.00011800,6.00157452
+reduce,4,4,Rate (MFlops/s),1114.96678900,6.25911975
+reduce,4,4,Avg time (s),0.00012600,6.25911975
+reduce,8,0,Rate (MFlops/s),1169.74297600,11.48320031
+reduce,8,0,Avg time (s),0.00025600,11.48320031
+reduce,8,1,Rate (MFlops/s),1165.54130700,11.55491257
+reduce,8,1,Avg time (s),0.00025700,11.55491257
+reduce,8,2,Rate (MFlops/s),1032.93458300,12.88321972
+reduce,8,2,Avg time (s),0.00029000,12.88321972
+reduce,8,3,Rate (MFlops/s),1143.08283200,11.73158407
+reduce,8,3,Avg time (s),0.00026200,11.73158407
+reduce,8,4,Rate (MFlops/s),1186.49237200,11.50497127
+reduce,8,4,Avg time (s),0.00025300,11.50497127
+reduce,16,0,Rate (MFlops/s),913.01803600,28.42687106
+reduce,16,0,Avg time (s),0.00067900,28.42687106
+reduce,16,1,Rate (MFlops/s),917.11429300,28.33238459
+reduce,16,1,Avg time (s),0.00067600,28.33238459
+reduce,16,2,Rate (MFlops/s),940.76038500,27.64562488
+reduce,16,2,Avg time (s),0.00065900,27.64562488
+reduce,16,3,Rate (MFlops/s),915.27544200,28.38522577
+reduce,16,3,Avg time (s),0.00067700,28.38522577
+reduce,16,4,Rate (MFlops/s),890.01218500,29.84091115
+reduce,16,4,Avg time (s),0.00069700,29.84091115

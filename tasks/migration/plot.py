@@ -6,11 +6,12 @@ from os.path import join
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "migration")
 PLOTS_DIR = join(PLOTS_ROOT, "migration")
 OUT_FILE = join(PLOTS_DIR, "runtime.{}".format(PLOTS_FORMAT))
+PATTERNS = ["//", "\\\\", "||", "-"]
 
 
 def _read_results():
@@ -21,7 +22,6 @@ def _read_results():
 
         check = int(csv.split("_")[-1].split(".")[0])
         nproc = int(csv.split("_")[1])
-        print(csv, nproc, check)
 
         if nproc not in result_dict:
             result_dict[nproc] = {}
@@ -34,25 +34,26 @@ def _read_results():
     return result_dict
 
 
-@task
+@task(default=True)
 def plot(ctx):
     """
     Plot migration figure
     """
+    # Use our matplotlib style file
+    plt.style.use(MPL_STYLE_FILE)
+
     makedirs(PLOTS_DIR, exist_ok=True)
 
     # Load results
     migration_results = _read_results()
-    print(migration_results)
 
     # Plot results
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(6, 2))
     num_cols = 2  # len(migration_results.keys())
     col_width = float(1 / num_cols)
     for ind, nproc in enumerate([4, 8]):
         x = [int(key) for key in migration_results[nproc].keys()]
         x.sort()
-        print(x)
         if ind < (num_cols / 2):
             factor = -1
         else:
@@ -60,16 +61,24 @@ def plot(ctx):
         disp_x = [xs + factor * col_width / 2 for xs in x]
 
         y = [migration_results[nproc][xs][0] for xs in x]
+        print(x)
+        print(y)
         yerr = [migration_results[nproc][xs][1] for xs in x]
-        ax.bar(disp_x, y, yerr=yerr, width=col_width)
+        ax.bar(
+            disp_x,
+            y,
+            yerr=yerr,
+            width=col_width,
+            hatch=PATTERNS[ind],
+            edgecolor="black",
+        )
 
     # Prepare legend
-    ax.legend(["{} parallel functions".format(np) for np in [4, 8]])
+    ax.legend(["{} processes".format(np) for np in [4, 8]])
 
     # Aesthetics
     ax.set_ylabel("Elapsed time [s]")
     ax.set_xlabel("Percentage of execution at which migration takes place [%]")
-    print(x)
     ax.set_xticklabels(
         [
             0,
@@ -83,7 +92,6 @@ def plot(ctx):
     )
 
     fig.tight_layout()
-    plt.gca().set_aspect(0.012)
     plt.savefig(OUT_FILE, format=PLOTS_FORMAT, bbox_inches="tight")
 
     return

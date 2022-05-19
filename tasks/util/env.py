@@ -16,6 +16,7 @@ RESULTS_DIR = join(PROJ_ROOT, "results")
 
 PLOTS_ROOT = join(PROJ_ROOT, "plots")
 PLOTS_FORMAT = "pdf"
+MPL_STYLE_FILE = join(PROJ_ROOT, "faasm.mplstyle")
 
 
 def get_version():

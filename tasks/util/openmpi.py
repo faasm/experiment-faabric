@@ -137,12 +137,12 @@ def delete_native_mpi(experiment_name, image_name):
     )
 
 
-def generate_native_mpi_hostfile(experiment_name):
+def generate_native_mpi_hostfile(experiment_name, slots=SLOTS_PER_HOST):
     pod_names, pod_ips = get_native_mpi_pods(experiment_name)
 
     with open(HOSTFILE_LOCAL_FILE, "w") as fh:
         for ip in pod_ips:
-            fh.write("{} slots={}\n".format(ip, SLOTS_PER_HOST))
+            fh.write("{} slots={}\n".format(ip, slots))
 
     # SCP the hostfile to all hosts
     for pod_name in pod_names:

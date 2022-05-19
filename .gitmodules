@@ -10,3 +10,7 @@
 	path = third-party/kernels-native
 	url = https://github.com/faasm/Kernels.git
 	branch = native
+[submodule "third-party/lammps-chained"]
+	path = third-party/lammps-chained
+	url = https://github.com/faasm/lammps
+	branch = faasm-chained

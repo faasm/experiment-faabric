@@ -1,4 +1,4 @@
-FROM faasm/cpp-sysroot:0.1.0
+FROM faasm/cpp-sysroot:0.1.6
 
 # Download and install OpenMPI
 WORKDIR /tmp
@@ -25,7 +25,7 @@ RUN adduser --disabled-password --gecos "" mpirun
 RUN echo "mpirun ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Set up SSH (for native MPI)
-RUN apt install -y openssh-server
+RUN apt update -y && apt install -y openssh-server
 RUN mkdir /var/run/sshd
 RUN echo 'root:mpirun' | chpasswd
 
