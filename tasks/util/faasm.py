@@ -43,15 +43,6 @@ def get_faasm_worker_pods():
     return pods
 
 
-def get_knative_headers():
-    knative_host = get_faasm_ini_value("Faasm", "knative_host")
-
-    headers = {"Host": knative_host}
-    print("Using faasm knative headers: {}".format(headers))
-
-    return headers
-
-
 def get_faasm_exec_time_from_json(result_json):
     """
     Return the execution time (included in Faasm's response JSON) in seconds
@@ -68,16 +59,13 @@ def flush_hosts():
     # Prepare URL and headers
     host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)
-    knative_headers = get_knative_headers()
 
     # Prepare message
     msg = {"type": MESSAGE_TYPE_FLUSH}
     print("Flushing functions, state, and shared files from workers")
     print("Posting to {} msg:".format(url))
     pprint(msg)
-    response = requests.post(
-        url, json=msg, headers=knative_headers, timeout=None
-    )
+    response = requests.post(url, json=msg, timeout=None)
     if response.status_code != 200:
         print(
             "Flush request failed: {}:\n{}".format(

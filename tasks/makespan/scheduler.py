@@ -10,7 +10,6 @@ from pprint import pprint
 from typing import Dict, List, Tuple, Union
 from tasks.makespan.util import write_line_to_csv, TIQ_FILE_PREFIX
 from tasks.util.faasm import (
-    get_knative_headers,
     get_faasm_exec_time_from_json,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
@@ -162,7 +161,6 @@ def thread_pool_thread(
             # WASM specific data
             host, port = get_faasm_invoke_host_port()
             url = "http://{}:{}".format(host, port)
-            knative_headers = get_knative_headers()
 
             # Prepare Faasm request
             if work_item.task.app == "migration":
@@ -191,9 +189,7 @@ def thread_pool_thread(
             pprint(msg)
 
             # Post asynch request
-            response = requests.post(
-                url, json=msg, headers=knative_headers, timeout=None
-            )
+            response = requests.post(url, json=msg, timeout=None)
             # Get the async message id
             if response.status_code != 200:
                 print(
@@ -225,11 +221,7 @@ def thread_pool_thread(
                     "status": True,
                     "id": msg_id,
                 }
-                response = requests.post(
-                    url,
-                    json=status_msg,
-                    headers=knative_headers,
-                )
+                response = requests.post(url, json=status_msg)
 
                 if not response.text or response.text.startswith("FAILED"):
                     print("--------------- ERROR ---------------")

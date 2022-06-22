@@ -10,7 +10,6 @@ from tasks.util.env import (
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
-    get_knative_headers,
     get_faasm_exec_time_from_json,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
@@ -67,16 +66,13 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
         for run_num in range(repeats):
             # Url and headers for requests
             url = "http://{}:{}".format(host, port)
-            knative_headers = get_knative_headers()
 
             # First, flush the host state
             print("Flushing functions, state, and shared files from workers")
             msg = {"type": MESSAGE_TYPE_FLUSH}
             print("Posting to {} msg:".format(url))
             pprint(msg)
-            response = requests.post(
-                url, json=msg, headers=knative_headers, timeout=None
-            )
+            response = requests.post(url, json=msg, timeout=None)
             if response.status_code != 200:
                 print(
                     "Flush request failed: {}:\n{}".format(
@@ -121,9 +117,7 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
             pprint(msg)
 
             # Post asynch request
-            response = requests.post(
-                url, json=msg, headers=knative_headers, timeout=None
-            )
+            response = requests.post(url, json=msg, timeout=None)
             # Get the async message id
             if response.status_code != 200:
                 print(
@@ -146,11 +140,7 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
                     "status": True,
                     "id": msg_id,
                 }
-                response = requests.post(
-                    url,
-                    json=status_msg,
-                    headers=knative_headers,
-                )
+                response = requests.post(url, json=status_msg)
 
                 if response.text.startswith("RUNNING"):
                     continue
