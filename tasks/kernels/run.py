@@ -14,7 +14,6 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
-    get_knative_headers,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -196,7 +195,6 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
             for run_num in range(repeats):
                 # Url and header for request
                 url = "http://{}:{}".format(host, port)
-                knative_headers = get_knative_headers()
 
                 # First, flush the host state
                 print(
@@ -205,9 +203,7 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 msg = {"type": MESSAGE_TYPE_FLUSH}
                 print("Posting to {} msg:".format(url))
                 pprint(msg)
-                response = requests.post(
-                    url, json=msg, headers=knative_headers, timeout=None
-                )
+                response = requests.post(url, json=msg, timeout=None)
                 if response.status_code != 200:
                     print(
                         "Flush request failed: {}:\n{}".format(
@@ -230,9 +226,7 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 pprint(msg)
 
                 # Post asynch request
-                response = requests.post(
-                    url, json=msg, headers=knative_headers, timeout=None
-                )
+                response = requests.post(url, json=msg, timeout=None)
                 # Get the async message id
                 if response.status_code != 200:
                     print(
@@ -255,11 +249,7 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                         "status": True,
                         "id": msg_id,
                     }
-                    response = requests.post(
-                        url,
-                        json=status_msg,
-                        headers=knative_headers,
-                    )
+                    response = requests.post(url, json=status_msg)
 
                     if response.text.startswith("RUNNING"):
                         print(response.text)

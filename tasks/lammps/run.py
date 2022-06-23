@@ -13,7 +13,6 @@ from tasks.util.env import (
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
-    get_knative_headers,
     get_faasm_exec_time_from_json,
     get_faasm_worker_pods,
     get_faasm_invoke_host_port,
@@ -133,7 +132,6 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
             for run_num in range(repeats):
                 # Url and headers for requests
                 url = "http://{}:{}".format(host, port)
-                knative_headers = get_knative_headers()
 
                 # First, flush the host state
                 print(
@@ -142,9 +140,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                 msg = {"type": MESSAGE_TYPE_FLUSH}
                 print("Posting to {} msg:".format(url))
                 pprint(msg)
-                response = requests.post(
-                    url, json=msg, headers=knative_headers, timeout=None
-                )
+                response = requests.post(url, json=msg, timeout=None)
                 if response.status_code != 200:
                     print(
                         "Flush request failed: {}:\n{}".format(
@@ -180,9 +176,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                 pprint(msg)
 
                 # Post asynch request
-                response = requests.post(
-                    url, json=msg, headers=knative_headers, timeout=None
-                )
+                response = requests.post(url, json=msg, timeout=None)
                 # Get the async message id
                 if response.status_code != 200:
                     print(
@@ -209,11 +203,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                         "status": True,
                         "id": msg_id,
                     }
-                    response = requests.post(
-                        url,
-                        json=status_msg,
-                        headers=knative_headers,
-                    )
+                    response = requests.post(url, json=status_msg)
 
                     if response.text.startswith("RUNNING"):
                         continue
@@ -246,7 +236,6 @@ def exec_graph(ctx, call_id, msg_type=-1, xhost=False):
     """
     # Post request
     host, port = get_faasm_invoke_host_port()
-    knative_headers = get_knative_headers()
     url = "http://{}:{}".format(host, port)
     msg = {
         "user": "",
@@ -258,9 +247,7 @@ def exec_graph(ctx, call_id, msg_type=-1, xhost=False):
     pprint(msg)
 
     # Get response
-    response = requests.post(
-        url, json=msg, headers=knative_headers, timeout=None
-    )
+    response = requests.post(url, json=msg, timeout=None)
     if response.status_code != 200:
         print(
             "Exec graph request failed: {}:\n{}".format(
