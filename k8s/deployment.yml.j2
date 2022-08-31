@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       run: faasm-openmpi
-  replicas: 4
+  replicas: {{ num_nodes }}
   template:
     metadata:
       name: mpi-worker

@@ -48,12 +48,13 @@ def _template_k8s_file(experiment_name, filename, template_vars):
     return output_file
 
 
-def _template_k8s_files(experiment_name, image_name):
+def _template_k8s_files(experiment_name, image_name, num_nodes=4):
     image_tag = get_docker_tag(image_name)
     namespace = get_native_mpi_namespace(experiment_name)
     template_vars = {
         "native_mpi_namespace": namespace,
         "native_mpi_image": image_tag,
+        "num_nodes": num_nodes,
     }
 
     namespace_yml = _template_k8s_file(
@@ -108,9 +109,9 @@ def get_native_mpi_pods(experiment_name):
     return pod_names, pod_ips
 
 
-def deploy_native_mpi(experiment_name, image_name):
+def deploy_native_mpi(experiment_name, image_name, num_nodes):
     namespace_yml, deployment_yml = _template_k8s_files(
-        experiment_name, image_name
+        experiment_name, image_name, num_nodes
     )
     run(
         "kubectl apply -f {}".format(namespace_yml),
@@ -125,8 +126,10 @@ def deploy_native_mpi(experiment_name, image_name):
     )
 
 
-def delete_native_mpi(experiment_name, image_name):
-    _, deployment_yml = _template_k8s_files(experiment_name, image_name)
+def delete_native_mpi(experiment_name, image_name, num_nodes):
+    _, deployment_yml = _template_k8s_files(
+        experiment_name, image_name, num_nodes
+    )
 
     # Note we don't delete the namespace as it takes a while and doesn't do any
     # harm to leave it
