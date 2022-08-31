@@ -54,7 +54,7 @@ def _template_k8s_files(experiment_name, image_name, replicas=4):
     template_vars = {
         "native_mpi_namespace": namespace,
         "native_mpi_image": image_tag,
-	"replicas": replicas,
+        "replicas": replicas,
     }
 
     namespace_yml = _template_k8s_file(

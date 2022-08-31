@@ -29,7 +29,7 @@ def deploy(ctx, replicas, local=False):
     """
     Deploy the native MPI setup to K8s
     """
-    replicas = int(replicas) 
+    replicas = int(replicas)
     deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, replicas)
 
 
