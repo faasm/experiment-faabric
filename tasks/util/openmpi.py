@@ -127,7 +127,9 @@ def deploy_native_mpi(experiment_name, image_name, num_nodes):
 
 
 def delete_native_mpi(experiment_name, image_name, num_nodes):
-    _, deployment_yml = _template_k8s_files(experiment_name, image_name, num_nodes)
+    _, deployment_yml = _template_k8s_files(
+        experiment_name, image_name, num_nodes
+    )
 
     # Note we don't delete the namespace as it takes a while and doesn't do any
     # harm to leave it
