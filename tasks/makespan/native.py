@@ -34,11 +34,11 @@ def deploy(ctx, num_nodes, local=False):
 
 
 @task
-def delete(ctx):
+def delete(ctx, num_nodes):
     """
     Delete the native MPI setup from K8s
     """
-    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME)
+    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
 
 
 @task
