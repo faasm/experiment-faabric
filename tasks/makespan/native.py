@@ -25,12 +25,12 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, replicas, local=False):
+def deploy(ctx, num_nodes, local=False):
     """
     Deploy the native MPI setup to K8s
     """
-    replicas = int(replicas)
-    deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, replicas)
+    num_nodes = int(num_nodes)
+    deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
 
 
 @task

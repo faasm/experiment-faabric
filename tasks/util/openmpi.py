@@ -48,13 +48,13 @@ def _template_k8s_file(experiment_name, filename, template_vars):
     return output_file
 
 
-def _template_k8s_files(experiment_name, image_name, replicas=4):
+def _template_k8s_files(experiment_name, image_name, num_nodes=4):
     image_tag = get_docker_tag(image_name)
     namespace = get_native_mpi_namespace(experiment_name)
     template_vars = {
         "native_mpi_namespace": namespace,
         "native_mpi_image": image_tag,
-        "replicas": replicas,
+        "num_nodes": num_nodes,
     }
 
     namespace_yml = _template_k8s_file(
@@ -109,9 +109,9 @@ def get_native_mpi_pods(experiment_name):
     return pod_names, pod_ips
 
 
-def deploy_native_mpi(experiment_name, image_name, replicas):
+def deploy_native_mpi(experiment_name, image_name, num_nodes):
     namespace_yml, deployment_yml = _template_k8s_files(
-        experiment_name, image_name, replicas
+        experiment_name, image_name, num_nodes
     )
     run(
         "kubectl apply -f {}".format(namespace_yml),
