@@ -41,17 +41,33 @@ def load_task_trace_from_file(num_tasks):
     return task_trace
 
 
-@task(iterable=["num_tasks"])
-def generate(ctx, num_cores_per_vm, num_tasks):
+@task()
+def generate(ctx, num_cores_per_vm, num_tasks, num_users):
+    """
+    A trace is a set of tasks where each task is identified by:
+    - An arrival time sampled from a Poisson distribution with parameter lambda
+    - A size (from half a VM to two VMs)
+    - A user (from a set of users)
+
+    Instead of arrival times, we use inter-arrival times, so in the trace we
+    record the time it takes for the task to be scheduled wrt the previous task.
+    We use that if arrival times are a Possion(lambda), then inter-arrival
+    times are an exponential with parameter 1/lambda.
+    """
+    # TODO: finish me!
     for nt in num_tasks:
         nt = int(nt)
         num_cores_per_vm = int(num_cores_per_vm)
         possible_world_sizes = [
+            int(num_cores_per_vm * 0.5),
+            int(num_cores_per_vm * 0.75),
+            int(num_cores_per_vm * 1),
             int(num_cores_per_vm * 1.25),
             int(num_cores_per_vm * 1.5),
             int(num_cores_per_vm * 1.75),
+            int(num_cores_per_vm * 2),
         ]
-        # possible_workloads = ["migration", "compute"]
+        # TODO: eventually move to MPI and OpenMP
         possible_workloads = ["compute"]
 
         # Generate the random task trace

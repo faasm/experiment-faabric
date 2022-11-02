@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
-from os.path import basename, join
+from os.path import basename
 from pprint import pprint
 from typing import Dict, List, Tuple, Union
 from tasks.makespan.util import write_line_to_csv, TIQ_FILE_PREFIX
@@ -15,7 +15,6 @@ from tasks.util.faasm import (
     get_faasm_invoke_host_port,
     flush_hosts as flush_faasm_hosts,
 )
-from tasks.util.env import NATIVE_INSTALL_DIR
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
@@ -31,7 +30,6 @@ from tasks.makespan.env import (
     DOCKER_MIGRATE_BINARY,
     MIGRATE_FAASM_USER,
     MIGRATE_FAASM_FUNC,
-    MIGRATE_NATIVE_BINARY,
 )
 
 WORKLOAD_ALLOWLIST = ["wasm-migration", "wasm", "native", "batch"]
@@ -49,6 +47,9 @@ class TaskObject:
     task_id: int
     app: str
     world_size: int
+    user_id: int
+    # This is the offset (in seconds) wrt to the previous task
+    interarrival_time: int
 
 
 @dataclass
@@ -367,10 +368,9 @@ class BatchScheduler:
         workload: str,
         num_vms: int,
         num_slots_per_vm: int,
-        num_users: int,
     ):
         self.state = SchedulerState(
-            workload, num_vms, num_slots_per_vm, num_users
+            workload, num_vms, num_slots_per_vm
         )
 
         print("Initialised batch scheduler with the following parameters:")
@@ -437,6 +437,7 @@ class BatchScheduler:
         if (
             self.state.total_available_slots / self.state.num_users
         ) < task.world_size:
+            # TODO(autoscale): scale up here
             print(
                 "Not enough slots to schedule task "
                 "{} (needed: {} - have: {})".format(

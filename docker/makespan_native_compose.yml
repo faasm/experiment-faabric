@@ -1,0 +1,7 @@
+version: "3"
+
+services:
+  worker:
+    image: ${IMAGE_NAME}
+    environment:
+      MAKESPAN_CPU_COUNT: ${CPU_PER_NODE}
