@@ -38,7 +38,9 @@ def deploy(ctx, num_nodes=4, local=False):
     else:
         cpus_per_node = 4
         env = {
-            "IMAGE_NAME": "faasm/{}:{}".format(MAKESPAN_IMAGE_NAME, get_version()),
+            "IMAGE_NAME": "faasm/{}:{}".format(
+                MAKESPAN_IMAGE_NAME, get_version()
+            ),
             "CPU_PER_NODE": str(cpus_per_node),
         }
         print(env)

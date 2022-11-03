@@ -2,12 +2,17 @@ import json
 import requests
 import time
 
-from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
 from pprint import pprint
 from typing import Dict, List, Tuple, Union
+from tasks.makespan.data import (
+    ExecutedTaskInfo,
+    ResultQueueItem,
+    TaskObject,
+    WorkQueueItem,
+)
 from tasks.makespan.util import write_line_to_csv, TIQ_FILE_PREFIX
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
@@ -40,38 +45,6 @@ NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
 NUM_MIGRATION_LOOPS = 50000
-
-
-@dataclass
-class TaskObject:
-    task_id: int
-    app: str
-    world_size: int
-    user_id: int
-    # This is the offset (in seconds) wrt to the previous task
-    interarrival_time: int
-
-
-@dataclass
-class ResultQueueItem:
-    task_id: int
-    exec_time: float
-    end_ts: float
-    master_ip: str
-
-
-@dataclass
-class ExecutedTaskInfo:
-    task_id: int
-    # Times are in seconds and rounded to zero decimal places
-    time_executing: float
-    time_in_queue: float
-
-
-@dataclass
-class WorkQueueItem:
-    allocated_pods: List[str]
-    task: TaskObject
 
 
 def dequeue_with_timeout(
@@ -369,9 +342,7 @@ class BatchScheduler:
         num_vms: int,
         num_slots_per_vm: int,
     ):
-        self.state = SchedulerState(
-            workload, num_vms, num_slots_per_vm
-        )
+        self.state = SchedulerState(workload, num_vms, num_slots_per_vm)
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Number of VMs: {}".format(self.state.num_vms))
