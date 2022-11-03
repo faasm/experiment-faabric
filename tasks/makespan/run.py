@@ -16,50 +16,39 @@ import time
 @task(default=True)
 def run(
     ctx,
-    num_vms,
-    num_cores_per_vm,
-    workload,
-    num_tasks=None,
-    num_users=1,
+    num_vms=4,
+    workload="uc-opt",
+    backend="compose",
+    trace=None,
+    num_tasks=10,
+    num_cores_per_vm=4,
+    num_users=2,
 ):
     num_vms = int(num_vms)
-    num_cores_per_vm = int(num_cores_per_vm)
-    if not num_tasks:
-        num_tasks = [10, 20, 30, 40, 50, 60, 70]
-    else:
-        num_tasks = [int(num_tasks)]
 
-    # Choose workloads: "native", "wasm", "batch", or "all"
+    # If a trace file is specified, it takes preference over the other values
+    if trace is not None:
+        num_tasks = trace.split("_")[1]
+        num_cores_per_vm = trace.split("_")[2]
+        num_users = trace.split("_")[3][:-4]
+
+    # Choose workloads: "pc-opt", "uc-opt", "st-opt", or "granny"
     if workload not in WORKLOAD_ALLOWLIST:
-        print(
-            "Workload must be one in: 'native', 'wasm', 'wasm-migration', or "
-            "'batch'"
-        )
+        print("Workload must be one in: {}".format(WORKLOAD_ALLOWLIST))
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
     scheduler = BatchScheduler(workload, num_vms, num_cores_per_vm, num_users)
 
-    for ntask in num_tasks:
+    init_csv_file(workload, num_vms, num_tasks, num_cores_per_vm, num_users)
 
-        # Use one file for num tasks and workload for reliabaility
-        init_csv_file(workload, ntask, num_users)
+    task_trace = load_task_trace_from_file(
+        num_tasks, num_cores_per_vm, num_users
+    )
 
-        task_trace = load_task_trace_from_file(ntask)
+    exec_info = scheduler.run(workload, task_trace)
 
-        makespan_start_time = time.time()
-        exec_info = scheduler.run(workload, task_trace)
-        makespan_time = int(time.time() - makespan_start_time)
-        write_line_to_csv(
-            workload,
-            ntask,
-            MAKESPAN_FILE_PREFIX,
-            num_users,
-            ntask,
-            makespan_time,
-        )
-
-        for key in exec_info:
-            print(exec_info[key])
+    for key in exec_info:
+        print(exec_info[key])
 
     # Finally shutdown the scheduler
     scheduler.shutdown()

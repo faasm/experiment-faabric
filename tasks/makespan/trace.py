@@ -76,14 +76,12 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users):
     num_cores_per_vm = int(num_cores_per_vm)
     num_users = int(num_users)
 
-    # Work out the possible number of cores per VM
+    # Work out the possible number of cores per VM. Note that all sizes must
+    # be multiples of the minimum size
     possible_sizes = [
         int(num_cores_per_vm * 0.5),
-        int(num_cores_per_vm * 0.75),
         int(num_cores_per_vm * 1),
-        int(num_cores_per_vm * 1.25),
         int(num_cores_per_vm * 1.5),
-        int(num_cores_per_vm * 1.75),
         int(num_cores_per_vm * 2),
     ]
 

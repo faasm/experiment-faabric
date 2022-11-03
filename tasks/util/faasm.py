@@ -35,6 +35,14 @@ def get_faasm_invoke_host_port():
     return host, port
 
 
+def get_faasm_worker_ips():
+    pods = get_faasm_ini_value("Faasm", "worker_ips")
+    pods = [p.strip() for p in pods.split(",") if p.strip()]
+
+    print("Using faasm worker pods: {}".format(pods))
+    return pods
+
+
 def get_faasm_worker_pods():
     pods = get_faasm_ini_value("Faasm", "worker_names")
     pods = [p.strip() for p in pods.split(",") if p.strip()]

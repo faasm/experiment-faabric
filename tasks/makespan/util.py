@@ -4,54 +4,41 @@ from tasks.util.env import (
     RESULTS_DIR,
 )
 
-TIQ_FILE_PREFIX = "tiq"
-MAKESPAN_FILE_PREFIX = "makespan"
+IDLE_CORES_FILE_PREFIX = "idle-cores"
 
 
-def get_workload_name(workload, num_users):
-    if num_users > 1:
-        workload = "{}{}".format(workload, num_users)
-
-    return workload
-
-
-def init_csv_file(workload, num_tasks, num_users):
+def init_csv_file(workload, num_vms, num_tasks, num_cores_per_vm, num_users):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
 
-    workload = get_workload_name(workload, num_users)
-
-    csv_name_makespan = "makespan_{}_{}_time.csv".format(workload, num_tasks)
-    csv_name_tiq = "makespan_{}_{}_time_in_queue.csv".format(
-        workload, num_tasks
+    csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+        IDLE_CORES_FILE_PREFIX,
+        workload,
+        num_vms,
+        num_tasks,
+        num_cores_per_vm,
+        num_users,
     )
 
     makedirs(RESULTS_DIR, exist_ok=True)
-    makespan_file = join(result_dir, csv_name_makespan)
-    with open(makespan_file, "w") as out_file:
-        out_file.write("NumTasks,Makespan\n")
-    tiq_file = join(result_dir, csv_name_tiq)
-    with open(tiq_file, "w") as out_file:
-        out_file.write(
-            "NumTasks,TaskId,TimeInQueue,ExecTime,TimeSinceStart,ExecutedAt\n"
-        )
+    ic_file = join(result_dir, csv_name_ic)
+    with open(ic_file, "w") as out_file:
+        out_file.write("TimeStampSecs,NumIdleCores\n")
 
 
-def write_line_to_csv(workload, num_tasks, file_name, num_users, *args):
-    workload = get_workload_name(workload, num_users)
-
+def write_line_to_csv(
+    workload, exp_key, num_vms, num_tasks, num_cores_per_vm, num_users, *args
+):
     result_dir = join(RESULTS_DIR, "makespan")
-    if file_name == "makespan":
-        csv_name = "makespan_{}_{}_time.csv".format(workload, num_tasks)
+    if exp_key == IDLE_CORES_FILE_PREFIX:
+        csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+            IDLE_CORES_FILE_PREFIX,
+            workload,
+            num_vms,
+            num_tasks,
+            num_cores_per_vm,
+            num_users,
+        )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{}\n".format(*args))
-    elif file_name == "tiq":
-        csv_name = "makespan_{}_{}_time_in_queue.csv".format(
-            workload, num_tasks
-        )
-        makespan_file = join(result_dir, csv_name)
-        with open(makespan_file, "a") as out_file:
-            out_file.write("{},{},{},{},{},{}\n".format(*args))
-    else:
-        raise RuntimeError("Unrecognised file name: {}".format(file_name))

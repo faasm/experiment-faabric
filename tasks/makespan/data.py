@@ -19,6 +19,7 @@ class TaskObject:
         previous task
     - user_id: identifier of the user the task belongs to
     """
+
     task_id: int
     app: str
     size: int
@@ -31,6 +32,7 @@ class ExecutedTaskInfo:
     """
     Information about an executed task for plotting and analysis
     """
+
     task_id: int
     # Times are in seconds and rounded to zero decimal places
     time_executing: float
@@ -42,6 +44,7 @@ class ResultQueueItem:
     """
     Item of the result queue where task results are stored
     """
+
     task_id: int
     exec_time: float
     end_ts: float
@@ -53,5 +56,7 @@ class WorkQueueItem:
     """
     Item of the work queue scheduler threads consume
     """
-    allocated_pods: List[str]
+
+    # List of VM IPs allocated for this task
+    allocated_vms: List[str]
     task: TaskObject

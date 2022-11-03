@@ -4,4 +4,4 @@ services:
   worker:
     image: ${IMAGE_NAME}
     environment:
-      MAKESPAN_CPU_COUNT: ${CPU_PER_NODE}
+      MAKESPAN_CPU_COUNT: ${CPUS_PER_NODE}

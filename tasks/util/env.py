@@ -5,6 +5,7 @@ from subprocess import run
 
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
+FAASM_ROOT = join(HOME_DIR, "faasm")
 
 NATIVE_BUILD_DIR = join(PROJ_ROOT, "build", "native")
 NATIVE_INSTALL_DIR = join(PROJ_ROOT, "build", "native-install")
