@@ -35,9 +35,11 @@ inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
 
 ### Run the experiment
 
-To run the experiments, run:
+You can run an experiment specifying which baseline to run, on which backend
+and an input trace with the following task:
 
 ```bash
+inv makespan.run --backend [k8s,compose] --workload [uc-opt,pc-opt,st-opt] --trace [trace_file_name.csv]
 ```
 
 ### Plots

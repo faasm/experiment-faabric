@@ -6,6 +6,7 @@ from tasks.util.env import (
 )
 
 IDLE_CORES_FILE_PREFIX = "idle-cores"
+EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 
 
 def init_csv_file(
@@ -14,6 +15,7 @@ def init_csv_file(
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
 
+    # Idle Cores file
     csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
         IDLE_CORES_FILE_PREFIX,
         workload,
@@ -23,11 +25,25 @@ def init_csv_file(
         num_cores_per_vm,
         num_users,
     )
-
-    makedirs(RESULTS_DIR, exist_ok=True)
     ic_file = join(result_dir, csv_name_ic)
     with open(ic_file, "w") as out_file:
         out_file.write("TimeStampSecs,NumIdleCores\n")
+
+    # Executed task info file
+    csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+        EXEC_TASK_INFO_FILE_PREFIX,
+        workload,
+        backend,
+        num_vms,
+        num_tasks,
+        num_cores_per_vm,
+        num_users,
+    )
+    csv_file = join(result_dir, csv_name)
+    with open(csv_file, "w") as out_file:
+        out_file.write(
+            "TaskId,TimeExecuting,TimeInQueue,StartTimeStamp,EndTimeStamp\n"
+        )
 
 
 def write_line_to_csv(
@@ -40,6 +56,7 @@ def write_line_to_csv(
     num_users,
     *args
 ):
+    # TODO: this method could be simplified and more code reused
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
@@ -54,6 +71,19 @@ def write_line_to_csv(
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{}\n".format(*args))
+    elif exp_key == EXEC_TASK_INFO_FILE_PREFIX:
+        csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+            EXEC_TASK_INFO_FILE_PREFIX,
+            workload,
+            backend,
+            num_vms,
+            num_tasks,
+            num_cores_per_vm,
+            num_users,
+        )
+        makespan_file = join(result_dir, csv_name)
+        with open(makespan_file, "a") as out_file:
+            out_file.write("{},{},{},{},{}\n".format(*args))
 
 
 def get_idle_core_count_from_task_info(
@@ -68,7 +98,9 @@ def get_idle_core_count_from_task_info(
     """
     # First, work out the total time elapsed between all the executed tasks
     # and divide it in one second slots
-    min_start_ts = min([et.exec_start_ts for et in executed_task_info.values()])
+    min_start_ts = min(
+        [et.exec_start_ts for et in executed_task_info.values()]
+    )
     max_end_ts = max([et.exec_end_ts for et in executed_task_info.values()])
     time_elapsed_secs = int(max_end_ts - min_start_ts)
 

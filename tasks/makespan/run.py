@@ -40,9 +40,13 @@ def run(
         print("Workload must be one in: {}".format(WORKLOAD_ALLOWLIST))
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
-    scheduler = BatchScheduler(backend, workload, num_vms, num_cores_per_vm)
+    scheduler = BatchScheduler(
+        backend, workload, num_vms, num_tasks, num_cores_per_vm, num_users
+    )
 
-    init_csv_file(workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users)
+    init_csv_file(
+        workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users
+    )
 
     task_trace = load_task_trace_from_file(
         num_tasks, num_cores_per_vm, num_users
@@ -50,6 +54,7 @@ def run(
 
     executed_task_info = scheduler.run(backend, workload, task_trace)
 
+    """
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         executed_task_info, task_trace, num_vms, num_cores_per_vm
     )
@@ -65,6 +70,7 @@ def run(
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
+    """
 
     # Finally shutdown the scheduler
     scheduler.shutdown()

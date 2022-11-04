@@ -13,6 +13,7 @@ from tasks.makespan.data import (
     WorkQueueItem,
 )
 from tasks.makespan.env import MAKESPAN_DIR
+from tasks.makespan.util import EXEC_TASK_INFO_FILE_PREFIX, write_line_to_csv
 from tasks.util.compose import (
     get_container_names_from_compose,
     get_container_ips_from_compose,
@@ -81,6 +82,7 @@ def thread_pool_thread(
     Loop for the worker threads in the thread pool. Each thread performs a
     blocking request to execute a task
     """
+
     def thread_print(msg):
         print("[Thread {}] {}".format(thread_idx, msg))
 
@@ -115,7 +117,8 @@ def thread_pool_thread(
             )
             world_size = work_item.task.size
             allocated_pod_ips = [
-                "{}:{}".format(pn, num_slots_per_vm) for pn in work_item.allocated_vms
+                "{}:{}".format(pn, num_slots_per_vm)
+                for pn in work_item.allocated_vms
             ]
             mpirun_cmd = [
                 "mpirun",
@@ -248,12 +251,15 @@ def thread_pool_thread(
 
 
 class SchedulerState:
-    num_vms: int
-    num_cores_per_vm: int
-
-    # Backend: where are the VMs the scheduler is managing (`compose`, `k8s`)
+    # Variables to identify the experiment being executed
     backend: str
+    current_workload: str = ""
+    num_vms: int
+    num_tasks: int
+    num_cores_per_vm: int
+    num_users: int
 
+    # Total accounting of slots
     total_slots: int
     total_available_slots: int
 
@@ -268,9 +274,6 @@ class SchedulerState:
     # is the scheduling decision: a list of (ip, cores) pairs with the number
     # of cores assigned to each ip
     in_flight_tasks: Dict[int, List[Tuple[str, int]]] = {}
-
-    # Keep track of the workload being executed
-    current_workload: str = ""
 
     # Accounting of the executed tasks and their information
     executed_task_info: Dict[int, ExecutedTaskInfo] = {}
@@ -342,6 +345,22 @@ class SchedulerState:
         self.executed_task_info[result.task_id].exec_end_ts = result.end_ts
         self.executed_task_count += 1
 
+        # For reliability, also write a line to a file
+        write_line_to_csv(
+            self.current_workload,
+            self.backend,
+            EXEC_TASK_INFO_FILE_PREFIX,
+            self.num_vms,
+            self.num_tasks,
+            self.num_cores_per_vm,
+            self.num_users,
+            self.executed_task_info[result.task_id].task_id,
+            self.executed_task_info[result.task_id].time_executing,
+            self.executed_task_info[result.task_id].time_in_queue,
+            self.executed_task_info[result.task_id].exec_start_ts,
+            self.executed_task_info[result.task_id].exec_end_ts,
+        )
+
 
 class BatchScheduler:
     work_queue: Queue = Queue()
@@ -355,11 +374,16 @@ class BatchScheduler:
         backend: str,
         workload: str,
         num_vms: int,
+        num_tasks: int,
         num_slots_per_vm: int,
+        num_users: int,
     ):
         self.state = SchedulerState(
             backend, workload, num_vms, num_slots_per_vm
         )
+        self.state.backend = backend
+        self.state.num_users = num_users
+        self.state.num_tasks = num_tasks
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Backend: {}".format(backend))
@@ -397,7 +421,7 @@ class BatchScheduler:
 
     def shutdown(self):
         shutdown_msg = WorkQueueItem(
-            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1)
+            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1, -1, -1)
         )
         for _ in range(self.num_threads_in_pool):
             self.work_queue.put(shutdown_msg)

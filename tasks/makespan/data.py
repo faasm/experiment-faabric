@@ -60,6 +60,7 @@ class WorkQueueItem:
     """
     Item of the work queue scheduler threads consume
     """
+
     # List of VM IPs allocated for this task
     allocated_vms: List[str]
     task: TaskObject
