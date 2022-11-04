@@ -1,15 +1,19 @@
 from invoke import task
+from os.path import join
+from tasks.makespan.data import ExecutedTaskInfo
 from tasks.makespan.scheduler import (
     BatchScheduler,
     WORKLOAD_ALLOWLIST,
 )
 from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
+    EXEC_TASK_INFO_FILE_PREFIX,
     IDLE_CORES_FILE_PREFIX,
     init_csv_file,
     get_idle_core_count_from_task_info,
     write_line_to_csv,
 )
+from tasks.util.env import RESULTS_DIR
 
 
 @task(default=True)
@@ -74,3 +78,61 @@ def run(
 
     # Finally shutdown the scheduler
     scheduler.shutdown()
+
+
+# Debug the method to generate idle cores here
+@task()
+def hola(
+    ctx,
+    num_vms=4,
+    workload="uc-opt",
+    backend="compose",
+    trace=None,
+    num_tasks=10,
+    num_cores_per_vm=4,
+    num_users=2,
+):
+    result_dir = join(RESULTS_DIR, "makespan")
+    executed_task_info: Dict[int, ExecutedTaskInfo] = {}
+    # Get executed task info from file
+    csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+        EXEC_TASK_INFO_FILE_PREFIX,
+        workload,
+        backend,
+        num_vms,
+        num_tasks,
+        num_cores_per_vm,
+        num_users,
+    )
+    csv_file = join(result_dir, csv_name)
+    with open(csv_file, "r") as in_file:
+        for line in in_file:
+            if "TaskId" in line:
+                continue
+            task_id = int(line.split(",")[0])
+            time_executing = int(line.split(",")[0])
+            time_in_queue = int(line.split(",")[0])
+            exec_start_ts = int(line.split(",")[0])
+            exec_end_ts = int(line.split(",")[0])
+            executed_task_info[task_id] = ExecutedTaskInfo(task_id, time_executing, time_in_queue, exec_start_ts, exec_end_ts)
+
+    task_trace = load_task_trace_from_file(
+        num_tasks, num_cores_per_vm, num_users
+    )
+    num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
+        executed_task_info, task_trace, num_vms, num_cores_per_vm
+    )
+    for time_step in num_idle_cores_per_time_step:
+        write_line_to_csv(
+            workload,
+            backend,
+            IDLE_CORES_FILE_PREFIX,
+            num_vms,
+            num_tasks,
+            num_cores_per_vm,
+            num_users,
+            time_step,
+            num_idle_cores_per_time_step[time_step],
+        )
+
+    pass

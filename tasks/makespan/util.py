@@ -145,4 +145,3 @@ def get_idle_core_count_from_task_info(
             start_t += 1
 
     return num_idle_cores_per_time_step
-    # Finally, write the result to the idle-cores result file
