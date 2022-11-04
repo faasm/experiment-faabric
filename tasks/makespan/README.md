@@ -1,13 +1,17 @@
 ## Makespan Experiment
 
 **IMPORTANT:** this experiment assumes that you have faasm checked-out under
-`~/faasm`.
+`~/faasm`. It also assumes that the experiments repos are cloned as submodules:
+`experiment-base/experiments/experiment-mpi`.
+
+To run all the commands here included, first activate the virtual environment
+in experiments base, `source ../../bin/workon.sh`.
 
 ### Metrics
 
 * Provider Cost (PC): time integral of the number of idle cores
-* User Cost (UC):
-* Service Time (ST):
+* User Cost (UC): average job execution time (total, or per user)
+* Service Time (ST): average job service time (total, or per user)
 
 ### Baselines
 
@@ -30,6 +34,11 @@ inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
 ```
 
 ### Run the experiment
+
+To run the experiments, run:
+
+```bash
+```
 
 ### Plots
 

@@ -37,6 +37,9 @@ class ExecutedTaskInfo:
     # Times are in seconds and rounded to zero decimal places
     time_executing: float
     time_in_queue: float
+    # Timestamps for when the task starts and finishes executing
+    exec_start_ts: float
+    exec_end_ts: float
 
 
 @dataclass
@@ -47,6 +50,7 @@ class ResultQueueItem:
 
     task_id: int
     exec_time: float
+    start_ts: float
     end_ts: float
     master_ip: str
 
@@ -56,7 +60,6 @@ class WorkQueueItem:
     """
     Item of the work queue scheduler threads consume
     """
-
     # List of VM IPs allocated for this task
     allocated_vms: List[str]
     task: TaskObject

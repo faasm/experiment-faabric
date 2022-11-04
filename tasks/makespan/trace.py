@@ -38,7 +38,9 @@ def load_task_trace_from_file(num_tasks, num_cores_per_vm, num_users):
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     task_trace = []
     with open(task_file, "r") as in_file:
-        for line in in_file[1:]:
+        for line in in_file:
+            if "TaskId" in line:
+                continue
             if len(task_trace) == num_tasks:
                 break
             tokens = line.rstrip().split(",")
