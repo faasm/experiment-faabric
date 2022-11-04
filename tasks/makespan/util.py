@@ -104,6 +104,8 @@ def get_idle_core_count_from_task_info(
     max_end_ts = max([et.exec_end_ts for et in executed_task_info.values()])
     time_elapsed_secs = int(max_end_ts - min_start_ts)
 
+    # TODO: test meee i might OOM
+    return
     # Initialise each time slot to the maximum number of cores
     num_idle_cores_per_time_step = {}
     for ts in range(time_elapsed_secs):
