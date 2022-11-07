@@ -112,7 +112,11 @@ def get_idle_core_count_from_task_info(
     time_elapsed_secs = int(max_end_ts - min_start_ts)
     print(min_start_ts, max_end_ts, time_elapsed_secs)
     if time_elapsed_secs > 1e5:
-        raise RuntimeError("Measured total time elapsed is too long: {}".format(time_elapsed_secs))
+        raise RuntimeError(
+            "Measured total time elapsed is too long: {}".format(
+                time_elapsed_secs
+            )
+        )
 
     # Initialise each time slot to the maximum number of cores
     num_idle_cores_per_time_step = {}

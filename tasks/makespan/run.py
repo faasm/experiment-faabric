@@ -79,10 +79,8 @@ def run(
     scheduler.shutdown()
 
 
-# Debug the method to generate idle cores here
-# TODO: delete meh
 @task()
-def hola(
+def idle_cores_from_exec_task(
     ctx,
     num_vms=4,
     workload="uc-opt",
@@ -115,11 +113,13 @@ def hola(
             time_in_queue = int(line.split(",")[2])
             exec_start_ts = float(line.split(",")[3])
             exec_end_ts = float(line.split(",")[4])
-            executed_task_info[task_id] = ExecutedTaskInfo(task_id,
-                                                           time_executing,
-                                                           time_in_queue,
-                                                           exec_start_ts,
-                                                           exec_end_ts)
+            executed_task_info[task_id] = ExecutedTaskInfo(
+                task_id,
+                time_executing,
+                time_in_queue,
+                exec_start_ts,
+                exec_end_ts,
+            )
 
     task_trace = load_task_trace_from_file(
         num_tasks, num_cores_per_vm, num_users

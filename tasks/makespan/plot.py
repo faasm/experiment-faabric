@@ -23,15 +23,23 @@ def _read_results(plot, backend, num_vms, trace):
 
     if plot == "idle-cores":
         trace_ending = trace[6:]
-        glob_str = "makespan_idle-cores_*_{}_{}_{}".format(backend, num_vms, trace_ending)
-        print(glob_str)
+        glob_str = "makespan_idle-cores_*_{}_{}_{}".format(
+            backend, num_vms, trace_ending
+        )
         for csv in glob(join(RESULTS_DIR, glob_str)):
             workload = csv.split("_")[2]
             results = pd.read_csv(csv)
+            result_dict[workload] = (
+                results.groupby("NumIdleCores")
+                .count()
+                .to_dict()["TimeStampSecs"]
+            )
+            """
             result_dict[workload] = [
-                results["TimeStampSecs"].to_list(),
-                results["NumIdleCores"].to_list(),
+                list(result_dict[workload].values()),
+                list(result_dict[workload].keys()),
             ]
+            """
 
     return result_dict
 
@@ -94,23 +102,34 @@ def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
     Plot the number of idle cores over time for a specific trace and backend
     """
     result_dict = _read_results("idle-cores", backend, num_vms, trace)
-    out_file_name = "idle-cores_{}_{}_{}.pdf".format(backend, num_vms, trace[6:-4])
+    out_file_name = "idle-cores_{}_{}_{}.pdf".format(
+        backend, num_vms, trace[6:-4]
+    )
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
     total_num_cores = num_vms * get_num_cores_from_trace(trace)
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=(6, 4))
     for workload in result_dict:
-        total_time = max(result_dict[workload][0])
-        xs = result_dict[workload][0]
-        ys = [int(i)/total_num_cores for i in result_dict[workload][1] * 100]
+        # Build xs and ys
+        total_time_slots = sum(list(result_dict[workload].values()))
+        xs = []
+        ys = []
+        cum_sum = 0
+        for key in result_dict[workload]:
+            cum_sum += result_dict[workload][key]
+            xs.append(cum_sum / total_time_slots * 100)
+            ys.append(int(key) / total_num_cores * 100)
         ax.plot(xs, ys, label=workload)
-    ax.set_xlim(left=0)
+    ax.legend()
+    ax.set_xlim(left=0, right=100)
     ax.set_ylim(bottom=0, top=100)
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Percentage of idle cores [%]")
-    ax.set_title("Number of idle cores over time (backend = {})".format(backend))
+    ax.set_xlabel("Percentage of execution time [%]")
+    ax.set_ylabel("CDF of percentage of idle cores [%]")
+    ax.set_title("4 VMs - 100 Jobs - 2 Users (backend = {})".format(backend))
 
     fig.tight_layout()
 
-    plt.savefig(join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight")
+    plt.savefig(
+        join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
+    )
