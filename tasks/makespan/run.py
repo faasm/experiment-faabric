@@ -14,6 +14,7 @@ from tasks.makespan.util import (
     write_line_to_csv,
 )
 from tasks.util.env import RESULTS_DIR
+from typing import Dict
 
 
 @task(default=True)
@@ -58,7 +59,6 @@ def run(
 
     executed_task_info = scheduler.run(backend, workload, task_trace)
 
-    """
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         executed_task_info, task_trace, num_vms, num_cores_per_vm
     )
@@ -74,13 +74,13 @@ def run(
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
-    """
 
     # Finally shutdown the scheduler
     scheduler.shutdown()
 
 
 # Debug the method to generate idle cores here
+# TODO: delete meh
 @task()
 def hola(
     ctx,
@@ -88,7 +88,7 @@ def hola(
     workload="uc-opt",
     backend="compose",
     trace=None,
-    num_tasks=10,
+    num_tasks=100,
     num_cores_per_vm=4,
     num_users=2,
 ):
@@ -109,12 +109,17 @@ def hola(
         for line in in_file:
             if "TaskId" in line:
                 continue
+            line = line.strip()
             task_id = int(line.split(",")[0])
-            time_executing = int(line.split(",")[0])
-            time_in_queue = int(line.split(",")[0])
-            exec_start_ts = int(line.split(",")[0])
-            exec_end_ts = int(line.split(",")[0])
-            executed_task_info[task_id] = ExecutedTaskInfo(task_id, time_executing, time_in_queue, exec_start_ts, exec_end_ts)
+            time_executing = int(line.split(",")[1])
+            time_in_queue = int(line.split(",")[2])
+            exec_start_ts = float(line.split(",")[3])
+            exec_end_ts = float(line.split(",")[4])
+            executed_task_info[task_id] = ExecutedTaskInfo(task_id,
+                                                           time_executing,
+                                                           time_in_queue,
+                                                           exec_start_ts,
+                                                           exec_end_ts)
 
     task_trace = load_task_trace_from_file(
         num_tasks, num_cores_per_vm, num_users
@@ -122,6 +127,7 @@ def hola(
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         executed_task_info, task_trace, num_vms, num_cores_per_vm
     )
+    print(num_idle_cores_per_time_step)
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
             workload,
@@ -134,5 +140,3 @@ def hola(
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
-
-    pass

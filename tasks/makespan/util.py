@@ -86,6 +86,13 @@ def write_line_to_csv(
             out_file.write("{},{},{},{},{}\n".format(*args))
 
 
+def get_num_cores_from_trace(trace_str):
+    """
+    Get number of cores from trace string
+    """
+    return int(trace_str.split("_")[2])
+
+
 def get_idle_core_count_from_task_info(
     executed_task_info, task_trace, num_vms, num_cores_per_vm
 ):
@@ -103,9 +110,10 @@ def get_idle_core_count_from_task_info(
     )
     max_end_ts = max([et.exec_end_ts for et in executed_task_info.values()])
     time_elapsed_secs = int(max_end_ts - min_start_ts)
+    print(min_start_ts, max_end_ts, time_elapsed_secs)
+    if time_elapsed_secs > 1e5:
+        raise RuntimeError("Measured total time elapsed is too long: {}".format(time_elapsed_secs))
 
-    # TODO: test meee i might OOM
-    return
     # Initialise each time slot to the maximum number of cores
     num_idle_cores_per_time_step = {}
     for ts in range(time_elapsed_secs):

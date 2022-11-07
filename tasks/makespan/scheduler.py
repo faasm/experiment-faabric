@@ -341,7 +341,7 @@ class SchedulerState:
         self.executed_task_info[
             result.task_id
         ].time_executing = result.exec_time
-        self.executed_task_info[result.task_id].start_end_ts = result.start_ts
+        self.executed_task_info[result.task_id].exec_start_ts = result.start_ts
         self.executed_task_info[result.task_id].exec_end_ts = result.end_ts
         self.executed_task_count += 1
 
