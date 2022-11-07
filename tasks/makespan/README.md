@@ -37,6 +37,12 @@ inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
 
 ### On `docker compose`
 
+Run:
+
+```bash
+inv makespan.native.deploy --num-nodes <> --local --baseline [uc-opt,pc-opt]
+```
+
 #### Native baselines
 
 #### Granny

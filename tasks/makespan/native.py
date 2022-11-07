@@ -26,10 +26,12 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, num_nodes=4, local=False):
+def deploy(ctx, num_nodes=4, local=False, baseline="uc-opt"):
     """
     Deploy the native MPI setup to K8s (or compose with --local flag)
     """
+    if baseline == "pc-opt":
+        num_nodes = num_nodes * 2
     if not local:
         num_nodes = int(num_nodes)
         deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)

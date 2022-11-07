@@ -346,6 +346,7 @@ class SchedulerState:
         self.executed_task_count += 1
 
         # For reliability, also write a line to a file
+        # TODO: change this for pc-opt
         write_line_to_csv(
             self.current_workload,
             self.backend,

@@ -21,7 +21,7 @@ from typing import Dict
 def run(
     ctx,
     num_vms=4,
-    workload="granny",
+    workload="pc-opt",
     backend="compose",
     trace=None,
     num_tasks=10,
@@ -45,9 +45,16 @@ def run(
         print("Workload must be one in: {}".format(WORKLOAD_ALLOWLIST))
         raise RuntimeError("Unrecognised workload type: {}".format(workload))
 
-    scheduler = BatchScheduler(
-        backend, workload, num_vms, num_tasks, num_cores_per_vm, num_users
-    )
+    # IMPORTANT: here we use that the smallest job size `min_job_size` is
+    # half a VM, and that all jobs size have `min_job_size | job_size`
+    if workload == "pc-opt":
+        scheduler = BatchScheduler(
+            backend, workload, num_vms * 2, num_tasks, int(num_cores_per_vm / 2), num_users
+        )
+    else:
+        scheduler = BatchScheduler(
+            backend, workload, num_vms, num_tasks, num_cores_per_vm, num_users
+        )
 
     init_csv_file(
         workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users

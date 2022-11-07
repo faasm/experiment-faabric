@@ -34,27 +34,33 @@ def _read_results(plot, backend, num_vms, trace):
                 .count()
                 .to_dict()["TimeStampSecs"]
             )
-            """
-            result_dict[workload] = [
-                list(result_dict[workload].values()),
-                list(result_dict[workload].keys()),
-            ]
-            """
+    elif plot == "exec-time":
+        trace_ending = trace[6:]
+        glob_str = "makespan_exec-task-info_*_{}_{}_{}".format(
+            backend, num_vms, trace_ending
+        )
+        for csv in glob(join(RESULTS_DIR, glob_str)):
+            workload = csv.split("_")[2]
+            results = pd.read_csv(csv)
+            print("wload: {} - makespan: {}".format(
+                workload, results.max()["EndTimeStamp"] - results.min()["StartTimeStamp"]
+            ))
+            results.min()
 
     return result_dict
 
 
 @task(default=True)
-def plot(ctx):
+def plot(ctx, backend="compose", num_vms=4, trace=None):
     """
     Plot makespan figures: percentage of progression and makespan time
     """
     # Use our matplotlib style file
     plt.style.use(MPL_STYLE_FILE)
-
     makedirs(PLOTS_DIR, exist_ok=True)
-
-    results = _read_results()
+    result_dict = _read_results("exec-time", backend, num_vms, trace)
+    print(result_dict)
+    return
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
     # First, plot the progress of execution per step
