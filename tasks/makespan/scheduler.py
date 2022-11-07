@@ -182,7 +182,7 @@ def thread_pool_thread(
                 )
                 thread_print("-------------------------------------")
                 result_queue.put(
-                    ResultQueueItem(work_item.task.task_id, -1, time())
+                    ResultQueueItem(work_item.task.task_id, -1, time(), time(), "-1")
                 )
                 continue
             thread_print("Response: {}".format(response.text))
@@ -192,7 +192,7 @@ def thread_pool_thread(
             thread_print("Polling message {}".format(msg_id))
             while True:
                 interval = 2
-                time.sleep(interval)
+                sleep(interval)
 
                 status_msg = {
                     "user": LAMMPS_FAASM_USER,

@@ -21,7 +21,7 @@ from typing import Dict
 def run(
     ctx,
     num_vms=4,
-    workload="uc-opt",
+    workload="granny",
     backend="compose",
     trace=None,
     num_tasks=10,
