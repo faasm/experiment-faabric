@@ -69,6 +69,10 @@ inv cluster.credentials
 
 #### Native baselines
 
+```bash
+inv makespan.native.deploy --baseline [uc-opt,pc-opt]
+```
+
 #### Granny
 
 First, deploy Granny on the cluster:

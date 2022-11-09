@@ -130,7 +130,7 @@ def _process_kernels_result(
         stat_parts = [s for s in stat_parts if s.strip()]
         if len(stat_parts) < 2:
             print(
-                "WARNING: Could not find stat {} for kernel {} in output".format(
+                "Could not find stat {} for kernel {} in output".format(
                     stat, kernel
                 )
             )
@@ -259,7 +259,8 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                     elif not response.text:
                         raise RuntimeError("Empty status response")
                     else:
-                        # If we reach this point it means the call has succeeded
+                        # If we reach this point it means the call has
+                        # succeeded
                         break
 
                 _process_kernels_result(

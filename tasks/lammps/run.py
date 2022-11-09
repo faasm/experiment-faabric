@@ -211,7 +211,8 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                     elif not response.text:
                         raise RuntimeError("Empty status response")
                     else:
-                        # If we reach this point it means the call has succeeded
+                        # If we reach this point it means the call has
+                        # succeeded
                         break
 
                 stats.stop_and_write_to_csv(stats_csv)
