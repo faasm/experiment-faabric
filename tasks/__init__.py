@@ -1,5 +1,6 @@
 from invoke import Collection
 
+from . import format_code
 from . import openmpi
 
 import logging
@@ -13,6 +14,7 @@ from tasks.migration import ns as migration_ns
 logging.getLogger().setLevel(logging.DEBUG)
 
 ns = Collection(
+    format_code,
     openmpi,
 )
 

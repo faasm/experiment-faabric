@@ -65,7 +65,8 @@ def get_hosts_colour_map(root_node):
 def get_mpi_messages_from_msg(msg):
     """
     Return a list with the message count per rank from a faabric message. The
-    list contains tuples of the form [(origin_rank, destination_rank), msg_count)]
+    list contains tuples of the form [(origin_rank, destination_rank),
+    msg_count)]
     """
     all_msg = msg.get("int_exec_graph_detail", "").split(",")
     all_mpi_msg = [
@@ -335,7 +336,7 @@ def plot_graph(
                         world_size, e[0][0], e[0][1]
                     ):
                         print(
-                            "Adding an edge between two non-neighbours! {}->{}".format(
+                            "Adding edge between 2 non-neigs! {}->{}".format(
                                 e[0][0], e[0][1]
                             )
                         )

@@ -117,7 +117,7 @@ def _process_kernels_result(
         real_time = get_faasm_exec_time_from_json(result_json)
     else:
         kernels_out = result_txt
-        if measured_time == None:
+        if measured_time is None:
             raise RuntimeError("Empty measured time for non-WASM execution")
         real_time = measured_time
 
@@ -130,7 +130,7 @@ def _process_kernels_result(
         stat_parts = [s for s in stat_parts if s.strip()]
         if len(stat_parts) < 2:
             print(
-                "WARNING: Could not find stat {} for kernel {} in output".format(
+                "Could not find stat {} for kernel {} in output".format(
                     stat, kernel
                 )
             )
@@ -259,7 +259,8 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                     elif not response.text:
                         raise RuntimeError("Empty status response")
                     else:
-                        # If we reach this point it means the call has succeeded
+                        # If we reach this point it means the call has
+                        # succeeded
                         break
 
                 _process_kernels_result(

@@ -2,15 +2,10 @@ import requests
 
 from invoke import task
 from os.path import join
-from tasks.lammps.wasm import upload as lammps_upload
+from tasks.lammps.env import LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
 from tasks.lammps.data import upload as lammps_data_upload
-from tasks.makespan.env import (
-    MAKESPAN_IMAGE_NAME,
-    MAKESPAN_WASM_DIR,
-    MIGRATE_FAASM_USER,
-    MIGRATE_FAASM_FUNC,
-)
-from tasks.util.env import PROJ_ROOT, get_version, WASM_INSTALL_DIR
+from tasks.makespan.env import MAKESPAN_IMAGE_NAME, MAKESPAN_WASM_DIR
+from tasks.util.env import PROJ_ROOT, get_version
 from tasks.util.faasm import get_faasm_upload_host_port
 from subprocess import run
 
@@ -83,17 +78,14 @@ def upload(ctx):
     experiment
     """
     # Upload LAMMPS wasm
-    lammps_upload(ctx)
-
-    # Upload LAMMPS data
-    lammps_data_upload(ctx, ["compute", "network"])
-
-    # Migration wasm file
-    wasm_file = join(MAKESPAN_WASM_DIR, "migrate.wasm")
+    wasm_file = join(MAKESPAN_WASM_DIR, "lammps", "function.wasm")
     host, port = get_faasm_upload_host_port()
     url = "http://{}:{}/f/{}/{}".format(
-        host, port, MIGRATE_FAASM_USER, MIGRATE_FAASM_FUNC
+        host, port, LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
     )
     print("Putting function to {}".format(url))
     response = requests.put(url, data=open(wasm_file, "rb"))
     print("Response {}: {}".format(response.status_code, response.text))
+
+    # Upload LAMMPS data
+    lammps_data_upload(ctx, ["compute", "network"])

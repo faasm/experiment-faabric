@@ -11,7 +11,6 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_worker_pods,
     get_faasm_invoke_host_port,
 )
 
@@ -51,9 +50,7 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
     """
     host, port = get_faasm_invoke_host_port()
 
-    pod_names = get_faasm_worker_pods()
-
-    if check_in == None:
+    if check_in is None:
         check_array = [0, 2, 4, 6, 8, 10]
     else:
         check_array = [int(check_in)]
@@ -82,14 +79,6 @@ def run(ctx, nprocs=4, check_in=None, repeats=1):
             print("Waiting for flush to propagate...")
             time.sleep(5)
             print("Done waiting")
-
-            stats_csv = join(
-                RESULTS_DIR,
-                "lammps",
-                "hoststats_migration_{}_{}.csv".format(nprocs, run_num),
-            )
-
-            start = time.time()
 
             num_loops = 100000
             # Setting a check fraction of 0 means we don't under-schedule as

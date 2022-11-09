@@ -65,7 +65,7 @@ def _process_lammps_result(
     else:
         actual_time = measured_time
         reported_time = re.findall("Total wall time: ([0-9:]*)", lammps_output)
-        if measured_time == None:
+        if measured_time is None:
             raise RuntimeError("Empty measured time for non-WASM execution")
 
     if len(reported_time) != 1:
@@ -102,7 +102,7 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
     elif procrange:
         num_procs = range(1, int(procrange) + 1)
     else:
-        num_procs = NUM_PROCS
+        num_procs = []
 
     host, port = get_faasm_invoke_host_port()
 
@@ -159,7 +159,6 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                     ),
                 )
 
-                start = time.time()
                 stats.start_collection()
 
                 file_name = basename(_bench["data"][0])
@@ -212,7 +211,8 @@ def faasm(ctx, bench, repeats=1, nprocs=None, procrange=None, graph=False):
                     elif not response.text:
                         raise RuntimeError("Empty status response")
                     else:
-                        # If we reach this point it means the call has succeeded
+                        # If we reach this point it means the call has
+                        # succeeded
                         break
 
                 stats.stop_and_write_to_csv(stats_csv)
@@ -272,7 +272,7 @@ def native(ctx, bench, repeats=1, nprocs=None, procrange=None):
     elif procrange:
         num_procs = range(1, int(procrange) + 1)
     else:
-        num_procs = NUM_PROCS
+        num_procs = []
 
     namespace = get_native_mpi_namespace("lammps")
     pod_names, _ = get_native_mpi_pods("lammps")

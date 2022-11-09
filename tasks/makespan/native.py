@@ -2,6 +2,7 @@ from invoke import task
 from subprocess import run
 from tasks.makespan.env import (
     DOCKER_MIGRATE_BINARY,
+    MAKESPAN_DIR,
     MAKESPAN_NATIVE_DIR,
     MAKESPAN_IMAGE_NAME,
 )
@@ -25,12 +26,23 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, num_nodes, local=False):
+def deploy(ctx, num_nodes=4, local=False, baseline="uc-opt"):
     """
-    Deploy the native MPI setup to K8s
+    Deploy the native MPI setup to K8s (or compose with --local flag)
     """
-    num_nodes = int(num_nodes)
-    deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
+    if baseline == "pc-opt":
+        num_nodes = num_nodes * 2
+    if not local:
+        num_nodes = int(num_nodes)
+        deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
+    else:
+        compose_cmd = [
+            "docker compose",
+            "up -d",
+            "--scale worker={}".format(num_nodes),
+        ]
+        compose_cmd = " ".join(compose_cmd)
+        run(compose_cmd, shell=True, check=True, cwd=MAKESPAN_DIR)
 
 
 @task
