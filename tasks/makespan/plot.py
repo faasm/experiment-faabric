@@ -1,8 +1,14 @@
 from glob import glob
 from invoke import task
+from numpy import arange
 from os import makedirs
 from os.path import join
-from tasks.makespan.util import get_num_cores_from_trace
+from tasks.makespan.trace import load_task_trace_from_file
+from tasks.makespan.util import (
+    get_num_cores_from_trace,
+    get_num_tasks_from_trace,
+    get_num_users_from_trace,
+)
 from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
 import matplotlib.pyplot as plt
@@ -15,6 +21,12 @@ WORKLOAD_TO_LABEL = {
     "wasm": "Granny",
     "batch": "Batch (1 usr)",
     "batch2": "Batch (2 usr)",
+}
+COLORS = {
+    "granny": (1, 0.4, 0.4),
+    "pc-opt": (0.29, 0.63, 0.45),
+    "uc-opt": (0.2, 0.6, 1.0),
+    "sc-opt": (0.3, 0.3, 0.3),
 }
 
 
@@ -42,10 +54,20 @@ def _read_results(plot, backend, num_vms, trace):
         for csv in glob(join(RESULTS_DIR, glob_str)):
             workload = csv.split("_")[2]
             results = pd.read_csv(csv)
-            print("wload: {} - makespan: {}".format(
-                workload, results.max()["EndTimeStamp"] - results.min()["StartTimeStamp"]
-            ))
-            results.min()
+            result_dict[workload] = {}
+            """
+            result_dict[workload]["makespan"] = (
+                results.max()["EndTimeStamp"] - results.min()["StartTimeStamp"]
+            )
+            """
+            result_dict[workload]["exec-time"] = [
+                results["TimeExecuting"].mean(),
+                results["TimeExecuting"].sem(),
+            ]
+            result_dict[workload]["service-time"] = [
+                (results["TimeExecuting"] + results["TimeInQueue"]).mean(),
+                (results["TimeExecuting"] + results["TimeInQueue"]).sem(),
+            ]
 
     return result_dict
 
@@ -115,7 +137,9 @@ def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
     plt.style.use(MPL_STYLE_FILE)
     total_num_cores = num_vms * get_num_cores_from_trace(trace)
 
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+
+    # First plot: CDF of idle cores per unit of time
     for workload in result_dict:
         # Build xs and ys
         total_time_slots = sum(list(result_dict[workload].values()))
@@ -126,13 +150,38 @@ def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
             cum_sum += result_dict[workload][key]
             xs.append(cum_sum / total_time_slots * 100)
             ys.append(int(key) / total_num_cores * 100)
-        ax.plot(xs, ys, label=workload)
-    ax.legend()
-    ax.set_xlim(left=0, right=100)
-    ax.set_ylim(bottom=0, top=100)
-    ax.set_xlabel("Percentage of execution time [%]")
-    ax.set_ylabel("CDF of percentage of idle cores [%]")
-    ax.set_title("4 VMs - 100 Jobs - 2 Users (backend = {})".format(backend))
+        ax1.plot(xs, ys, label=workload, color=COLORS[workload])
+    ax1.legend()
+    ax1.set_xlim(left=0, right=100)
+    ax1.set_ylim(bottom=0, top=100)
+    ax1.set_xlabel("Percentage of execution time [%]")
+    ax1.set_ylabel("CDF of percentage of idle cores [%]")
+    ax1.set_title("4 VMs - 100 Jobs - 2 Users (backend = {})".format(backend))
+
+    # Second plot: breakdown of execution times
+    result_dict = _read_results("exec-time", backend, num_vms, trace)
+    """
+    task_trace = load_task_trace_from_file(
+        get_num_tasks_from_trace(trace),
+        get_num_cores_from_trace(trace),
+        get_num_users_from_trace(trace),
+    )
+    """
+    num_workloads = len(result_dict)
+    width = 0.25
+    for ind, workload in enumerate(result_dict):
+        num_bars = len(result_dict[workload])
+        offset = ind - num_workloads / 2
+        xs = arange(num_bars) - offset * width
+        ys = [result_dict[workload][k][0] for k in result_dict[workload]]
+        ys_err = [result_dict[workload][k][1] for k in result_dict[workload]]
+        ax2.bar(xs, ys, width, yerr=ys_err, label=workload, color=COLORS[workload])
+        labels = list(result_dict[workload].keys())
+    ax2.legend()
+    ax2.set_xticks(arange(num_bars))
+    ax2.set_xticklabels(labels)
+    ax2.set_ylim(bottom=0)
+    ax2.set_ylabel("Average Time [s]")
 
     fig.tight_layout()
 

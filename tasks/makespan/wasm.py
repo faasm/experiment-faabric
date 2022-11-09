@@ -8,7 +8,6 @@ from tasks.makespan.env import (
     MAKESPAN_IMAGE_NAME,
     MAKESPAN_WASM_DIR,
     MIGRATE_FAASM_USER,
-    MIGRATE_FAASM_FUNC,
 )
 from tasks.util.env import PROJ_ROOT, get_version
 from tasks.util.faasm import get_faasm_upload_host_port

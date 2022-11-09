@@ -182,7 +182,9 @@ def thread_pool_thread(
                 )
                 thread_print("-------------------------------------")
                 result_queue.put(
-                    ResultQueueItem(work_item.task.task_id, -1, time(), time(), "-1")
+                    ResultQueueItem(
+                        work_item.task.task_id, -1, time(), time(), "-1"
+                    )
                 )
                 continue
             thread_print("Response: {}".format(response.text))
@@ -351,9 +353,13 @@ class SchedulerState:
             self.current_workload,
             self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
-            self.num_vms,
+            self.num_vms
+            if self.current_workload != "pc-opt"
+            else int(self.num_vms / 2),
             self.num_tasks,
-            self.num_cores_per_vm,
+            self.num_cores_per_vm
+            if self.current_workload != "pc-opt"
+            else int(self.num_cores_per_vm * 2),
             self.num_users,
             self.executed_task_info[result.task_id].task_id,
             self.executed_task_info[result.task_id].time_executing,

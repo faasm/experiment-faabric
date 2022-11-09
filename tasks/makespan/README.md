@@ -35,27 +35,71 @@ inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
 
 ## Deploy the experiment
 
+```bash
+export NUM_VMS=<NUM_VMS>
+export NUM_CORES_PER_VM=<NUM_CORES_PER_VM>
+```
+
 ### On `docker compose`
+
+#### Native baselines
 
 Run:
 
 ```bash
-inv makespan.native.deploy --num-nodes <> --local --baseline [uc-opt,pc-opt]
+inv makespan.native.deploy --num-nodes ${NUM_NODES} --local --baseline [uc-opt,pc-opt]
+```
+
+#### Granny
+
+```bash
+cd ~/faasm
+source ./bin/workon.sh
+OVERRIDE_CPU_COUNT=${NUM_CORES_PER_VM} inv cluster.start --workers ${NUM_NODES}
+```
+
+### On kubernetes
+
+First, create the AKS cluster:
+
+```bash
+inv cluster.provision --vm Standard_D${NUM_CORES_PER_VM}_v5 --nodes ${NUM_VMS}
+inv cluster.credentials
 ```
 
 #### Native baselines
 
 #### Granny
 
-### On kubernetes
+First, deploy Granny on the cluster:
+
+```bash
+cd ~/faasm
+source ./bin/workon.sh
+inv deploy.k8s --workers ${NUM_VMS}
+```
+
+Then, upload the necessary files and WASM:
+
+```bash
+cd ~/experiment-base/experiments/experiment-mpi
+source ../../bin/workon.sh
+inv makespan.wasm.upload
+````
 
 ## Run the experiment
 
-You can run an experiment specifying which baseline to run, on which backend
-and an input trace with the following task:
+You can run a specific experiment specifying which baseline to run, on which
+backend and an input trace with the following task:
 
 ```bash
 inv makespan.run --backend [k8s,compose] --workload [uc-opt,pc-opt,st-opt,granny] --trace [trace_file_name.csv]
+```
+
+You can also run all workloads at once for one backend:
+
+```bash
+inv makespan.run --backend [k8s,compose] --workload all --trace [trace_file_name.csv]
 ```
 
 ## Plots
@@ -75,3 +119,8 @@ executed time:
 In the results, compared to `uc-opt` we want `granny`'s timeseries to have the
 same length, yet lower number of idle cores.
 
+To generate it, run:
+
+```bash
+inv makespan.plot.idle-cores --trace "trace_100_4_2.csv"
+```

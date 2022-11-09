@@ -86,11 +86,30 @@ def write_line_to_csv(
             out_file.write("{},{},{},{},{}\n".format(*args))
 
 
+# ----------------------------
+# Trace file name manipulation
+# ----------------------------
+
+
 def get_num_cores_from_trace(trace_str):
     """
     Get number of cores from trace string
     """
     return int(trace_str.split("_")[2])
+
+
+def get_num_tasks_from_trace(trace_str):
+    """
+    Get number of tasks from trace string
+    """
+    return int(trace_str.split("_")[1])
+
+
+def get_num_users_from_trace(trace_str):
+    """
+    Get number of users from trace string
+    """
+    return int(trace_str.split("_")[3][:-4])
 
 
 def get_idle_core_count_from_task_info(
