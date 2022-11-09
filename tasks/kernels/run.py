@@ -117,7 +117,7 @@ def _process_kernels_result(
         real_time = get_faasm_exec_time_from_json(result_json)
     else:
         kernels_out = result_txt
-        if measured_time == None:
+        if measured_time is None:
             raise RuntimeError("Empty measured time for non-WASM execution")
         real_time = measured_time
 

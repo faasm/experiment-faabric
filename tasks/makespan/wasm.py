@@ -4,11 +4,7 @@ from invoke import task
 from os.path import join
 from tasks.lammps.env import LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
 from tasks.lammps.data import upload as lammps_data_upload
-from tasks.makespan.env import (
-    MAKESPAN_IMAGE_NAME,
-    MAKESPAN_WASM_DIR,
-    MIGRATE_FAASM_USER,
-)
+from tasks.makespan.env import MAKESPAN_IMAGE_NAME, MAKESPAN_WASM_DIR
 from tasks.util.env import PROJ_ROOT, get_version
 from tasks.util.faasm import get_faasm_upload_host_port
 from subprocess import run

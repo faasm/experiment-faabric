@@ -3,11 +3,8 @@ from invoke import task
 from numpy import arange
 from os import makedirs
 from os.path import join
-from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
     get_num_cores_from_trace,
-    get_num_tasks_from_trace,
-    get_num_users_from_trace,
 )
 from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
@@ -84,6 +81,7 @@ def plot(ctx, backend="compose", num_vms=4, trace=None):
     print(result_dict)
     return
 
+    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
     # First, plot the progress of execution per step
     # Pick the highest task for a better progress line
@@ -122,6 +120,7 @@ def plot(ctx, backend="compose", num_vms=4, trace=None):
     # Save multiplot to file
     fig.tight_layout()
     plt.savefig(OUT_FILE_TIQ, format=PLOTS_FORMAT, bbox_inches="tight")
+    """
 
 
 @task()
@@ -175,7 +174,9 @@ def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
         xs = arange(num_bars) - offset * width
         ys = [result_dict[workload][k][0] for k in result_dict[workload]]
         ys_err = [result_dict[workload][k][1] for k in result_dict[workload]]
-        ax2.bar(xs, ys, width, yerr=ys_err, label=workload, color=COLORS[workload])
+        ax2.bar(
+            xs, ys, width, yerr=ys_err, label=workload, color=COLORS[workload]
+        )
         labels = list(result_dict[workload].keys())
     ax2.legend()
     ax2.set_xticks(arange(num_bars))

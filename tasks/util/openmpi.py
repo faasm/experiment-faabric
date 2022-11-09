@@ -92,7 +92,7 @@ def get_native_mpi_pods(experiment_name):
 
     # Split output into list of strings
     lines = cmd_out.split("\n")[1:]
-    lines = [l.strip() for l in lines if l.strip()]
+    lines = [line.strip() for line in lines if line.strip()]
 
     pod_names = list()
     pod_ips = list()
