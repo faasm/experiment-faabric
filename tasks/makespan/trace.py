@@ -90,7 +90,8 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users):
     # The lambda parameter regulates how frequently new tasks arrive. If we
     # make lambda smaller, then tasks will be more far apart. Formally, the
     # lambda parameter is the inverse of the expected inter-arrival time
-    lmbd = 0.1
+    # lmbd = 0.1 is fine for 4 VMs w/ 4 cores per VM
+    lmbd = 0.6
     exp_mean = 1 / lmbd
     rng = default_rng()
     inter_arrival_times = [

@@ -316,9 +316,34 @@ class SchedulerState:
             else:
                 vm_names = get_faasm_worker_pods()
                 vm_ips = get_faasm_worker_ips()
+        else:
+            raise RuntimeError("Unrecognised backend: {}".format(backend))
+        # Sanity-check the VM names and IPs we got
+        if len(vm_names) != self.num_vms:
+            print(
+                "ERROR: expected {} VM names, but got {}".format(
+                    self.num_vms, len(vm_names)
+                )
+            )
+            print("VM names: {}".format(vm_names))
+            raise RuntimeError("Inconsistent scheduler state")
+        if len(vm_ips) != self.num_vms:
+            print(
+                "ERROR: expected {} VM IPs, but got {}".format(
+                    self.num_vms, len(vm_ips)
+                )
+            )
+            print("VM IPs: {}".format(vm_ips))
+            raise RuntimeError("Inconsistent scheduler state")
+        print("Initialised VM Map:")
         for ip, name in zip(vm_ips, vm_names):
             self.vm_map[ip] = self.num_cores_per_vm
             self.vm_ip_to_name[ip] = name
+            print(
+                "- IP: {} (name: {}) - Slots: {}".format(
+                    ip, name, self.num_cores_per_vm
+                )
+            )
 
     def remove_in_flight_task(self, task_id: int) -> None:
         if task_id not in self.in_flight_tasks:
@@ -479,6 +504,11 @@ class BatchScheduler:
             self.state.vm_map[vm] -= num_on_this_vm
             self.state.total_available_slots -= num_on_this_vm
             left_to_assign -= num_on_this_vm
+            print(
+                "Assigning {} slots to VM {} (left: {})".format(
+                    num_on_this_vm, vm, left_to_assign
+                )
+            )
 
             # If no more slots to assign, exit the loop
             if left_to_assign <= 0:

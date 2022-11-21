@@ -124,10 +124,11 @@ def plot(ctx, backend="compose", num_vms=4, trace=None):
 
 
 @task()
-def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
+def idle_cores(ctx, backend, num_vms, trace=None):
     """
     Plot the number of idle cores over time for a specific trace and backend
     """
+    num_vms = int(num_vms)
     result_dict = _read_results("idle-cores", backend, num_vms, trace)
     out_file_name = "idle-cores_{}_{}_{}.pdf".format(
         backend, num_vms, trace[6:-4]
@@ -155,7 +156,9 @@ def idle_cores(ctx, backend="compose", num_vms=4, trace=None):
     ax1.set_ylim(bottom=0, top=100)
     ax1.set_xlabel("Percentage of execution time [%]")
     ax1.set_ylabel("CDF of percentage of idle cores [%]")
-    ax1.set_title("4 VMs - 100 Jobs - 2 Users (backend = {})".format(backend))
+    ax1.set_title(
+        "{} VMs - 100 Jobs - 2 Users (backend = {})".format(num_vms, backend)
+    )
 
     # Second plot: breakdown of execution times
     result_dict = _read_results("exec-time", backend, num_vms, trace)

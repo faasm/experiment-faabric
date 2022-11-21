@@ -21,13 +21,16 @@ from typing import Dict
 def run(
     ctx,
     num_vms=4,
-    workload="pc-opt",
+    workload="uc-opt",
     backend="compose",
     trace=None,
     num_tasks=10,
     num_cores_per_vm=4,
     num_users=2,
 ):
+    """
+    Run: `inv makespan.run --num-vms <> --workload <> --backend <> --trace <>`
+    """
     num_vms = int(num_vms)
 
     # If a trace file is specified, it takes preference over the other values

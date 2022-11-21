@@ -70,7 +70,7 @@ inv cluster.credentials
 #### Native baselines
 
 ```bash
-inv makespan.native.deploy --baseline [uc-opt,pc-opt]
+inv makespan.native.deploy --num-nodes ${NUM_VMS} --baseline [uc-opt,pc-opt]
 ```
 
 #### Granny
@@ -97,7 +97,7 @@ You can run a specific experiment specifying which baseline to run, on which
 backend and an input trace with the following task:
 
 ```bash
-inv makespan.run --backend [k8s,compose] --workload [uc-opt,pc-opt,st-opt,granny] --trace [trace_file_name.csv]
+inv makespan.run --num-vms ${NUM_VMS} --backend [k8s,compose] --workload [uc-opt,pc-opt,st-opt,granny] --trace [trace_file_name.csv]
 ```
 
 You can also run all workloads at once for one backend:
@@ -126,5 +126,5 @@ same length, yet lower number of idle cores.
 To generate it, run:
 
 ```bash
-inv makespan.plot.idle-cores --trace "trace_100_4_2.csv"
+inv makespan.plot.idle-cores --num-vms <> --backend <> --trace "trace_100_4_2.csv"
 ```
