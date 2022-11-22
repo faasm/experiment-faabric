@@ -49,6 +49,7 @@ WORKLOAD_ALLOWLIST = GRANNY_WORKLOAD + NATIVE_WORKLOAD
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
+INTERTASK_SLEEP = 3
 
 
 def dequeue_with_timeout(
@@ -384,9 +385,9 @@ class SchedulerState:
             self.current_workload,
             self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
-            self.num_ctrs / self.ctrs_per_vm,
+            int(self.num_ctrs / self.ctrs_per_vm),
             self.num_tasks,
-            self.num_cores_per_ctr * self.ctrs_per_vm,
+            int(self.num_cores_per_ctr * self.ctrs_per_vm),
             self.ctrs_per_vm,
             self.num_users,
             self.executed_task_info[result.task_id].task_id,
@@ -430,7 +431,8 @@ class BatchScheduler:
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
-        self.num_threads_in_pool = 2 * self.state.num_ctrs
+        num_vms = self.state.num_ctrs / self.state.ctrs_per_vm
+        self.num_threads_in_pool = int(2 * num_vms)
         self.thread_pool = [
             Process(
                 target=thread_pool_thread,
@@ -546,6 +548,7 @@ class BatchScheduler:
 
         for t in tasks:
             # First, wait for the inter arrival time
+            """
             print(
                 "Sleeping {} seconds to simulate inter-arrival time...".format(
                     t.inter_arrival_time
@@ -553,6 +556,10 @@ class BatchScheduler:
             )
             sleep(t.inter_arrival_time)
             print("Done sleeping!")
+            """
+            print("Sleeping {} seconds between tasks".format(INTERTASK_SLEEP))
+            sleep(INTERTASK_SLEEP)
+            print("Done sleeping")
 
             # Try to schedule the task with the current available
             # resources

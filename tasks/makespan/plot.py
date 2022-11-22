@@ -38,11 +38,7 @@ def _read_results(plot, backend, num_vms, trace):
         for csv in glob(join(RESULTS_DIR, glob_str)):
             workload = csv.split("_")[2]
             results = pd.read_csv(csv)
-            result_dict[workload] = (
-                results.groupby("NumIdleCores")
-                .count()
-                .to_dict()["TimeStampSecs"]
-            )
+            result_dict[workload] = results["NumIdleCores"].to_list()
     elif plot == "exec-time":
         trace_ending = trace[6:]
         glob_str = "makespan_exec-task-info_*_{}_{}_{}".format(
@@ -52,19 +48,11 @@ def _read_results(plot, backend, num_vms, trace):
             workload = csv.split("_")[2]
             results = pd.read_csv(csv)
             result_dict[workload] = {}
-            """
             result_dict[workload]["makespan"] = (
                 results.max()["EndTimeStamp"] - results.min()["StartTimeStamp"]
             )
-            """
-            result_dict[workload]["exec-time"] = [
-                results["TimeExecuting"].mean(),
-                results["TimeExecuting"].sem(),
-            ]
-            result_dict[workload]["service-time"] = [
-                (results["TimeExecuting"] + results["TimeInQueue"]).mean(),
-                (results["TimeExecuting"] + results["TimeInQueue"]).sem(),
-            ]
+            result_dict[workload]["exec-time"] = results["TimeExecuting"].to_list()
+            result_dict[workload]["service-time"] = (results["TimeExecuting"] + results["TimeInQueue"]).to_list()
 
     return result_dict
 
@@ -129,63 +117,73 @@ def idle_cores(ctx, backend, num_vms, trace=None):
     Plot the number of idle cores over time for a specific trace and backend
     """
     num_vms = int(num_vms)
-    result_dict = _read_results("idle-cores", backend, num_vms, trace)
     out_file_name = "idle-cores_{}_{}_{}.pdf".format(
         backend, num_vms, trace[6:-4]
     )
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
+
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+
+    # First plot: breakdown of makespans
+    result_dict_et = _read_results("exec-time", backend, num_vms, trace)
+    num_workloads = len(result_dict_et)
+    width = 0.5
+    xs = arange(num_workloads)
+    ys = [result_dict_et[wload]["makespan"] for wload in result_dict_et]
+    bars = ax1.bar(
+        xs, ys, width # , label=workload, color=COLORS[workload]
+    )
+    for bar, key in zip(bars, result_dict_et.keys()):
+        bar.set_label(key)
+        bar.set_color(COLORS[key])
+    # ax1.legend()
+    ax1.set_xticks(xs)
+    ax1.set_xticklabels(list(result_dict_et.keys()))
+    ax1.set_ylim(bottom=0)
+    ax1.set_ylabel("Makespan [s]")
+
+    # Second plot: CDF of idle cores
+    result_dict_ic = _read_results("idle-cores", backend, num_vms, trace)
     total_num_cores = num_vms * get_num_cores_from_trace(trace)
-
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
-
-    # First plot: CDF of idle cores per unit of time
-    for workload in result_dict:
-        # Build xs and ys
-        total_time_slots = sum(list(result_dict[workload].values()))
-        xs = []
-        ys = []
-        cum_sum = 0
-        for key in result_dict[workload]:
-            cum_sum += result_dict[workload][key]
-            xs.append(cum_sum / total_time_slots * 100)
-            ys.append(int(key) / total_num_cores * 100)
-        ax1.plot(xs, ys, label=workload, color=COLORS[workload])
-    ax1.legend()
-    ax1.set_xlim(left=0, right=100)
-    ax1.set_ylim(bottom=0, top=100)
-    ax1.set_xlabel("Percentage of execution time [%]")
-    ax1.set_ylabel("CDF of percentage of idle cores [%]")
-    ax1.set_title(
-        "{} VMs - 100 Jobs - 2 Users (backend = {})".format(num_vms, backend)
-    )
-
-    # Second plot: breakdown of execution times
-    result_dict = _read_results("exec-time", backend, num_vms, trace)
-    """
-    task_trace = load_task_trace_from_file(
-        get_num_tasks_from_trace(trace),
-        get_num_cores_from_trace(trace),
-        get_num_users_from_trace(trace),
-    )
-    """
-    num_workloads = len(result_dict)
-    width = 0.25
-    for ind, workload in enumerate(result_dict):
-        num_bars = len(result_dict[workload])
-        offset = ind - num_workloads / 2
-        xs = arange(num_bars) - offset * width
-        ys = [result_dict[workload][k][0] for k in result_dict[workload]]
-        ys_err = [result_dict[workload][k][1] for k in result_dict[workload]]
-        ax2.bar(
-            xs, ys, width, yerr=ys_err, label=workload, color=COLORS[workload]
+    nbins = 100
+    for workload in result_dict_ic:
+        xs = [int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]]
+        ax2.hist(
+            xs,
+            nbins,
+            label=workload,
+            color=COLORS[workload],
+            histtype='step',
+            density=True,
+            cumulative=True,
         )
-        labels = list(result_dict[workload].keys())
-    ax2.legend()
-    ax2.set_xticks(arange(num_bars))
-    ax2.set_xticklabels(labels)
-    ax2.set_ylim(bottom=0)
-    ax2.set_ylabel("Average Time [s]")
+    ax2.legend(loc="upper left")
+    ax2.set_xlim(left=0, right=100)
+    ax2.set_ylim(bottom=0, top=1)
+    ax2.set_xlabel("Percentage of idle cores [%]")
+    ax2.set_ylabel("CDF [%]")
+    ax2.set_title(
+        "{} VMs - 100 Jobs - {} cores per VM (backend = {})".format(num_vms, get_num_cores_from_trace(trace), backend)
+    )
+
+    # Third plot: CDF of execution time and normalised (?) service time
+    for workload in result_dict_et:
+        xs = result_dict_et[workload]["exec-time"]
+        ax3.hist(
+            xs,
+            nbins,
+            label=workload,
+            color=COLORS[workload],
+            histtype='step',
+            density=True,
+            cumulative=True,
+        )
+    ax3.legend(loc="upper left")
+    ax3.set_xlim(left=0)
+    ax3.set_ylim(bottom=0, top=1)
+    ax3.set_xlabel("Execution Time [s]")
+    ax3.set_ylabel("CDF [%]")
 
     fig.tight_layout()
 

@@ -24,7 +24,7 @@ In the future we will also differentiate if its an MPI or OpenMP job.
 To generate a trace run:
 
 ```bash
-inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2 [--lmbd 0.1]
+inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
 ```
 
 ## Deploy the experiment

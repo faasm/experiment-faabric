@@ -46,8 +46,8 @@ def run(
         num_cores_per_ctr = num_cores_per_vm
     else:
         workload = "native"
-        num_ctrs = num_vms * ctrs_per_vm
-        num_cores_per_ctr = num_cores_per_vm / ctrs_per_vm
+        num_ctrs = int(num_vms * ctrs_per_vm)
+        num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
 
     scheduler = BatchScheduler(
         backend, workload, num_ctrs, num_tasks, num_cores_per_ctr, ctrs_per_vm, num_users
@@ -80,8 +80,8 @@ def run(
             num_idle_cores_per_time_step[time_step],
         )
 
-        # Finally shutdown the scheduler
-        scheduler.shutdown()
+    # Finally shutdown the scheduler
+    scheduler.shutdown()
 
 
 @task()

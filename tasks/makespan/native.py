@@ -26,9 +26,9 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, backend="k8s", num_vms=4, ctrs_per_vm=1):
+def deploy(ctx, backend, num_vms, ctrs_per_vm=1):
     """
-    Run: `inv makespan.native.deploy --num-vms <> --ctrs-per-vm <> [--local]`
+    Run: `inv makespan.native.deploy --backend --num-vms --ctrs-per-vm`
     """
     num_ctrs = int(num_vms) * int(ctrs_per_vm)
     if backend == "k8s":
@@ -44,11 +44,20 @@ def deploy(ctx, backend="k8s", num_vms=4, ctrs_per_vm=1):
 
 
 @task
-def delete(ctx, num_vms):
+def delete(ctx, backend, num_vms, ctrs_per_vm=1):
     """
-    Delete the native MPI setup from K8s
+    Delete: `inv makespan.native.delete --backend --num-vms --ctrs-per-vm
     """
-    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_vms)
+    num_ctrs = int(num_vms) * int(ctrs_per_vm)
+    if backend == "k8s":
+        delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_ctrs)
+    else:
+        compose_cmd = [
+            "docker compose",
+            "down",
+        ]
+        compose_cmd = " ".join(compose_cmd)
+        run(compose_cmd, shell=True, check=True, cwd=MAKESPAN_DIR)
 
 
 @task
