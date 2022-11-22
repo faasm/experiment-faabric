@@ -64,8 +64,11 @@ inv cluster.credentials
 
 #### Native baselines
 
+For the different native baselines, change the `--ctrs-per-vm` value between
+1, 2, 4, and 8:
+
 ```bash
-inv makespan.native.deploy --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM}
+inv makespan.native.deploy --backend k8s --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM}
 ```
 
 #### Granny

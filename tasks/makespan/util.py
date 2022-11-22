@@ -10,7 +10,7 @@ EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 
 
 def init_csv_file(
-    workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users, ctrs_per_vm
+    workload, backend, num_vms, num_tasks, num_cores_per_vm, ctrs_per_vm, num_users
 ):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
