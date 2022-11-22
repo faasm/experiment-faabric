@@ -107,7 +107,7 @@ def thread_pool_thread(
             # We always use the same LAMMPS benchmark
             # TODO: configure big data
             # data_file = get_faasm_benchmark("compute")["data"][0]
-            data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark("compute-xxl")["data"][0]
         # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp
