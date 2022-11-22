@@ -41,9 +41,9 @@ from tasks.lammps.env import (
 from time import sleep, time
 
 # Different workloads
-WASM_WORKLOADS = ["granny"]
-NATIVE_WORKLOADS = ["pc-opt", "uc-opt", "st-opt"]
-WORKLOAD_ALLOWLIST = WASM_WORKLOADS + NATIVE_WORKLOADS
+GRANNY_WORKLOAD = ["granny"]
+NATIVE_WORKLOAD = ["native"]
+WORKLOAD_ALLOWLIST = GRANNY_WORKLOAD + NATIVE_WORKLOAD
 
 # Useful Constants
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
@@ -111,7 +111,7 @@ def thread_pool_thread(
 
         # Record the start timestamp
         start_ts = 0
-        if workload in NATIVE_WORKLOADS:
+        if workload in NATIVE_WORKLOAD:
             # TODO(openmp): add the option of openmp here
             binary = DOCKER_LAMMPS_BINARY
             native_cmdline = "-in {}/{}.faasm.native".format(
@@ -306,14 +306,14 @@ class SchedulerState:
         vm_ips = []
         vm_names = []
         if backend == "compose":
-            if self.current_workload in NATIVE_WORKLOADS:
+            if self.current_workload in NATIVE_WORKLOAD:
                 compose_dir = MAKESPAN_DIR
             else:
                 compose_dir = FAASM_ROOT
             vm_names = get_container_names_from_compose(compose_dir)
             vm_ips = get_container_ips_from_compose(compose_dir)
         elif backend == "k8s":
-            if self.current_workload in NATIVE_WORKLOADS:
+            if self.current_workload in NATIVE_WORKLOAD:
                 vm_names, vm_ips = get_native_mpi_pods("makespan")
             else:
                 vm_names = get_faasm_worker_pods()
@@ -491,7 +491,7 @@ class BatchScheduler:
             self.state.vm_map.items(), key=lambda item: item[1], reverse=True
         ):
             # Work out how many slots can we take up in this pod
-            if self.state.current_workload in NATIVE_WORKLOADS:
+            if self.state.current_workload in NATIVE_WORKLOAD:
                 # If we are running a native workload we only allow one task
                 # per node, which means that regardless of how many slots we
                 # have left to assign, we take up all the node. In fact, we
@@ -536,7 +536,7 @@ class BatchScheduler:
         Execute a list of tasks, and return details on the task execution
         """
         # If running a WASM workload, flush the hosts first
-        if self.state.current_workload in WASM_WORKLOADS:
+        if self.state.current_workload in GRANNY_WORKLOAD:
             flush_faasm_hosts()
 
         # Mark the initial timestamp

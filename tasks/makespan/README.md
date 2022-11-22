@@ -47,7 +47,7 @@ export NUM_CORES_PER_VM=<NUM_CORES_PER_VM>
 Run:
 
 ```bash
-inv makespan.native.deploy --num-nodes ${NUM_NODES} --local --baseline [uc-opt,pc-opt]
+inv makespan.native.deploy --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM} --local
 ```
 
 #### Granny
@@ -70,7 +70,7 @@ inv cluster.credentials
 #### Native baselines
 
 ```bash
-inv makespan.native.deploy --num-nodes ${NUM_VMS} --baseline [uc-opt,pc-opt]
+inv makespan.native.deploy --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM}
 ```
 
 #### Granny
@@ -94,10 +94,11 @@ inv makespan.wasm.upload
 ## Run the experiment
 
 You can run a specific experiment specifying which baseline to run, on which
-backend and an input trace with the following task:
+backend and an input trace with the following task. To run the experiments on
+Granny, remember to pass the `--granny` flag at the end.
 
 ```bash
-inv makespan.run --num-vms ${NUM_VMS} --backend [k8s,compose] --workload [uc-opt,pc-opt,st-opt,granny] --trace [trace_file_name.csv]
+inv makespan.run --backend [k8s,compose] --num-vms ${NUM_VMS} --ctrs-per-vm <> --trace [trace_file_name.csv] [--granny]
 ```
 
 You can also run all workloads at once for one backend:

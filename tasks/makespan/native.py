@@ -26,20 +26,18 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, num_nodes=4, local=False, baseline="uc-opt"):
+def deploy(ctx, num_vms=4, ctrs_per_vm=1, local=False):
     """
-    Deploy the native MPI setup to K8s (or compose with --local flag)
+    Run: `inv makespan.native.deploy --num-vms <> --ctrs-per-vm <> [--local]`
     """
-    if baseline == "pc-opt":
-        num_nodes = num_nodes * 2
+    num_ctrs = int(num_vms) * int(ctrs_per_vm)
     if not local:
-        num_nodes = int(num_nodes)
-        deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
+        deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_ctrs)
     else:
         compose_cmd = [
             "docker compose",
             "up -d",
-            "--scale worker={}".format(num_nodes),
+            "--scale worker={}".format(num_ctrs),
         ]
         compose_cmd = " ".join(compose_cmd)
         run(compose_cmd, shell=True, check=True, cwd=MAKESPAN_DIR)

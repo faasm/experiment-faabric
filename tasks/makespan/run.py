@@ -3,7 +3,8 @@ from os.path import join
 from tasks.makespan.data import ExecutedTaskInfo
 from tasks.makespan.scheduler import (
     BatchScheduler,
-    WORKLOAD_ALLOWLIST,
+    GRANNY_WORKLOAD,
+    NATIVE_WORKLOAD,
 )
 from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
@@ -20,18 +21,18 @@ from typing import Dict
 @task(default=True)
 def run(
     ctx,
-    num_vms=4,
-    workload="uc-opt",
     backend="compose",
+    num_vms=4,
+    ctrs_per_vm=1,
+    granny=False,
     trace=None,
-    num_tasks=10,
-    num_cores_per_vm=4,
-    num_users=2,
 ):
     """
-    Run: `inv makespan.run --num-vms <> --workload <> --backend <> --trace <>`
+    Run: `inv makespan.run --backend <> --num-vms <> --ctrs-per-vm <>
+        --trace <> [--granny]`
     """
     num_vms = int(num_vms)
+    ctrs_per_vm = int(ctrs_per_vm)
 
     # If a trace file is specified, it takes preference over the other values
     if trace is not None:
@@ -39,61 +40,47 @@ def run(
         num_cores_per_vm = int(trace.split("_")[2])
         num_users = int(trace.split("_")[3][:-4])
     else:
-        num_tasks = int(num_tasks)
-        num_cores_per_vm = int(num_cores_per_vm)
-        num_users = int(num_users)
+        raise RuntimeError("Must provide a trace file name")
 
     # Choose workloads: "pc-opt", "uc-opt", "st-opt", or "granny"
-    if workload == "all":
-        workload = WORKLOAD_ALLOWLIST
-    elif workload in WORKLOAD_ALLOWLIST:
-        workload = [workload]
+    if granny:
+        workload = GRANNY_WORKLOAD
+        num_ctrs = num_vms
+        num_cores_per_ctr = num_cores_per_vm
     else:
-        print("Workload must be one in: {}".format(WORKLOAD_ALLOWLIST))
-        raise RuntimeError("Unrecognised workload type: {}".format(workload))
+        workload = NATIVE_WORKLOAD
+        num_ctrs = num_vms * ctrs_per_vm
+        num_cores_per_ctr = num_cores_per_vm / ctrs_per_vm
 
-    for wload in workload:
-        # IMPORTANT: here we use that the smallest job size `min_job_size` is
-        # half a VM, and that all jobs size have `min_job_size | job_size`
-        if wload == "pc-opt":
-            scheduler = BatchScheduler(
-                backend,
-                wload,
-                num_vms * 2,
-                num_tasks,
-                int(num_cores_per_vm / 2),
-                num_users,
-            )
-        else:
-            scheduler = BatchScheduler(
-                backend, wload, num_vms, num_tasks, num_cores_per_vm, num_users
-            )
+    scheduler = BatchScheduler(
+        backend, workload, num_ctrs, num_tasks, num_cores_per_ctr, num_users
+    )
 
-        init_csv_file(
-            wload, backend, num_vms, num_tasks, num_cores_per_vm, num_users
+    init_csv_file(
+        workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users
+    )
+
+    task_trace = load_task_trace_from_file(
+        num_tasks, num_cores_per_vm, num_users
+    )
+
+    executed_task_info = scheduler.run(backend, workload, task_trace)
+
+    num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
+        executed_task_info, task_trace, num_vms, num_cores_per_vm
+    )
+    for time_step in num_idle_cores_per_time_step:
+        write_line_to_csv(
+            workload,
+            backend,
+            IDLE_CORES_FILE_PREFIX,
+            num_vms,
+            num_tasks,
+            num_cores_per_vm,
+            num_users,
+            time_step,
+            num_idle_cores_per_time_step[time_step],
         )
-
-        task_trace = load_task_trace_from_file(
-            num_tasks, num_cores_per_vm, num_users
-        )
-
-        executed_task_info = scheduler.run(backend, wload, task_trace)
-
-        num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
-            executed_task_info, task_trace, num_vms, num_cores_per_vm
-        )
-        for time_step in num_idle_cores_per_time_step:
-            write_line_to_csv(
-                wload,
-                backend,
-                IDLE_CORES_FILE_PREFIX,
-                num_vms,
-                num_tasks,
-                num_cores_per_vm,
-                num_users,
-                time_step,
-                num_idle_cores_per_time_step[time_step],
-            )
 
         # Finally shutdown the scheduler
         scheduler.shutdown()
