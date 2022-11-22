@@ -10,10 +10,13 @@ EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 
 
 def init_csv_file(
-    workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users
+    workload, backend, num_vms, num_tasks, num_cores_per_vm, num_users, ctrs_per_vm
 ):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
+
+    if workload == "native":
+        workload = "native-{}".format(ctrs_per_vm)
 
     # Idle Cores file
     csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
@@ -53,10 +56,14 @@ def write_line_to_csv(
     num_vms,
     num_tasks,
     num_cores_per_vm,
+    ctrs_per_vm,
     num_users,
     *args
 ):
     # TODO: this method could be simplified and more code reused
+    if workload == "native":
+        workload = "native-{}".format(ctrs_per_vm)
+
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(

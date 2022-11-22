@@ -258,9 +258,10 @@ class SchedulerState:
     # Variables to identify the experiment being executed
     backend: str
     current_workload: str = ""
-    num_vms: int
+    num_ctrs: int
     num_tasks: int
-    num_cores_per_vm: int
+    num_cores_per_ctr: int
+    ctrs_per_vm: int
     num_users: int
 
     # Total accounting of slots
@@ -287,14 +288,16 @@ class SchedulerState:
         self,
         backend: str,
         current_workload: str,
-        num_vms: int,
-        num_cores_per_vm: int,
+        num_ctrs: int,
+        num_cores_per_ctr: int,
+        ctrs_per_vm: int,
     ):
         self.backend = backend
         self.current_workload = current_workload
-        self.num_vms = num_vms
-        self.num_cores_per_vm = num_cores_per_vm
-        self.total_slots = num_vms * num_cores_per_vm
+        self.num_ctrs = num_ctrs
+        self.num_cores_per_ctr = num_cores_per_ctr
+        self.ctrs_per_vm = ctrs_per_vm
+        self.total_slots = num_ctrs * num_cores_per_ctr
         self.total_available_slots = self.total_slots
 
         # Initialise the pod list depending on the workload
@@ -321,29 +324,29 @@ class SchedulerState:
         else:
             raise RuntimeError("Unrecognised backend: {}".format(backend))
         # Sanity-check the VM names and IPs we got
-        if len(vm_names) != self.num_vms:
+        if len(vm_names) != self.num_ctrs:
             print(
                 "ERROR: expected {} VM names, but got {}".format(
-                    self.num_vms, len(vm_names)
+                    self.num_ctrs, len(vm_names)
                 )
             )
             print("VM names: {}".format(vm_names))
             raise RuntimeError("Inconsistent scheduler state")
-        if len(vm_ips) != self.num_vms:
+        if len(vm_ips) != self.num_ctrs:
             print(
                 "ERROR: expected {} VM IPs, but got {}".format(
-                    self.num_vms, len(vm_ips)
+                    self.num_ctrs, len(vm_ips)
                 )
             )
             print("VM IPs: {}".format(vm_ips))
             raise RuntimeError("Inconsistent scheduler state")
         print("Initialised VM Map:")
         for ip, name in zip(vm_ips, vm_names):
-            self.vm_map[ip] = self.num_cores_per_vm
+            self.vm_map[ip] = self.num_cores_per_ctr
             self.vm_ip_to_name[ip] = name
             print(
                 "- IP: {} (name: {}) - Slots: {}".format(
-                    ip, name, self.num_cores_per_vm
+                    ip, name, self.num_cores_per_ctr
                 )
             )
 
@@ -375,18 +378,16 @@ class SchedulerState:
         self.executed_task_count += 1
 
         # For reliability, also write a line to a file
-        # TODO: change this for pc-opt
+        # Note that we tag CSV files by the hardware we provision; i.e. the
+        # number of VMs and the number of cores per VM
         write_line_to_csv(
             self.current_workload,
             self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
-            self.num_vms
-            if self.current_workload != "pc-opt"
-            else int(self.num_vms / 2),
+            self.num_ctrs / self.ctrs_per_vm,
             self.num_tasks,
-            self.num_cores_per_vm
-            if self.current_workload != "pc-opt"
-            else int(self.num_cores_per_vm * 2),
+            self.num_cores_per_ctr * self.ctrs_per_vm,
+            self.ctrs_per_vm,
             self.num_users,
             self.executed_task_info[result.task_id].task_id,
             self.executed_task_info[result.task_id].time_executing,
@@ -407,13 +408,14 @@ class BatchScheduler:
         self,
         backend: str,
         workload: str,
-        num_vms: int,
+        num_ctrs: int,
         num_tasks: int,
         num_slots_per_vm: int,
+        ctrs_per_vm: int,
         num_users: int,
     ):
         self.state = SchedulerState(
-            backend, workload, num_vms, num_slots_per_vm
+            backend, workload, num_ctrs, num_slots_per_vm, ctrs_per_vm,
         )
         self.state.backend = backend
         self.state.num_users = num_users
@@ -422,13 +424,13 @@ class BatchScheduler:
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Backend: {}".format(backend))
         print("\t- Workload: {}".format(workload))
-        print("\t- Number of VMs: {}".format(self.state.num_vms))
-        print("\t- Cores per VM: {}".format(self.state.num_cores_per_vm))
+        print("\t- Number of VMs: {}".format(self.state.num_ctrs))
+        print("\t- Cores per VM: {}".format(self.state.num_cores_per_ctr))
 
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
-        self.num_threads_in_pool = 2 * self.state.num_vms
+        self.num_threads_in_pool = 2 * self.state.num_ctrs
         self.thread_pool = [
             Process(
                 target=thread_pool_thread,
@@ -439,7 +441,7 @@ class BatchScheduler:
                     backend,
                     workload,
                     self.state.vm_ip_to_name,
-                    self.state.num_cores_per_vm,
+                    self.state.num_cores_per_ctr,
                 ),
             )
             for i in range(self.num_threads_in_pool)
@@ -497,7 +499,7 @@ class BatchScheduler:
                 # have left to assign, we take up all the node. In fact, we
                 # should be able to assert that we have the whole VM to
                 # allocate
-                num_on_this_vm = self.state.num_cores_per_vm
+                num_on_this_vm = self.state.num_cores_per_ctr
             else:
                 num_on_this_vm = min(num_slots, left_to_assign)
             scheduling_decision.append((vm, num_on_this_vm))

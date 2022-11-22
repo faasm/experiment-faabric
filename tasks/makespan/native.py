@@ -26,12 +26,12 @@ def build(ctx, clean=False, verbose=False):
 
 
 @task
-def deploy(ctx, num_vms=4, ctrs_per_vm=1, local=False):
+def deploy(ctx, backend="k8s", num_vms=4, ctrs_per_vm=1):
     """
     Run: `inv makespan.native.deploy --num-vms <> --ctrs-per-vm <> [--local]`
     """
     num_ctrs = int(num_vms) * int(ctrs_per_vm)
-    if not local:
+    if backend == "k8s":
         deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_ctrs)
     else:
         compose_cmd = [
@@ -44,11 +44,11 @@ def deploy(ctx, num_vms=4, ctrs_per_vm=1, local=False):
 
 
 @task
-def delete(ctx, num_nodes):
+def delete(ctx, num_vms):
     """
     Delete the native MPI setup from K8s
     """
-    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_nodes)
+    delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_vms)
 
 
 @task
