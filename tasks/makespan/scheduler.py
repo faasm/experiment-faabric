@@ -104,7 +104,9 @@ def thread_pool_thread(
         # the migration job)
         if work_item.task.app == "mpi":
             # We always use the same LAMMPS benchmark
-            data_file = get_faasm_benchmark("compute")["data"][0]
+            # TODO: configure big data
+            # data_file = get_faasm_benchmark("compute")["data"][0]
+            data_file = get_faasm_benchmark("compute-xl")["data"][0]
         # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp

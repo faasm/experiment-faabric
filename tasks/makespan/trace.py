@@ -62,7 +62,7 @@ def load_task_trace_from_file(num_tasks, num_cores_per_vm, num_users):
 
 
 @task()
-def generate(ctx, num_tasks, num_cores_per_vm, num_users):
+def generate(ctx, num_tasks, num_cores_per_vm, num_users, lmbd="0.1"):
     """
     A trace is a set of tasks where each task is identified by:
     - An arrival time sampled from a Poisson distribution with parameter lambda
@@ -77,6 +77,7 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users):
     num_tasks = int(num_tasks)
     num_cores_per_vm = int(num_cores_per_vm)
     num_users = int(num_users)
+    lmbd = float(lmbd)
 
     # Work out the possible number of cores per VM. Note that all sizes must
     # be multiples of the minimum size
@@ -91,7 +92,6 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users):
     # make lambda smaller, then tasks will be more far apart. Formally, the
     # lambda parameter is the inverse of the expected inter-arrival time
     # lmbd = 0.1 is fine for 4 VMs w/ 4 cores per VM
-    lmbd = 0.6
     exp_mean = 1 / lmbd
     rng = default_rng()
     inter_arrival_times = [
