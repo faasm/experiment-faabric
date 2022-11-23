@@ -97,7 +97,7 @@ def get_num_cores_from_trace(trace_str):
     """
     Get number of cores from trace string
     """
-    return int(trace_str.split("_")[2])
+    return int(trace_str.split("_")[2][:-4])
 
 
 def get_num_tasks_from_trace(trace_str):
