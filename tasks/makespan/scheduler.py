@@ -49,7 +49,7 @@ WORKLOAD_ALLOWLIST = GRANNY_WORKLOAD + NATIVE_WORKLOAD
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
-INTERTASK_SLEEP = 3
+INTERTASK_SLEEP = 1
 
 
 def dequeue_with_timeout(
@@ -107,7 +107,7 @@ def thread_pool_thread(
             # We always use the same LAMMPS benchmark
             # TODO: configure big data
             # data_file = get_faasm_benchmark("compute")["data"][0]
-            data_file = get_faasm_benchmark("compute-xxl")["data"][0]
+            data_file = get_faasm_benchmark("compute-xl")["data"][0]
         # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp
@@ -263,7 +263,6 @@ class SchedulerState:
     num_tasks: int
     num_cores_per_ctr: int
     ctrs_per_vm: int
-    num_users: int
 
     # Total accounting of slots
     total_slots: int
@@ -389,7 +388,6 @@ class SchedulerState:
             self.num_tasks,
             int(self.num_cores_per_ctr * self.ctrs_per_vm),
             self.ctrs_per_vm,
-            self.num_users,
             self.executed_task_info[result.task_id].task_id,
             self.executed_task_info[result.task_id].time_executing,
             self.executed_task_info[result.task_id].time_in_queue,
@@ -413,13 +411,15 @@ class BatchScheduler:
         num_tasks: int,
         num_slots_per_vm: int,
         ctrs_per_vm: int,
-        num_users: int,
     ):
         self.state = SchedulerState(
-            backend, workload, num_ctrs, num_slots_per_vm, ctrs_per_vm,
+            backend,
+            workload,
+            num_ctrs,
+            num_slots_per_vm,
+            ctrs_per_vm,
         )
         self.state.backend = backend
-        self.state.num_users = num_users
         self.state.num_tasks = num_tasks
 
         print("Initialised batch scheduler with the following parameters:")
@@ -592,7 +592,7 @@ class BatchScheduler:
             # Log the scheduling decision
             master_vm = scheduling_decision[0][0]
             print(
-                "Scheduling native task "
+                "Scheduling work task "
                 "{} ({} slots) with master VM {}".format(
                     t.task_id, t.size, master_vm
                 )

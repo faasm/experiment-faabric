@@ -88,4 +88,6 @@ def upload(ctx):
     print("Response {}: {}".format(response.status_code, response.text))
 
     # Upload LAMMPS data
-    lammps_data_upload(ctx, ["compute", "compute-xl", "compute-xxl", "network"])
+    lammps_data_upload(
+        ctx, ["compute", "compute-xl", "compute-xxl", "network"]
+    )

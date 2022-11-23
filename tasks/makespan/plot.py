@@ -24,6 +24,7 @@ COLORS = {
     "native-1": (0.29, 0.63, 0.45),
     "native-2": (0.2, 0.6, 1.0),
     "native-4": (0.3, 0.3, 0.3),
+    "native-8": (0.7, 0.6, 0.2),
 }
 
 
@@ -51,8 +52,12 @@ def _read_results(plot, backend, num_vms, trace):
             result_dict[workload]["makespan"] = (
                 results.max()["EndTimeStamp"] - results.min()["StartTimeStamp"]
             )
-            result_dict[workload]["exec-time"] = results["TimeExecuting"].to_list()
-            result_dict[workload]["service-time"] = (results["TimeExecuting"] + results["TimeInQueue"]).to_list()
+            result_dict[workload]["exec-time"] = results[
+                "TimeExecuting"
+            ].to_list()
+            result_dict[workload]["service-time"] = (
+                results["TimeExecuting"] + results["TimeInQueue"]
+            ).to_list()
 
     return result_dict
 
@@ -131,9 +136,7 @@ def idle_cores(ctx, backend, num_vms, trace=None):
     width = 0.5
     xs = arange(num_workloads)
     ys = [result_dict_et[wload]["makespan"] for wload in result_dict_et]
-    bars = ax1.bar(
-        xs, ys, width # , label=workload, color=COLORS[workload]
-    )
+    bars = ax1.bar(xs, ys, width)  # , label=workload, color=COLORS[workload]
     for bar, key in zip(bars, result_dict_et.keys()):
         bar.set_label(key)
         bar.set_color(COLORS[key])
@@ -148,13 +151,15 @@ def idle_cores(ctx, backend, num_vms, trace=None):
     total_num_cores = num_vms * get_num_cores_from_trace(trace)
     nbins = 100
     for workload in result_dict_ic:
-        xs = [int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]]
+        xs = [
+            int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]
+        ]
         ax2.hist(
             xs,
             nbins,
             label=workload,
             color=COLORS[workload],
-            histtype='step',
+            histtype="step",
             density=True,
             cumulative=True,
         )
@@ -164,7 +169,9 @@ def idle_cores(ctx, backend, num_vms, trace=None):
     ax2.set_xlabel("Percentage of idle cores [%]")
     ax2.set_ylabel("CDF [%]")
     ax2.set_title(
-        "{} VMs - 100 Jobs - {} cores per VM (backend = {})".format(num_vms, get_num_cores_from_trace(trace), backend)
+        "{} VMs - 100 Jobs - {} cores per VM (backend = {})".format(
+            num_vms, get_num_cores_from_trace(trace), backend
+        )
     )
 
     # Third plot: CDF of execution time and normalised (?) service time
@@ -175,7 +182,7 @@ def idle_cores(ctx, backend, num_vms, trace=None):
             nbins,
             label=workload,
             color=COLORS[workload],
-            histtype='step',
+            histtype="step",
             density=True,
             cumulative=True,
         )

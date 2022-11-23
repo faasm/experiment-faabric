@@ -1,4 +1,5 @@
 from invoke import task
+from numpy import arange
 from numpy.random import default_rng
 from os import makedirs
 from os.path import join
@@ -10,20 +11,16 @@ from typing import List
 MAKESPAN_TRACES_DIR = join(PROJ_ROOT, "tasks", "makespan", "traces")
 
 
-def dump_task_trace_to_file(
-    task_trace, num_tasks, num_cores_per_vm, num_users
-):
+def dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm):
     makedirs(MAKESPAN_TRACES_DIR, exist_ok=True)
-    file_name = "trace_{}_{}_{}.csv".format(
-        num_tasks, num_cores_per_vm, num_users
-    )
+    file_name = "trace_{}_{}.csv".format(num_tasks, num_cores_per_vm)
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     with open(task_file, "w") as out_file:
-        out_file.write("TaskId,App,Size,InterArrivalTimeSecs,UserId\n")
+        out_file.write("TaskId,App,Size,InterArrivalTimeSecs\n")
         for t in task_trace:
             out_file.write(
-                "{},{},{},{},{}\n".format(
-                    t.task_id, t.app, t.size, t.inter_arrival_time, t.user_id
+                "{},{},{},{}\n".format(
+                    t.task_id, t.app, t.size, t.inter_arrival_time
                 )
             )
     print(
@@ -31,10 +28,8 @@ def dump_task_trace_to_file(
     )
 
 
-def load_task_trace_from_file(num_tasks, num_cores_per_vm, num_users):
-    file_name = "trace_{}_{}_{}.csv".format(
-        num_tasks, num_cores_per_vm, num_users
-    )
+def load_task_trace_from_file(num_tasks, num_cores_per_vm):
+    file_name = "trace_{}_{}.csv".format(num_tasks, num_cores_per_vm)
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     task_trace = []
     with open(task_file, "r") as in_file:
@@ -50,7 +45,6 @@ def load_task_trace_from_file(num_tasks, num_cores_per_vm, num_users):
                     tokens[1],
                     int(tokens[2]),
                     int(tokens[3]),
-                    int(tokens[4]),
                 )
             )
     print(
@@ -62,7 +56,7 @@ def load_task_trace_from_file(num_tasks, num_cores_per_vm, num_users):
 
 
 @task()
-def generate(ctx, num_tasks, num_cores_per_vm, num_users, lmbd="0.1"):
+def generate(ctx, num_tasks, num_cores_per_vm, lmbd="0.1"):
     """
     A trace is a set of tasks where each task is identified by:
     - An arrival time sampled from a Poisson distribution with parameter lambda
@@ -76,17 +70,12 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users, lmbd="0.1"):
     """
     num_tasks = int(num_tasks)
     num_cores_per_vm = int(num_cores_per_vm)
-    num_users = int(num_users)
     lmbd = float(lmbd)
 
-    # Work out the possible number of cores per VM. Note that all sizes must
-    # be multiples of the minimum size
-    possible_sizes = [
-        int(num_cores_per_vm * 0.5),
-        int(num_cores_per_vm * 1),
-        int(num_cores_per_vm * 1.5),
-        int(num_cores_per_vm * 2),
-    ]
+    # Work out the possible number of cores per VM
+    possible_sizes = arange(
+        int(num_cores_per_vm * 0.5), int(num_cores_per_vm * 2)
+    )
 
     # The lambda parameter regulates how frequently new tasks arrive. If we
     # make lambda smaller, then tasks will be more far apart. Formally, the
@@ -110,15 +99,13 @@ def generate(ctx, num_tasks, num_cores_per_vm, num_users, lmbd="0.1"):
     for idx in range(num_tasks):
         ws_idx = int(uniform(0, num_pos_ws))
         wl_idx = int(uniform(0, num_pos_wl))
-        user_idx = int(uniform(0, num_users))
         task_trace.append(
             TaskObject(
                 idx,
                 possible_workloads[wl_idx],
                 possible_sizes[ws_idx],
                 inter_arrival_times[idx],
-                user_idx,
             )
         )
 
-    dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm, num_users)
+    dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm)

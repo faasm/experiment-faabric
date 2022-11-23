@@ -17,14 +17,12 @@ class TaskObject:
     - size: task's requirements in terms of CPUs
     - inter_arrival_time: delay in seconds for the task to arrive wrt the
         previous task
-    - user_id: identifier of the user the task belongs to
     """
 
     task_id: int
     app: str
     size: int
     inter_arrival_time: int
-    user_id: int
 
 
 @dataclass

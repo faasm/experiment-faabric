@@ -10,7 +10,7 @@ EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 
 
 def init_csv_file(
-    workload, backend, num_vms, num_tasks, num_cores_per_vm, ctrs_per_vm, num_users
+    workload, backend, num_vms, num_tasks, num_cores_per_vm, ctrs_per_vm
 ):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
@@ -19,28 +19,26 @@ def init_csv_file(
         workload = "native-{}".format(ctrs_per_vm)
 
     # Idle Cores file
-    csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
         IDLE_CORES_FILE_PREFIX,
         workload,
         backend,
         num_vms,
         num_tasks,
         num_cores_per_vm,
-        num_users,
     )
     ic_file = join(result_dir, csv_name_ic)
     with open(ic_file, "w") as out_file:
         out_file.write("TimeStampSecs,NumIdleCores\n")
 
     # Executed task info file
-    csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         workload,
         backend,
         num_vms,
         num_tasks,
         num_cores_per_vm,
-        num_users,
     )
     csv_file = join(result_dir, csv_name)
     with open(csv_file, "w") as out_file:
@@ -57,7 +55,6 @@ def write_line_to_csv(
     num_tasks,
     num_cores_per_vm,
     ctrs_per_vm,
-    num_users,
     *args
 ):
     # TODO: this method could be simplified and more code reused
@@ -66,27 +63,25 @@ def write_line_to_csv(
 
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+        csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
             IDLE_CORES_FILE_PREFIX,
             workload,
             backend,
             num_vms,
             num_tasks,
             num_cores_per_vm,
-            num_users,
         )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{}\n".format(*args))
     elif exp_key == EXEC_TASK_INFO_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+        csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
             EXEC_TASK_INFO_FILE_PREFIX,
             workload,
             backend,
             num_vms,
             num_tasks,
             num_cores_per_vm,
-            num_users,
         )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
@@ -110,13 +105,6 @@ def get_num_tasks_from_trace(trace_str):
     Get number of tasks from trace string
     """
     return int(trace_str.split("_")[1])
-
-
-def get_num_users_from_trace(trace_str):
-    """
-    Get number of users from trace string
-    """
-    return int(trace_str.split("_")[3][:-4])
 
 
 def get_idle_core_count_from_task_info(

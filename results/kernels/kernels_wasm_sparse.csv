@@ -1,9 +1,0 @@
-Kernel,WorldSize,Run,StatName,StatValue,ActualTime
-sparse,2,0,Avg time (s),0.0254200,11.257642424
-sparse,2,1,Avg time (s),0.02645400,11.33333590
-sparse,4,0,Avg time (s),0.02967200,12.62234712
-sparse,4,1,Avg time (s),0.03011200,12.73345102
-sparse,8,0,Avg time (s),0.02943200,13.66712361
-sparse,8,1,Avg time (s),0.02951300,13.93348753
-sparse,16,0,Avg time (s),0.02525100,9.52461916
-sparse,16,1,Avg time (s),0.02568600,9.00123073
