@@ -459,7 +459,7 @@ class BatchScheduler:
 
     def shutdown(self):
         shutdown_msg = WorkQueueItem(
-            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1, -1, -1)
+            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1, -1)
         )
         for _ in range(self.num_threads_in_pool):
             self.work_queue.put(shutdown_msg)
