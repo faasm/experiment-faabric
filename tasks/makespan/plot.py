@@ -135,14 +135,16 @@ def idle_cores(ctx, backend, num_vms, trace=None):
     num_workloads = len(result_dict_et)
     width = 0.5
     xs = arange(num_workloads)
-    ys = [result_dict_et[wload]["makespan"] for wload in result_dict_et]
+    labels = list(result_dict_et.keys())
+    labels.sort()
+    ys = [result_dict_et[la]["makespan"] for la in labels]
     bars = ax1.bar(xs, ys, width)  # , label=workload, color=COLORS[workload]
-    for bar, key in zip(bars, result_dict_et.keys()):
+    for bar, key in zip(bars, labels):
         bar.set_label(key)
         bar.set_color(COLORS[key])
     # ax1.legend()
     ax1.set_xticks(xs)
-    ax1.set_xticklabels(list(result_dict_et.keys()))
+    ax1.set_xticklabels(labels)
     ax1.set_ylim(bottom=0)
     ax1.set_ylabel("Makespan [s]")
 
@@ -163,7 +165,7 @@ def idle_cores(ctx, backend, num_vms, trace=None):
             density=True,
             cumulative=True,
         )
-    ax2.legend(loc="upper left")
+    ax2.legend(loc="lower right")
     ax2.set_xlim(left=0, right=100)
     ax2.set_ylim(bottom=0, top=1)
     ax2.set_xlabel("Percentage of idle cores [%]")
