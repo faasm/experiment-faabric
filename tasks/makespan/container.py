@@ -6,7 +6,6 @@ from subprocess import run
 from tasks.util.env import (
     PROJ_ROOT,
     get_docker_tag,
-    get_version,
     push_docker_image,
 )
 from tasks.makespan.env import MAKESPAN_IMAGE_NAME, MAKESPAN_DOCKERFILE
@@ -26,7 +25,6 @@ def build(ctx, nocache=False, push=False):
         "build",
         "-f {}".format(MAKESPAN_DOCKERFILE),
         "--no-cache" if nocache else "",
-        "--build-arg EXPERIMENT_VERSION={}".format(get_version()),
         "-t {}".format(img_tag),
         ".",
     ]

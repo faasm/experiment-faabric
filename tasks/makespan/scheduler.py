@@ -6,13 +6,26 @@ from os.path import basename
 from pprint import pprint
 from requests import post
 from typing import Dict, List, Tuple, Union
+from tasks.lammps.env import (
+    LAMMPS_FAASM_USER,
+    LAMMPS_FAASM_FUNC,
+    get_faasm_benchmark,
+)
 from tasks.makespan.data import (
     ExecutedTaskInfo,
     ResultQueueItem,
     TaskObject,
     WorkQueueItem,
 )
-from tasks.makespan.env import MAKESPAN_DIR
+from tasks.makespan.env import (
+    LAMMPS_DOCKER_BINARY,
+    LAMMPS_DOCKER_DIR,
+    DGEMM_DOCKER_BINARY,
+    DGEMM_FAASM_FUNC,
+    DGEMM_FAASM_USER,
+    MAKESPAN_DIR,
+    get_dgemm_cmdline,
+)
 from tasks.makespan.util import EXEC_TASK_INFO_FILE_PREFIX, write_line_to_csv
 from tasks.util.compose import (
     get_container_names_from_compose,
@@ -30,13 +43,6 @@ from tasks.util.faasm import (
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
-)
-from tasks.lammps.env import (
-    DOCKER_LAMMPS_BINARY,
-    DOCKER_LAMMPS_DIR,
-    LAMMPS_FAASM_USER,
-    LAMMPS_FAASM_FUNC,
-    get_faasm_benchmark,
 )
 from time import sleep, time
 
@@ -106,41 +112,65 @@ def thread_pool_thread(
         if work_item.task.app == "mpi":
             # We always use the same LAMMPS benchmark
             # TODO: configure big data
-            # data_file = get_faasm_benchmark("compute")["data"][0]
-            data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark("compute")["data"][0]
+            # data_file = get_faasm_benchmark("compute-xl")["data"][0]
         # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp
         start_ts = 0
         if workload in NATIVE_WORKLOAD:
             # TODO(openmp): add the option of openmp here
-            binary = DOCKER_LAMMPS_BINARY
-            native_cmdline = "-in {}/{}.faasm.native".format(
-                DOCKER_LAMMPS_DIR, data_file
-            )
-            world_size = work_item.task.size
-            allocated_pod_ips = [
-                "{}:{}".format(pn, num_slots_per_vm)
-                for pn in work_item.allocated_vms
-            ]
-            mpirun_cmd = [
-                "mpirun",
-                "-np {}".format(world_size),
-                # To improve OpenMPI performance, we tell it exactly where to
-                # run each rank. Could we be more specific about it?
-                "-host {}".format(",".join(allocated_pod_ips)),
-                binary,
-                native_cmdline,
-            ]
-            mpirun_cmd = " ".join(mpirun_cmd)
+            if work_item.task.app == "mpi":
+                binary = LAMMPS_DOCKER_BINARY
+                native_cmdline = "-in {}/{}.faasm.native".format(
+                    LAMMPS_DOCKER_DIR, data_file
+                )
+                world_size = work_item.task.size
+                allocated_pod_ips = [
+                    "{}:{}".format(pn, num_slots_per_vm)
+                    for pn in work_item.allocated_vms
+                ]
+                mpirun_cmd = [
+                    "mpirun",
+                    "-np {}".format(world_size),
+                    # To improve OpenMPI performance, we tell it exactly where
+                    # to run each rank
+                    "-host {}".format(",".join(allocated_pod_ips)),
+                    binary,
+                    native_cmdline,
+                ]
+                mpirun_cmd = " ".join(mpirun_cmd)
 
-            exec_cmd = [
-                "exec",
-                master_vm,
-                "--" if backend == "k8s" else "",
-                "su mpirun -c '{}'".format(mpirun_cmd),
-            ]
-            exec_cmd = " ".join(exec_cmd)
+                exec_cmd = [
+                    "exec",
+                    master_vm,
+                    "--" if backend == "k8s" else "",
+                    "su mpirun -c '{}'".format(mpirun_cmd),
+                ]
+                exec_cmd = " ".join(exec_cmd)
+            elif work_item.task.app == "omp":
+                if work_item.task.size > num_slots_per_vm:
+                    print(
+                        "Requested OpenMP execution with more parallelism"
+                        "than slots in the current environment:"
+                        "{} > {}".format(work_item.task.size, num_slots_per_vm)
+                    )
+                    raise RuntimeError("Error in OpenMP task trace!")
+                # TODO: should we set the parallelism level to be
+                # min(work_item.task.size, num_slots_per_vm) ? I.e. what will
+                # happen when we oversubscribe?
+                openmp_cmd = "bash -c '{} {}'".format(
+                    DGEMM_DOCKER_BINARY,
+                    get_dgemm_cmdline(work_item.task.size),
+                )
+
+                exec_cmd = [
+                    "exec",
+                    master_vm,
+                    "--" if backend == "k8s" else "",
+                    openmp_cmd,
+                ]
+                exec_cmd = " ".join(exec_cmd)
 
             start_ts = time()
             if backend == "k8s":
@@ -155,17 +185,28 @@ def thread_pool_thread(
             url = "http://{}:{}".format(host, port)
 
             # Prepare Faasm request
-            user = LAMMPS_FAASM_USER
-            func = LAMMPS_FAASM_FUNC
-            file_name = basename(data_file)
-            cmdline = "-in faasm://lammps-data/{}".format(file_name)
-            msg = {
-                "user": user,
-                "function": func,
-                "cmdline": cmdline,
-                "mpi_world_size": work_item.task.size,
-                "async": True,
-            }
+            if work_item.task.app == "mpi":
+                user = LAMMPS_FAASM_USER
+                func = LAMMPS_FAASM_FUNC
+                file_name = basename(data_file)
+                cmdline = "-in faasm://lammps-data/{}".format(file_name)
+                msg = {
+                    "user": user,
+                    "function": func,
+                    "cmdline": cmdline,
+                    "mpi_world_size": work_item.task.size,
+                    "async": True,
+                }
+            elif work_item.task.app == "omp":
+                user = DGEMM_FAASM_USER
+                func = "{}_{}".format(DGEMM_FAASM_FUNC, work_item.task.task_id)
+                msg = {
+                    "user": user,
+                    "function": func,
+                    "cmdline": get_dgemm_cmdline(work_item.task.size),
+                    # The input_data is the number of OMP threads
+                    "async": True,
+                }
             thread_print("Posting to {} msg:".format(url))
             pprint(msg)
 

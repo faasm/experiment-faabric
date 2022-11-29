@@ -93,18 +93,25 @@ def write_line_to_csv(
 # ----------------------------
 
 
-def get_num_cores_from_trace(trace_str):
+def get_workload_from_trace(trace_str):
     """
-    Get number of cores from trace string
+    Get workload from trace string
     """
-    return int(trace_str.split("_")[2][:-4])
+    return trace_str.split("_")[1]
 
 
 def get_num_tasks_from_trace(trace_str):
     """
     Get number of tasks from trace string
     """
-    return int(trace_str.split("_")[1])
+    return int(trace_str.split("_")[2])
+
+
+def get_num_cores_from_trace(trace_str):
+    """
+    Get number of cores from trace string
+    """
+    return int(trace_str.split("_")[3][:-4])
 
 
 def get_idle_core_count_from_task_info(

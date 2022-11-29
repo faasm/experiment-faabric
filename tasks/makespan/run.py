@@ -10,6 +10,9 @@ from tasks.makespan.util import (
     IDLE_CORES_FILE_PREFIX,
     init_csv_file,
     get_idle_core_count_from_task_info,
+    get_num_cores_from_trace,
+    get_num_tasks_from_trace,
+    get_workload_from_trace,
     write_line_to_csv,
 )
 from tasks.util.env import RESULTS_DIR
@@ -34,8 +37,9 @@ def run(
 
     # If a trace file is specified, it takes preference over the other values
     if trace is not None:
-        num_tasks = int(trace.split("_")[1])
-        num_cores_per_vm = int(trace.split("_")[2][:-4])
+        job_workload = get_workload_from_trace(trace)
+        num_tasks = get_num_tasks_from_trace(trace)
+        num_cores_per_vm = get_num_cores_from_trace(trace)
     else:
         raise RuntimeError("Must provide a trace file name")
 
@@ -66,7 +70,9 @@ def run(
         ctrs_per_vm,
     )
 
-    task_trace = load_task_trace_from_file(num_tasks, num_cores_per_vm)
+    task_trace = load_task_trace_from_file(
+        job_workload, num_tasks, num_cores_per_vm
+    )
 
     executed_task_info = scheduler.run(backend, workload, task_trace)
 
@@ -106,8 +112,9 @@ def idle_cores_from_exec_task(
 
     # If a trace file is specified, it takes preference over the other values
     if trace is not None:
-        num_tasks = int(trace.split("_")[1])
-        num_cores_per_vm = int(trace.split("_")[2][:-4])
+        job_workload = get_workload_from_trace(trace)
+        num_tasks = get_num_tasks_from_trace(trace)
+        num_cores_per_vm = get_num_cores_from_trace(trace)
     else:
         raise RuntimeError("Must provide a trace file name")
 
@@ -144,7 +151,9 @@ def idle_cores_from_exec_task(
                 exec_end_ts,
             )
 
-    task_trace = load_task_trace_from_file(num_tasks, num_cores_per_vm)
+    task_trace = load_task_trace_from_file(
+        job_workload, num_tasks, num_cores_per_vm
+    )
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         executed_task_info, task_trace, num_vms, num_cores_per_vm
     )

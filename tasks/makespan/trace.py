@@ -11,9 +11,11 @@ from typing import List
 MAKESPAN_TRACES_DIR = join(PROJ_ROOT, "tasks", "makespan", "traces")
 
 
-def dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm):
+def dump_task_trace_to_file(task_trace, workload, num_tasks, num_cores_per_vm):
     makedirs(MAKESPAN_TRACES_DIR, exist_ok=True)
-    file_name = "trace_{}_{}.csv".format(num_tasks, num_cores_per_vm)
+    file_name = "trace_{}_{}_{}.csv".format(
+        workload, num_tasks, num_cores_per_vm
+    )
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     with open(task_file, "w") as out_file:
         out_file.write("TaskId,App,Size,InterArrivalTimeSecs\n")
@@ -28,8 +30,10 @@ def dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm):
     )
 
 
-def load_task_trace_from_file(num_tasks, num_cores_per_vm):
-    file_name = "trace_{}_{}.csv".format(num_tasks, num_cores_per_vm)
+def load_task_trace_from_file(workload, num_tasks, num_cores_per_vm):
+    file_name = "trace_{}_{}_{}.csv".format(
+        workload, num_tasks, num_cores_per_vm
+    )
     task_file = join(MAKESPAN_TRACES_DIR, file_name)
     task_trace = []
     with open(task_file, "r") as in_file:
@@ -56,7 +60,7 @@ def load_task_trace_from_file(num_tasks, num_cores_per_vm):
 
 
 @task()
-def generate(ctx, num_tasks, num_cores_per_vm, lmbd="0.1"):
+def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     """
     A trace is a set of tasks where each task is identified by:
     - An arrival time sampled from a Poisson distribution with parameter lambda
@@ -73,9 +77,10 @@ def generate(ctx, num_tasks, num_cores_per_vm, lmbd="0.1"):
     lmbd = float(lmbd)
 
     # Work out the possible number of cores per VM
-    possible_sizes = arange(
+    possible_mpi_sizes = arange(
         int(num_cores_per_vm * 0.5), int(num_cores_per_vm * 2)
     )
+    possible_omp_sizes = arange(1, num_cores_per_vm)
 
     # The lambda parameter regulates how frequently new tasks arrive. If we
     # make lambda smaller, then tasks will be more far apart. Formally, the
@@ -89,16 +94,25 @@ def generate(ctx, num_tasks, num_cores_per_vm, lmbd="0.1"):
     inter_arrival_times.insert(0, 0)
 
     # Work out the possible different workloads
-    # TODO: eventually move to MPI and OpenMP
-    possible_workloads = ["mpi"]
+    if workload == "mpi":
+        possible_workloads = ["mpi"]
+    elif workload == "omp":
+        possible_workloads = ["omp"]
+    elif workload == "mix":
+        possible_workloads = ["mpi", "omp"]
+    else:
+        raise RuntimeError("Unrecognised workload: {}".format(workload))
 
     # Generate the random task trace
     task_trace: List[TaskObject] = []
-    num_pos_ws = len(possible_sizes)
     num_pos_wl = len(possible_workloads)
     for idx in range(num_tasks):
-        ws_idx = int(uniform(0, num_pos_ws))
         wl_idx = int(uniform(0, num_pos_wl))
+        if possible_workloads[wl_idx] == "mpi":
+            possible_sizes = possible_mpi_sizes
+        elif possible_workloads[wl_idx] == "omp":
+            possible_sizes = possible_omp_sizes
+        ws_idx = int(uniform(0, len(possible_sizes)))
         task_trace.append(
             TaskObject(
                 idx,
@@ -108,4 +122,4 @@ def generate(ctx, num_tasks, num_cores_per_vm, lmbd="0.1"):
             )
         )
 
-    dump_task_trace_to_file(task_trace, num_tasks, num_cores_per_vm)
+    dump_task_trace_to_file(task_trace, workload, num_tasks, num_cores_per_vm)
