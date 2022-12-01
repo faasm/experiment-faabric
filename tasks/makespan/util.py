@@ -9,9 +9,7 @@ IDLE_CORES_FILE_PREFIX = "idle-cores"
 EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 
 
-def init_csv_file(
-    workload, backend, num_vms, num_tasks, num_cores_per_vm, ctrs_per_vm
-):
+def init_csv_file(workload, backend, num_vms, trace_str, ctrs_per_vm):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
 
@@ -19,26 +17,24 @@ def init_csv_file(
         workload = "native-{}".format(ctrs_per_vm)
 
     # Idle Cores file
-    csv_name_ic = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name_ic = "makespan_{}_{}_{}_{}_{}".format(
         IDLE_CORES_FILE_PREFIX,
         workload,
         backend,
         num_vms,
-        num_tasks,
-        num_cores_per_vm,
+        get_trace_ending(trace_str),
     )
     ic_file = join(result_dir, csv_name_ic)
     with open(ic_file, "w") as out_file:
         out_file.write("TimeStampSecs,NumIdleCores\n")
 
     # Executed task info file
-    csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name = "makespan_{}_{}_{}_{}_{}".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         workload,
         backend,
         num_vms,
-        num_tasks,
-        num_cores_per_vm,
+        get_trace_ending(trace_str),
     )
     csv_file = join(result_dir, csv_name)
     with open(csv_file, "w") as out_file:
@@ -48,14 +44,7 @@ def init_csv_file(
 
 
 def write_line_to_csv(
-    workload,
-    backend,
-    exp_key,
-    num_vms,
-    num_tasks,
-    num_cores_per_vm,
-    ctrs_per_vm,
-    *args
+    workload, backend, exp_key, num_vms, trace_str, ctrs_per_vm, *args
 ):
     # TODO: this method could be simplified and more code reused
     if workload == "native":
@@ -63,25 +52,23 @@ def write_line_to_csv(
 
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+        csv_name = "makespan_{}_{}_{}_{}_{}".format(
             IDLE_CORES_FILE_PREFIX,
             workload,
             backend,
             num_vms,
-            num_tasks,
-            num_cores_per_vm,
+            get_trace_ending(trace_str),
         )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{}\n".format(*args))
     elif exp_key == EXEC_TASK_INFO_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+        csv_name = "makespan_{}_{}_{}_{}_{}".format(
             EXEC_TASK_INFO_FILE_PREFIX,
             workload,
             backend,
             num_vms,
-            num_tasks,
-            num_cores_per_vm,
+            get_trace_ending(trace_str),
         )
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
@@ -91,6 +78,10 @@ def write_line_to_csv(
 # ----------------------------
 # Trace file name manipulation
 # ----------------------------
+
+
+def get_trace_ending(trace_str):
+    return trace_str[6:]
 
 
 def get_workload_from_trace(trace_str):
@@ -114,8 +105,22 @@ def get_num_cores_from_trace(trace_str):
     return int(trace_str.split("_")[3][:-4])
 
 
+def get_trace_from_parameters(workload, num_tasks=100, num_cores_per_vm=8):
+    return "trace_{}_{}_{}.csv".format(workload, num_tasks, num_cores_per_vm)
+
+
+# ----------------------------
+# Idle core's utilities
+# ----------------------------
+
+
 def get_idle_core_count_from_task_info(
-    executed_task_info, task_trace, num_vms, num_cores_per_vm
+    executed_task_info,
+    task_trace,
+    num_vms,
+    num_cores_per_vm,
+    ctrs_per_vm,
+    is_granny,
 ):
     """
     Given a map of <task_id, ExecutedTaskInfo> work out the number of idle
@@ -131,7 +136,6 @@ def get_idle_core_count_from_task_info(
     )
     max_end_ts = max([et.exec_end_ts for et in executed_task_info.values()])
     time_elapsed_secs = int(max_end_ts - min_start_ts)
-    print(min_start_ts, max_end_ts, time_elapsed_secs)
     if time_elapsed_secs > 1e5:
         raise RuntimeError(
             "Measured total time elapsed is too long: {}".format(
@@ -140,6 +144,7 @@ def get_idle_core_count_from_task_info(
         )
 
     # Initialise each time slot to the maximum number of cores
+    num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     num_idle_cores_per_time_step = {}
     for ts in range(time_elapsed_secs):
         num_idle_cores_per_time_step[ts] = num_vms * num_cores_per_vm
@@ -158,7 +163,13 @@ def get_idle_core_count_from_task_info(
                 )
             )
             raise RuntimeError("Error processing tasks")
+
         task_size = task.size
+        # In a native OpenMP task, we may have overcommited to a smaller number
+        # of cores. Given that we don't distribute OpenMP jobs, it is safe to
+        # just subtract the container size in case of overcomitment
+        if task.app == "omp" and not is_granny:
+            task_size = min(task.size, num_cores_per_ctr)
 
         # Get the start and end ts as offsets from our global minimum timestamp
         start_t = executed_task_info[task_id].exec_start_ts - min_start_ts

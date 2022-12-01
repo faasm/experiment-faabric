@@ -17,6 +17,11 @@ spec:
       containers:
         - name: mpi-worker
           image: {{ native_mpi_image }}
+          resources:
+            limits:
+              cpu: {{ cpus_per_ctr_lim }}
+            requests:
+              cpu: {{ cpus_per_ctr_req }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

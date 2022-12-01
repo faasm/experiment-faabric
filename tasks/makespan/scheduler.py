@@ -112,8 +112,8 @@ def thread_pool_thread(
         if work_item.task.app == "mpi":
             # We always use the same LAMMPS benchmark
             # TODO: configure big data
-            data_file = get_faasm_benchmark("compute")["data"][0]
-            # data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            # data_file = get_faasm_benchmark("compute")["data"][0]
+            data_file = get_faasm_benchmark("compute-xl")["data"][0]
         # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp
@@ -149,13 +149,6 @@ def thread_pool_thread(
                 ]
                 exec_cmd = " ".join(exec_cmd)
             elif work_item.task.app == "omp":
-                if work_item.task.size > num_slots_per_vm:
-                    print(
-                        "Requested OpenMP execution with more parallelism"
-                        "than slots in the current environment:"
-                        "{} > {}".format(work_item.task.size, num_slots_per_vm)
-                    )
-                    raise RuntimeError("Error in OpenMP task trace!")
                 # TODO: should we set the parallelism level to be
                 # min(work_item.task.size, num_slots_per_vm) ? I.e. what will
                 # happen when we oversubscribe?
@@ -198,6 +191,13 @@ def thread_pool_thread(
                     "async": True,
                 }
             elif work_item.task.app == "omp":
+                if work_item.task.size > num_slots_per_vm:
+                    print(
+                        "Requested OpenMP execution with more parallelism"
+                        "than slots in the current environment:"
+                        "{} > {}".format(work_item.task.size, num_slots_per_vm)
+                    )
+                    raise RuntimeError("Error in OpenMP task trace!")
                 user = DGEMM_FAASM_USER
                 func = "{}_{}".format(DGEMM_FAASM_FUNC, work_item.task.task_id)
                 msg = {
@@ -304,6 +304,7 @@ class SchedulerState:
     num_tasks: int
     num_cores_per_ctr: int
     ctrs_per_vm: int
+    trace_str: str
 
     # Total accounting of slots
     total_slots: int
@@ -332,6 +333,7 @@ class SchedulerState:
         num_ctrs: int,
         num_cores_per_ctr: int,
         ctrs_per_vm: int,
+        trace_str: str,
     ):
         self.backend = backend
         self.current_workload = current_workload
@@ -340,6 +342,7 @@ class SchedulerState:
         self.ctrs_per_vm = ctrs_per_vm
         self.total_slots = num_ctrs * num_cores_per_ctr
         self.total_available_slots = self.total_slots
+        self.trace_str = trace_str
 
         # Initialise the pod list depending on the workload
         self.init_vm_list(backend)
@@ -426,8 +429,7 @@ class SchedulerState:
             self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
             int(self.num_ctrs / self.ctrs_per_vm),
-            self.num_tasks,
-            int(self.num_cores_per_ctr * self.ctrs_per_vm),
+            self.trace_str,
             self.ctrs_per_vm,
             self.executed_task_info[result.task_id].task_id,
             self.executed_task_info[result.task_id].time_executing,
@@ -452,6 +454,7 @@ class BatchScheduler:
         num_tasks: int,
         num_slots_per_vm: int,
         ctrs_per_vm: int,
+        trace_str: str,
     ):
         self.state = SchedulerState(
             backend,
@@ -459,6 +462,7 @@ class BatchScheduler:
             num_ctrs,
             num_slots_per_vm,
             ctrs_per_vm,
+            trace_str,
         )
         self.state.backend = backend
         self.state.num_tasks = num_tasks
@@ -517,7 +521,8 @@ class BatchScheduler:
             # TODO(autoscale): scale up here
             print(
                 "Not enough slots to schedule task "
-                "{} (needed: {} - have: {})".format(
+                "{}-{} (needed: {} - have: {})".format(
+                    task.app,
                     task.task_id,
                     task.size,
                     int(self.state.total_available_slots),
@@ -531,43 +536,74 @@ class BatchScheduler:
         left_to_assign = task.size
         # We follow a very simple scheduling policy: we sort the VMs in
         # decresing order of capacity, and schedule as many slots as possible
-        # to each VM
-        for vm, num_slots in sorted(
+        # to each VM. We don't distribute OpenMP jobs, as a consequence if
+        # the task does not fit the greatest VM, we return
+        sorted_vms = sorted(
             self.state.vm_map.items(), key=lambda item: item[1], reverse=True
-        ):
-            # Work out how many slots can we take up in this pod
+        )
+        if task.app == "mpi":
+            for vm, num_slots in sorted_vms:
+                # Work out how many slots can we take up in this pod
+                if self.state.current_workload in NATIVE_WORKLOAD:
+                    # If we are running a native workload we only allow one
+                    # task per node, which means that regardless of how many
+                    # slots we have left to assign, we take up all the node. In
+                    # fact, we should be able to assert that we have the whole
+                    # VM to allocate
+                    num_on_this_vm = self.state.num_cores_per_ctr
+                else:
+                    num_on_this_vm = min(num_slots, left_to_assign)
+                scheduling_decision.append((vm, num_on_this_vm))
+
+                # Update the global state, and the slots left to assign
+                self.state.vm_map[vm] -= num_on_this_vm
+                self.state.total_available_slots -= num_on_this_vm
+                left_to_assign -= num_on_this_vm
+                print(
+                    "Assigning {} slots to VM {} (left: {})".format(
+                        num_on_this_vm, vm, left_to_assign
+                    )
+                )
+
+                # If no more slots to assign, exit the loop
+                if left_to_assign <= 0:
+                    break
+            else:
+                print(
+                    "Ran out of pods to assign task slots to, "
+                    "but still {} to assign".format(left_to_assign)
+                )
+                raise RuntimeError(
+                    "Scheduling error: inconsistent scheduler state"
+                )
+        elif task.app == "omp":
+            if len(sorted_vms) == 0:
+                # TODO: maybe we should raise an inconsistent state error here
+                return NOT_ENOUGH_SLOTS
+            vm, num_slots = sorted_vms[0]
+            if num_slots == 0:
+                # TODO: maybe we should raise an inconsistent state error here
+                return NOT_ENOUGH_SLOTS
             if self.state.current_workload in NATIVE_WORKLOAD:
-                # If we are running a native workload we only allow one task
-                # per node, which means that regardless of how many slots we
-                # have left to assign, we take up all the node. In fact, we
-                # should be able to assert that we have the whole VM to
-                # allocate
+                if task.size > self.state.num_cores_per_ctr:
+                    print(
+                        "Overcomitting for task {} ({} > {})".format(
+                            task.task_id,
+                            task.size,
+                            self.state.num_cores_per_ctr,
+                        )
+                    )
                 num_on_this_vm = self.state.num_cores_per_ctr
             else:
-                num_on_this_vm = min(num_slots, left_to_assign)
+                if num_slots < task.size:
+                    return NOT_ENOUGH_SLOTS
+                num_on_this_vm = task.size
+
             scheduling_decision.append((vm, num_on_this_vm))
-
-            # Update the global state, and the slots left to assign
             self.state.vm_map[vm] -= num_on_this_vm
+            # TODO: when we overcommit, do we substract the number of cores
+            # we occupy, or the ones we agree to run?
             self.state.total_available_slots -= num_on_this_vm
-            left_to_assign -= num_on_this_vm
-            print(
-                "Assigning {} slots to VM {} (left: {})".format(
-                    num_on_this_vm, vm, left_to_assign
-                )
-            )
-
-            # If no more slots to assign, exit the loop
-            if left_to_assign <= 0:
-                break
-        else:
-            print(
-                "Ran out of pods to assign task slots to, "
-                "but still {} to assign".format(left_to_assign)
-            )
-            raise RuntimeError(
-                "Scheduling error: inconsistent scheduler state"
-            )
 
         # Before returning, persist the scheduling decision to state
         self.state.in_flight_tasks[task.task_id] = scheduling_decision

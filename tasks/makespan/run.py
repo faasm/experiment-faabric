@@ -12,18 +12,71 @@ from tasks.makespan.util import (
     get_idle_core_count_from_task_info,
     get_num_cores_from_trace,
     get_num_tasks_from_trace,
+    get_trace_from_parameters,
     get_workload_from_trace,
     write_line_to_csv,
 )
 from tasks.util.env import RESULTS_DIR
+from time import sleep
 from typing import Dict
 
 
-@task(default=True)
-def run(
+def _get_workload_from_cmdline(workload):
+    all_workloads = ["mpi", "omp"]
+    if workload == "all":
+        workload = all_workloads
+    elif workload in all_workloads:
+        workload = [workload]
+    else:
+        raise RuntimeError(
+            "Unrecognised workload: {}. Must be one in: {}".format(
+                workload, all_workloads
+            )
+        )
+    return workload
+
+
+@task()
+def granny(
     ctx,
-    backend="compose",
-    num_vms=4,
+    workload="all",
+    backend="k8s",
+    num_vms=32,
+    num_cores_per_vm=8,
+    num_tasks=100,
+):
+    workload = _get_workload_from_cmdline(workload)
+    for wload in workload:
+        trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
+        _do_run(backend=backend, num_vms=num_vms, granny=True, trace=trace)
+        sleep(5)
+
+
+@task()
+def native(
+    ctx,
+    workload="all",
+    backend="k8s",
+    num_vms=32,
+    num_cores_per_vm=8,
+    num_tasks=100,
+    ctrs_per_vm=1,
+):
+    workload = _get_workload_from_cmdline(workload)
+    for wload in workload:
+        trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
+        _do_run(
+            backend=backend,
+            num_vms=num_vms,
+            ctrs_per_vm=ctrs_per_vm,
+            trace=trace,
+        )
+        sleep(5)
+
+
+def _do_run(
+    backend="k8s",
+    num_vms=32,
     ctrs_per_vm=1,
     granny=False,
     trace=None,
@@ -59,14 +112,14 @@ def run(
         num_tasks,
         num_cores_per_ctr,
         ctrs_per_vm,
+        trace,
     )
 
     init_csv_file(
         workload,
         backend,
         num_vms,
-        num_tasks,
-        num_cores_per_vm,
+        trace,
         ctrs_per_vm,
     )
 
@@ -77,7 +130,12 @@ def run(
     executed_task_info = scheduler.run(backend, workload, task_trace)
 
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
-        executed_task_info, task_trace, num_vms, num_cores_per_vm
+        executed_task_info,
+        task_trace,
+        num_vms,
+        num_cores_per_vm,
+        ctrs_per_vm,
+        granny,
     )
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
@@ -85,8 +143,7 @@ def run(
             backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
-            num_tasks,
-            num_cores_per_vm,
+            trace,
             ctrs_per_vm,
             time_step,
             num_idle_cores_per_time_step[time_step],
@@ -99,36 +156,38 @@ def run(
 @task()
 def idle_cores_from_exec_task(
     ctx,
-    backend="compose",
-    num_vms=4,
+    workload,
+    backend="k8s",
+    num_vms=32,
     ctrs_per_vm=1,
-    trace=None,
+    num_tasks=100,
+    num_cores_per_vm=8,
     granny=False,
 ):
     result_dir = join(RESULTS_DIR, "makespan")
     executed_task_info: Dict[int, ExecutedTaskInfo] = {}
 
     num_vms = int(num_vms)
+    ctrs_per_vm = int(ctrs_per_vm)
+    num_tasks = int(num_tasks)
 
-    # If a trace file is specified, it takes preference over the other values
-    if trace is not None:
-        job_workload = get_workload_from_trace(trace)
-        num_tasks = get_num_tasks_from_trace(trace)
-        num_cores_per_vm = get_num_cores_from_trace(trace)
-    else:
-        raise RuntimeError("Must provide a trace file name")
+    trace = get_trace_from_parameters(workload, num_tasks, num_cores_per_vm)
+    job_workload = get_workload_from_trace(trace)
+    num_tasks = int(get_num_tasks_from_trace(trace))
+    num_cores_per_vm = int(get_num_cores_from_trace(trace))
 
     if granny:
-        workload = "granny"
+        system = "granny"
     else:
-        workload = "native-{}".format(ctrs_per_vm)
+        system = "native-{}".format(ctrs_per_vm)
 
     # Get executed task info from file
-    csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
         EXEC_TASK_INFO_FILE_PREFIX,
-        workload,
+        system,
         backend,
         num_vms,
+        workload,
         num_tasks,
         num_cores_per_vm,
     )
@@ -155,16 +214,20 @@ def idle_cores_from_exec_task(
         job_workload, num_tasks, num_cores_per_vm
     )
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
-        executed_task_info, task_trace, num_vms, num_cores_per_vm
+        executed_task_info,
+        task_trace,
+        num_vms,
+        num_cores_per_vm,
+        ctrs_per_vm,
+        granny,
     )
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
-            workload,
+            system,
             backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
-            num_tasks,
-            num_cores_per_vm,
+            trace,
             ctrs_per_vm,
             time_step,
             num_idle_cores_per_time_step[time_step],

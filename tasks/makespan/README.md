@@ -105,10 +105,8 @@ You can also run all workloads at once for one backend:
 inv makespan.run --backend [k8s,compose] --workload all --trace [trace_file_name.csv]
 ```
 
-## Plots
-
-### Number of idle cores over time
+## Plot the results
 
 ```bash
-inv makespan.plot.idle-cores --backend <> --num-vms <> --trace "trace_100_4_2.csv"
+inv makespan.plot --backend <> --num-vms <> --trace "trace_100_4_2.csv"
 ```

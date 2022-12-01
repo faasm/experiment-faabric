@@ -13,7 +13,7 @@ class TaskObject:
     """
     One task (or job) of an experiment. Each task is identified by:
     - task_id: unique identifier of the task
-    - app: type of workload the task is running, one in: `mpi` or `openmp`
+    - app: type of workload the task is running, one in: `mpi` or `omp`
     - size: task's requirements in terms of CPUs
     - inter_arrival_time: delay in seconds for the task to arrive wrt the
         previous task

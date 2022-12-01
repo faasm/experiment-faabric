@@ -12,13 +12,16 @@ from tasks.util.openmpi import (
 
 
 @task
-def deploy(ctx, backend, num_vms, ctrs_per_vm=1):
+def deploy(ctx, backend="k8s", num_vms=32, num_cores_per_vm=8, ctrs_per_vm=1):
     """
     Run: `inv makespan.native.deploy --backend --num-vms --ctrs-per-vm`
     """
     num_ctrs = int(num_vms) * int(ctrs_per_vm)
+    num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     if backend == "k8s":
-        deploy_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_ctrs)
+        deploy_native_mpi(
+            "makespan", MAKESPAN_IMAGE_NAME, num_ctrs, num_cores_per_ctr
+        )
     else:
         # TODO: update .env file
         compose_cmd = [
@@ -31,13 +34,16 @@ def deploy(ctx, backend, num_vms, ctrs_per_vm=1):
 
 
 @task
-def delete(ctx, backend, num_vms, ctrs_per_vm=1):
+def delete(ctx, backend="k8s", num_vms=32, num_cores_per_vm=8, ctrs_per_vm=1):
     """
     Delete: `inv makespan.native.delete --backend --num-vms --ctrs-per-vm
     """
     num_ctrs = int(num_vms) * int(ctrs_per_vm)
+    num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     if backend == "k8s":
-        delete_native_mpi("makespan", MAKESPAN_IMAGE_NAME, num_ctrs)
+        delete_native_mpi(
+            "makespan", MAKESPAN_IMAGE_NAME, num_ctrs, num_cores_per_ctr
+        )
     else:
         compose_cmd = [
             "docker compose",
