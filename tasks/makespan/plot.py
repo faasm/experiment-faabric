@@ -28,6 +28,13 @@ COLORS = {
     "native-4": (0.3, 0.3, 0.3),
     "native-8": (0.7, 0.6, 0.2),
 }
+LABELS = {
+    "granny": "granny",
+    "native-1": "1-ctr-per-vm",
+    "native-2": "2-ctr-per-vm",
+    "native-4": "4-ctr-per-vm",
+    "native-8": "8-ctr-per-vm",
+}
 
 
 def _read_results(plot, workload, backend, num_vms, trace):
@@ -118,11 +125,11 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
     ys = [result_dict_et[la]["makespan"] for la in labels]
     bars = ax1.bar(xs, ys, width)
     for bar, key in zip(bars, labels):
-        bar.set_label(key)
+        bar.set_label(LABELS[key])
         bar.set_color(COLORS[key])
     # ax1.legend()
     ax1.set_xticks(xs)
-    ax1.set_xticklabels(labels)
+    ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
     ax1.set_ylim(bottom=0)
     ax1.set_ylabel("Makespan [s]")
 
@@ -139,7 +146,7 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
         ax2.hist(
             xs,
             nbins,
-            label=workload,
+            label=LABELS[workload],
             color=COLORS[workload],
             histtype="step",
             density=True,
@@ -158,7 +165,7 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
         ax3.hist(
             xs,
             nbins,
-            label=workload,
+            label=LABELS[workload],
             color=COLORS[workload],
             histtype="step",
             density=True,
