@@ -7,11 +7,18 @@
 To run all the commands here included, first activate the virtual environment
 in experiments base, `source ../../bin/workon.sh`.
 
-## Metrics
+**Note:** we have now agreed that we will run the experiments on k8s with 32
+VMs and 8 cores per VM. As a consequence, most commands now have the following
+default values:
 
-* Provider Cost (PC): time integral of the number of idle cores
-* User Cost (UC): average job execution time (total, or per user)
-* Service Time (ST): average job service time (total, or per user)
+```bash
+backend="k8s"
+num-vms=32
+num-cores-per-vm=8
+```
+
+Additionally, we have also agreed on the native baselines. We will compare
+`granny` with native configured with `--ctrs-per-vm=1, 2, 4, 8`.
 
 ## Generate the experiment trace
 
@@ -19,30 +26,24 @@ An experiment E is a set of jobs (or tasks), where each job is defined by: (i)
 its arrival time, (ii) its size requirements, and (iii) the user it belongs
 to.
 
-In the future we will also differentiate if its an MPI or OpenMP job.
-
 To generate a trace run:
 
 ```bash
-inv makespan.trace.generate --num-tasks 10 --num-cores-per-vm 4 --num-users 2
+inv makespan.trace.generate --workload [omp,mpi,mix] --num-tasks <> --num-cores-per-vm <>
 ```
 
 ## Deploy the experiment
-
-```bash
-export NUM_VMS=<NUM_VMS>
-export NUM_CORES_PER_VM=<NUM_CORES_PER_VM>
-export CTRS_PER_VM=<NUM_CONTAINERS_PER_VM>
-```
 
 ### On `docker compose`
 
 #### Native baselines
 
-Run:
+As previously described, the deployment scripts default to `k8s` and 32 VMs
+with 8 cores per VM, so if you want to run on `compose` with smaller values
+you will have to run:
 
 ```bash
-inv makespan.native.deploy --backend=[k8s,compose] --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM}
+inv makespan.native.deploy --backend=compose --num-vms <> --num-cores-per-vm  <> --ctrs-per-vm <>
 ```
 
 #### Granny
@@ -55,10 +56,14 @@ OVERRIDE_CPU_COUNT=${NUM_CORES_PER_VM} inv cluster.start --workers ${NUM_NODES}
 
 ### On kubernetes
 
-First, create the AKS cluster:
+First, create the AKS cluster.
+
+**Important:** you need to run this command from `experiment-base` not
+`experiment-base/experiments/mpi`. So, exceptionally, `cd ../..`, run it and
+then `cd -`.
 
 ```bash
-inv cluster.provision --vm Standard_D${NUM_CORES_PER_VM}_v5 --nodes ${NUM_VMS}
+inv cluster.provision --vm Standard_D8_v5 --nodes 32
 inv cluster.credentials
 ```
 
@@ -68,8 +73,22 @@ For the different native baselines, change the `--ctrs-per-vm` value between
 1, 2, 4, and 8:
 
 ```bash
-inv makespan.native.deploy --backend k8s --num-vms ${NUM_VMS} --ctrs-per-vm ${CTRS_PER_VM}
+inv makespan.native.deploy --ctrs-per-vm ${CTRS_PER_VM}
 ```
+
+To change to a different `CTRS_PER_VM` value, first delete the deployment and
+then run it again:
+
+```
+inv makespan.native.delete --ctrs-per-vm ${OLD_CTRS_PER_VM}
+inv makespan.native.deploy --ctrs-per-vm ${NEW_CTRS_PER_VM}
+```
+
+You need to wait a non-deterministic amount of time for all pods in the old
+deployment to disappear (as they linger in `Terminating` state for a while).
+The best way to be sure when the cluster is ready to run is to inspect the
+deployment using `k9s`. Alternatively, if you try to run the experiment before
+the deployment is ready, the script will return an error.
 
 #### Granny
 
@@ -78,35 +97,58 @@ First, deploy Granny on the cluster:
 ```bash
 cd ~/faasm
 source ./bin/workon.sh
-inv deploy.k8s --workers ${NUM_VMS}
+inv deploy.k8s --workers 32
 ```
 
-Then, upload the necessary files and WASM:
+Then, upload the necessary files and WASM. This will copy the pre-compiled
+binaries from a docker image available on DockerHub (`faasm/experiment-makespan:0.2.0`).
+Make sure you have the latest version of the image. The script will pull the
+image if it is not there, but to be extra sure run `docker pull faasm/experiment-makespan:0.2.0`.
 
 ```bash
-cd ~/experiment-base/experiments/experiment-mpi
-source ../../bin/workon.sh
 inv makespan.wasm.upload
 ````
 
 ## Run the experiment
 
-You can run a specific experiment specifying which baseline to run, on which
-backend and an input trace with the following task. To run the experiments on
-Granny, remember to pass the `--granny` flag at the end.
+We run either `granny` or `native` with different `ctrs-per-vm` parameters. In
+addition, we can either run an `mpi` or an `omp` trace.
+
+We assume the defaults to be:
 
 ```bash
-inv makespan.run --backend [k8s,compose] --num-vms ${NUM_VMS} --ctrs-per-vm <> --trace [trace_file_name.csv] [--granny]
+backend="k8s"
+num-tasks=100
+num-vms=32
+num-cores-per-vm=8
 ```
 
-You can also run all workloads at once for one backend:
+To run `granny` do:
 
 ```bash
-inv makespan.run --backend [k8s,compose] --workload all --trace [trace_file_name.csv]
+inv makespan.run.granny --workload=[mpi,omp,all]
+```
+
+To run one `native` baseline do:
+
+```bash
+inv makespan.run.native --workload=[mpi,omp,all] --ctrs-per-vm=[1,2,4,8]
 ```
 
 ## Plot the results
 
+To plot the results, just run:
+
 ```bash
-inv makespan.plot --backend <> --num-vms <> --trace "trace_100_4_2.csv"
+inv makespan.plot
+```
+
+## Remove the cluster
+
+It is very important that you remove the AKS k8s cluster once you are not using
+it anymore. To do so run:
+
+```bash
+cd ~/experiment-base
+inv cluster.delete
 ```
