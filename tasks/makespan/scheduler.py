@@ -20,13 +20,20 @@ from tasks.makespan.data import (
 from tasks.makespan.env import (
     LAMMPS_DOCKER_BINARY,
     LAMMPS_DOCKER_DIR,
+    LAMMPS_FAASM_MIGRATION_FUNC,
+    LAMMPS_MIGRATION_DOCKER_BINARY,
+    LAMMPS_MIGRATION_DOCKER_DIR,
     DGEMM_DOCKER_BINARY,
     DGEMM_FAASM_FUNC,
     DGEMM_FAASM_USER,
     MAKESPAN_DIR,
     get_dgemm_cmdline,
 )
-from tasks.makespan.util import EXEC_TASK_INFO_FILE_PREFIX, write_line_to_csv
+from tasks.makespan.util import (
+    EXEC_TASK_INFO_FILE_PREFIX,
+    get_workload_from_trace,
+    write_line_to_csv,
+)
 from tasks.util.compose import (
     get_container_names_from_compose,
     get_container_ips_from_compose,
@@ -107,23 +114,28 @@ def thread_pool_thread(
         # Operate with the VM name rather than IP
         master_vm = vm_ip_to_name[master_vm_ip]
 
-        # Choose the right data file if running a LAMMPS simulation (i.e. not
-        # the migration job)
-        if work_item.task.app == "mpi":
+        # Choose the right data file if running a LAMMPS simulation
+        if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
             # We always use the same LAMMPS benchmark
-            # TODO: configure big data
             # data_file = get_faasm_benchmark("compute")["data"][0]
             data_file = get_faasm_benchmark("compute-xl")["data"][0]
-        # TODO(openmp): add the option of openmp here
 
         # Record the start timestamp
         start_ts = 0
         if workload in NATIVE_WORKLOAD:
             # TODO(openmp): add the option of openmp here
-            if work_item.task.app == "mpi":
-                binary = LAMMPS_DOCKER_BINARY
+            if (
+                work_item.task.app == "mpi"
+                or work_item.task.app == "mpi-migrate"
+            ):
+                if work_item.task.app == "mpi":
+                    binary = LAMMPS_DOCKER_BINARY
+                    lammps_dir = LAMMPS_DOCKER_DIR
+                elif work_item.task.app == "mpi-migrate":
+                    binary = LAMMPS_MIGRATION_DOCKER_BINARY
+                    lammps_dir = LAMMPS_MIGRATION_DOCKER_DIR
                 native_cmdline = "-in {}/{}.faasm.native".format(
-                    LAMMPS_DOCKER_DIR, data_file
+                    lammps_dir, data_file
                 )
                 world_size = work_item.task.size
                 allocated_pod_ips = [
@@ -178,9 +190,16 @@ def thread_pool_thread(
             url = "http://{}:{}".format(host, port)
 
             # Prepare Faasm request
-            if work_item.task.app == "mpi":
+            if (
+                work_item.task.app == "mpi"
+                or work_item.task.app == "mpi-migrate"
+            ):
                 user = LAMMPS_FAASM_USER
-                func = LAMMPS_FAASM_FUNC
+                func = (
+                    LAMMPS_FAASM_FUNC
+                    if work_item.task.app == "mpi"
+                    else LAMMPS_FAASM_MIGRATION_FUNC
+                )
                 file_name = basename(data_file)
                 cmdline = "-in faasm://lammps-data/{}".format(file_name)
                 msg = {
@@ -190,6 +209,9 @@ def thread_pool_thread(
                     "mpi_world_size": work_item.task.size,
                     "async": True,
                 }
+                # If attempting to migrate, add a check period
+                if work_item.task.app == "mpi-migrate":
+                    msg["migration_check_period"] = 5
             elif work_item.task.app == "omp":
                 if work_item.task.size > num_slots_per_vm:
                     print(
@@ -541,7 +563,7 @@ class BatchScheduler:
         sorted_vms = sorted(
             self.state.vm_map.items(), key=lambda item: item[1], reverse=True
         )
-        if task.app == "mpi":
+        if task.app == "mpi" or task.app == "mpi-migrate":
             for vm, num_slots in sorted_vms:
                 # Work out how many slots can we take up in this pod
                 if self.state.current_workload in NATIVE_WORKLOAD:
@@ -624,19 +646,26 @@ class BatchScheduler:
         self.start_ts = time()
 
         for t in tasks:
-            # First, wait for the inter arrival time
-            """
-            print(
-                "Sleeping {} seconds to simulate inter-arrival time...".format(
-                    t.inter_arrival_time
+            # For the `mpi-migrate` experiment, we don't want the cluster to
+            # operate at saturation. As a consequence, we simulate experiment
+            # arrivals as a Poisson distribution, and sleep the corresponding
+            # inter-arrival time between tasks. For the `mpi` and `omp`
+            # experiments, we want the cluster to be saturated, so we ignore
+            # the inter-arrival times
+            if get_workload_from_trace(self.state.trace_str) == "mpi-migrate":
+                print(
+                    "Sleeping {} seconds to simulate inter-arrival time...".format(
+                        t.inter_arrival_time
+                    )
                 )
-            )
-            sleep(t.inter_arrival_time)
-            print("Done sleeping!")
-            """
-            print("Sleeping {} seconds between tasks".format(INTERTASK_SLEEP))
-            sleep(INTERTASK_SLEEP)
-            print("Done sleeping")
+                sleep(t.inter_arrival_time)
+                print("Done sleeping!")
+            else:
+                print(
+                    "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
+                )
+                sleep(INTERTASK_SLEEP)
+                print("Done sleeping")
 
             # Try to schedule the task with the current available
             # resources

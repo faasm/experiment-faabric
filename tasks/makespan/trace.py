@@ -96,6 +96,8 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     # Work out the possible different workloads
     if workload == "mpi":
         possible_workloads = ["mpi"]
+    if workload == "mpi-migrate":
+        possible_workloads = ["mpi-migrate"]
     elif workload == "omp":
         possible_workloads = ["omp"]
     elif workload == "mix":
@@ -108,7 +110,10 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     num_pos_wl = len(possible_workloads)
     for idx in range(num_tasks):
         wl_idx = int(uniform(0, num_pos_wl))
-        if possible_workloads[wl_idx] == "mpi":
+        if (
+            possible_workloads[wl_idx] == "mpi"
+            or possible_workloads[wl_idx] == "mpi-migrate"
+        ):
             possible_sizes = possible_mpi_sizes
         elif possible_workloads[wl_idx] == "omp":
             possible_sizes = possible_omp_sizes

@@ -77,6 +77,9 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     """
     mpi_trace = get_trace_from_parameters("mpi", num_tasks, num_cores_per_vm)
     omp_trace = get_trace_from_parameters("omp", num_tasks, num_cores_per_vm)
+    mpi_migrate_trace = get_trace_from_parameters(
+        "mpi-migrate", num_tasks, num_cores_per_vm
+    )
     num_vms = int(num_vms)
     out_file_name = "idle-cores_{}_{}_{}.pdf".format(
         backend, num_vms, mpi_trace[10:-4]
@@ -84,11 +87,14 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
 
-    fig, (ax_row1, ax_row2) = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
+    fig, (ax_row1, ax_row2, ax_row3) = plt.subplots(
+        nrows=3, ncols=3, figsize=(12, 12)
+    )
 
     # Plot one row of plots for MPI, and one for OpenMP
     _plot_row(ax_row1, "mpi", backend, num_vms, mpi_trace)
     _plot_row(ax_row2, "omp", backend, num_vms, omp_trace)
+    _plot_row(ax_row3, "mpi-migrate", backend, num_vms, mpi_migrate_trace)
 
     # Finally, save the figure
     # TODO: will this work?

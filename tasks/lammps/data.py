@@ -29,7 +29,7 @@ def upload(ctx, bench):
 
             if not exists(host_path):
                 print("Did not find data at {}".format(host_path))
-                exit(1)
+                raise RuntimeError("Did not find LAMMPS data!")
 
             print(
                 "Uploading LAMMPS data ({}) to {} ({})".format(
@@ -45,3 +45,6 @@ def upload(ctx, bench):
             print(
                 "Response {}: {}".format(response.status_code, response.text)
             )
+
+            if response.status_code != 200:
+                raise RuntimeError("Error uploading LAMMPS data!")

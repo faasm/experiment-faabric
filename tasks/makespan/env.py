@@ -8,10 +8,19 @@ MAKESPAN_WASM_DIR = join(MAKESPAN_DIR, "wasm")
 MAKESPAN_IMAGE_NAME = "experiment-makespan"
 MAKESPAN_DOCKERFILE = join(PROJ_ROOT, "docker", "makespan.dockerfile")
 
-EXAMPLES_DOCKER_DIR = join("/code", "faasm-examples", "examples")
+EXAMPLES_BASE_DIR = join("/code", "faasm-examples")
+EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
 LAMMPS_DOCKER_BINARY = join(LAMMPS_DOCKER_DIR, "build", "native", "lmp")
 LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
+LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
+LAMMPS_MIGRATION_DOCKER_BINARY = join(
+    LAMMPS_MIGRATION_DOCKER_DIR, "build", "native", "lmp"
+)
+LAMMPS_MIGRATION_DOCKER_WASM = join(
+    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
+)
+LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LULESH_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "LULESH")
 LULESH_DOCKER_BINARY = join(LULESH_DOCKER_DIR, "build", "native", "lulesh2.0")
 LULESH_DOCKER_WASM = join(LULESH_DOCKER_DIR, "build", "wasm", "lulesh2.0")

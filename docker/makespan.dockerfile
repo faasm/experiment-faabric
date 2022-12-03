@@ -11,6 +11,7 @@ RUN rm -rf /code \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
     && git submodule update --init -f examples/lammps \
+    && git submodule update --init -f examples/lammps-migration \
     && git submodule update --init -f examples/LULESH \
     && ./bin/create_venv.sh \
     && source ./venv/bin/activate \
@@ -19,13 +20,18 @@ RUN rm -rf /code \
         kernels \
         lammps --native \
         lammps \
+        lammps --migration --native \
+        lammps --migration \
         lulesh --native \
-        lulesh
+        lulesh \
+    && inv \
+        func lammps chain
 
 # Prepare the runtime to run the native experiments
 FROM faasm/openmpi:0.2.0
 
 COPY --from=build --chown=mpirun:mpirun /code/faasm-examples /code/faasm-examples
+COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/chain/function.wasm /code/faasm-examples/lammps_chain.wasm
 
 # Install OpenMP
 ARG DEBIAN_FRONTEND=noninteractive

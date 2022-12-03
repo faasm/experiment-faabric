@@ -22,7 +22,7 @@ from typing import Dict
 
 
 def _get_workload_from_cmdline(workload):
-    all_workloads = ["mpi", "omp"]
+    all_workloads = ["mpi", "mpi-migrate", "omp"]
     if workload == "all":
         workload = all_workloads
     elif workload in all_workloads:
@@ -45,6 +45,9 @@ def granny(
     num_cores_per_vm=8,
     num_tasks=100,
 ):
+    """
+    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,all]
+    """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
@@ -62,6 +65,9 @@ def native(
     num_tasks=100,
     ctrs_per_vm=1,
 ):
+    """
+    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,all] --ctrs-per-vm <>
+    """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
@@ -81,10 +87,6 @@ def _do_run(
     granny=False,
     trace=None,
 ):
-    """
-    Run: `inv makespan.run --backend <> --num-vms <> --ctrs-per-vm <>
-        --trace <> [--granny]`
-    """
     num_vms = int(num_vms)
     ctrs_per_vm = int(ctrs_per_vm)
 
