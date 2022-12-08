@@ -73,7 +73,8 @@ def _read_results(plot, workload, backend, num_vms, trace):
 @task(default=True)
 def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     """
-    Plot the number of idle cores over time for a specific trace and backend
+    Plot the makespan, number of idle cores over time, and execution time
+    when the cluster is saturated
     """
     mpi_trace = get_trace_from_parameters("mpi", num_tasks, num_cores_per_vm)
     omp_trace = get_trace_from_parameters("omp", num_tasks, num_cores_per_vm)
@@ -92,7 +93,7 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     # Plot one row of plots for MPI, and one for OpenMP, and one for mix
     _plot_row(ax_row1, "mpi", backend, num_vms, mpi_trace)
     _plot_row(ax_row2, "omp", backend, num_vms, omp_trace)
-    _plot_row(ax_row3, "mix", backend, num_vms, mix_trace)
+    _plot_row(ax_row3, "mix", backend, num_vms, mix_trace, True)
     # Finally, save the figure
     fig.tight_layout()
     plt.savefig(
@@ -123,7 +124,7 @@ def mods(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     pass
 
 
-def _plot_row(axes_row, workload_in, backend, num_vms, trace):
+def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
     """
     Plot one of the rows for each workload: `mpi` or `omp`
     """
@@ -145,11 +146,13 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
     for bar, key in zip(bars, labels):
         bar.set_label(LABELS[key])
         bar.set_color(COLORS[key])
-    # ax1.legend()
-    ax1.set_xticks(xs)
-    ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
     ax1.set_ylim(bottom=0)
     ax1.set_ylabel("Makespan [s]")
+    if last_row:
+        ax1.set_xticks(xs)
+        ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
+    else:
+        ax1.set_xticks([])
 
     # Second plot: CDF of idle cores
     result_dict_ic = _read_results(
@@ -173,9 +176,12 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
     ax2.legend(loc="lower right")
     ax2.set_xlim(left=0, right=100)
     ax2.set_ylim(bottom=0, top=1)
-    ax2.set_xlabel("Percentage of idle cores [%]")
-    ax2.set_ylabel("CDF [%]")
     ax2.set_title("{}".format(workload_in))
+    ax2.set_ylabel("CDF [%]")
+    if last_row:
+        ax2.set_xlabel("Percentage of idle cores [%]")
+    else:
+        ax2.set_xticks([])
 
     # Third plot: CDF of execution time and normalised (?) service time
     for workload in result_dict_et:
@@ -192,5 +198,8 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace):
     ax3.legend(loc="upper left")
     ax3.set_xlim(left=0)
     ax3.set_ylim(bottom=0, top=1)
-    ax3.set_xlabel("Execution Time [s]")
     ax3.set_ylabel("CDF [%]")
+    if last_row:
+        ax3.set_xlabel("Execution Time [s]")
+    else:
+        ax3.set_xticks([])
