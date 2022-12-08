@@ -20,11 +20,24 @@ from tasks.util.env import RESULTS_DIR
 from time import sleep
 from typing import Dict
 
+# imports to delete after test runs
+from os.path import basename
+from pprint import pprint
+from requests import post
+from tasks.util.faasm import get_faasm_invoke_host_port
+from tasks.lammps.env import get_faasm_benchmark
+
 
 def _get_workload_from_cmdline(workload):
-    all_workloads = ["mpi", "mpi-migrate", "omp"]
+    base_workloads = ["mpi", "omp", "mix"]
+    exp_workloads = ["mpi-migrate"]
+    all_workloads = ["mix", "mpi", "mpi-migrate", "omp"]
     if workload == "all":
         workload = all_workloads
+    elif workload == "base":
+        workload = base_workloads
+    elif workload == "exp":
+        workload = exp_workloads
     elif workload in all_workloads:
         workload = [workload]
     else:
@@ -46,7 +59,7 @@ def granny(
     num_tasks=100,
 ):
     """
-    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,all]
+    Run: `inv makespan.run.native --workload [omp,mpi,mix,mpi-migrate,all]
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
@@ -66,7 +79,7 @@ def native(
     ctrs_per_vm=1,
 ):
     """
-    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,all] --ctrs-per-vm <>
+    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,mix,all] --ctrs-per-vm <>
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
@@ -234,3 +247,80 @@ def idle_cores_from_exec_task(
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
+
+
+@task()
+def migration_test(ctx):
+    host, port = get_faasm_invoke_host_port()
+    url = "http://{}:{}".format(host, port)
+    user = "lammps"
+    func = "migration"
+    data_file = get_faasm_benchmark("compute")["data"][0]
+    cmdline = "-in faasm://lammps-data/{}".format(basename(data_file))
+
+    # First, flush the host state
+    print("Flushing functions, state, and shared files from workers")
+    msg = {"type": 3}
+    print("Posting to {} msg:".format(url))
+    pprint(msg)
+    response = post(url, json=msg, timeout=None)
+    if response.status_code != 200:
+        print(
+            "Flush request failed: {}:\n{}".format(
+                response.status_code, response.text
+            )
+        )
+    print("Waiting for flush to propagate...")
+    sleep(5)
+    print("Done waiting")
+
+    msg = {
+        "user": user,
+        "function": func,
+        "mpi": True,
+        "mpi_world_size": 4,
+        "async": True,
+        "migration_check_period": 5,
+        "cmdline": cmdline,
+        "topology_hint": "UNDERFULL",
+    }
+    print("Posting to {} msg:".format(url))
+    pprint(msg)
+
+    # Post asynch request
+    response = post(url, json=msg, timeout=None)
+    # Get the async message id
+    if response.status_code != 200:
+        print(
+            "Initial request failed: {}:\n{}".format(
+                response.status_code, response.text
+            )
+        )
+    print("Response: {}".format(response.text))
+    msg_id = int(response.text.strip())
+
+    # Start polling for the result
+    print("Polling message {}".format(msg_id))
+    while True:
+        interval = 2
+        sleep(interval)
+
+        status_msg = {
+            "user": user,
+            "function": func,
+            "status": True,
+            "id": msg_id,
+        }
+        response = post(url, json=status_msg)
+
+        if response.text.startswith("RUNNING"):
+            continue
+        elif response.text.startswith("FAILED"):
+            raise RuntimeError("Call failed")
+        elif not response.text:
+            raise RuntimeError("Empty status response")
+        else:
+            # If we reach this point it means the call has succeeded
+            break
+
+        print("Success!")
