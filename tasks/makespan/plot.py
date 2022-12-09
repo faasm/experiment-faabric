@@ -78,7 +78,6 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     """
     mpi_trace = get_trace_from_parameters("mpi", num_tasks, num_cores_per_vm)
     omp_trace = get_trace_from_parameters("omp", num_tasks, num_cores_per_vm)
-    mix_trace = get_trace_from_parameters("mix", num_tasks, num_cores_per_vm)
     num_vms = int(num_vms)
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
@@ -92,8 +91,7 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     )
     # Plot one row of plots for MPI, and one for OpenMP, and one for mix
     _plot_row(ax_row1, "mpi", backend, num_vms, mpi_trace)
-    _plot_row(ax_row2, "omp", backend, num_vms, omp_trace)
-    _plot_row(ax_row3, "mix", backend, num_vms, mix_trace, True)
+    _plot_row(ax_row2, "omp", backend, num_vms, omp_trace, True)
     # Finally, save the figure
     fig.tight_layout()
     plt.savefig(
