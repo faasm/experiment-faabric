@@ -71,7 +71,9 @@ def _read_results(plot, workload, backend, num_vms, trace):
 
 
 @task(default=True)
-def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
+def saturation(
+    ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8
+):
     """
     Plot the makespan, number of idle cores over time, and execution time
     when the cluster is saturated
@@ -86,9 +88,7 @@ def plot(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     out_file_name = "idle-cores_{}_{}_{}.pdf".format(
         backend, num_vms, mpi_trace[10:-4]
     )
-    fig, (ax_row1, ax_row2, ax_row3) = plt.subplots(
-        nrows=3, ncols=3, figsize=(12, 8)
-    )
+    fig, (ax_row1, ax_row2) = plt.subplots(nrows=2, ncols=3, figsize=(12, 4))
     # Plot one row of plots for MPI, and one for OpenMP, and one for mix
     _plot_row(ax_row1, "mpi", backend, num_vms, mpi_trace)
     _plot_row(ax_row2, "omp", backend, num_vms, omp_trace, True)
@@ -148,7 +148,9 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
     ax1.set_ylabel("Makespan [s]")
     if last_row:
         ax1.set_xticks(xs)
-        ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
+        ax1.set_xticklabels(
+            [LABELS[_l] for _l in labels], rotation=25, ha="right"
+        )
     else:
         ax1.set_xticks([])
 
@@ -162,22 +164,20 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
         xs = [
             int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]
         ]
-        ax2.hist(
+        bars = ax2.hist(
             xs,
             nbins,
-            label=LABELS[workload],
             color=COLORS[workload],
             histtype="step",
             density=True,
             cumulative=True,
         )
-    ax2.legend(loc="lower right")
     ax2.set_xlim(left=0, right=100)
     ax2.set_ylim(bottom=0, top=1)
     ax2.set_title("{}".format(workload_in))
     ax2.set_ylabel("CDF [%]")
     if last_row:
-        ax2.set_xlabel("Percentage of idle cores [%]")
+        ax2.set_xlabel("Percentage of idle vCPUs [%]")
     else:
         ax2.set_xticks([])
 
@@ -187,13 +187,11 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
         ax3.hist(
             xs,
             nbins,
-            label=LABELS[workload],
             color=COLORS[workload],
             histtype="step",
             density=True,
             cumulative=True,
         )
-    ax3.legend(loc="upper left")
     ax3.set_xlim(left=0)
     ax3.set_ylim(bottom=0, top=1)
     ax3.set_ylabel("CDF [%]")
@@ -201,3 +199,122 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
         ax3.set_xlabel("Execution Time [s]")
     else:
         ax3.set_xticks([])
+
+
+@task(default=False)
+def scaling(
+    ctx, backend="k8s", num_vms=None, num_tasks=None, num_cores_per_vm=8
+):
+    """
+    Creates two plots:
+        ->Makespan for multiple cluster sizes and numner of tasks combinations
+        ->Average per-job execution time for multiple cluster sizes and number of tasks combinations
+    """
+    if not num_vms:
+        num_vms = [16, 32, 64, 128]
+    else:
+        num_vms = [int(num_vms)]
+    if not num_tasks:
+        num_tasks = [50, 100, 200, 400]
+    else:
+        num_tasks = [int(num_tasks)]
+
+    if len(num_tasks) != len(num_vms):
+        raise RuntimeError(
+            "Lengths differ! {} != {}".format(len(num_tasks), len(num_vms))
+        )
+
+    traces = []
+    for tasks in num_tasks:
+        traces.append(
+            get_trace_from_parameters("mpi", tasks, num_cores_per_vm)
+        )
+
+    out_file_name = "scaling_{}.pdf".format(backend)
+    makedirs(PLOTS_DIR, exist_ok=True)
+    plt.style.use(MPL_STYLE_FILE)
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+
+    result_dict_et = {}
+    for num_vm, trace in zip(num_vms, traces):
+        result_dict_et[num_vm] = _read_results(
+            "exec-time", "mpi", backend, num_vm, trace
+        )
+
+    makespans = {}
+    exec_times = {}
+    labels = list(LABELS.keys())
+    labels.sort()
+    for label in labels:
+        for num_vm in num_vms:
+            if label not in makespans:
+                makespans[label] = []
+                exec_times[label] = []
+            makespans[label].append(result_dict_et[num_vm][label]["makespan"])
+            exec_times[label].append(
+                result_dict_et[num_vm][label]["exec-time"]
+            )
+    """
+        #For the second plot
+        granny_execution.append(mean(current_dict[labels[0]]["exec-time"]))
+        native1_execution.append(mean(current_dict[labels[1]]["exec-time"]))
+        native2_execution.append(mean(current_dict[labels[2]]["exec-time"]))
+        native4_execution.append(mean(current_dict[labels[3]]["exec-time"]))
+        native8_execution.append(mean(current_dict[labels[4]]["exec-time"]))
+    """
+
+    # First plot: bar plot of makespans
+    width = 0.15
+    xs = arange(len(num_vms))
+    for ind, label in enumerate(labels):
+        ax1.bar(
+            xs - width * 2 + width * ind,
+            makespans[label],
+            width,
+            label=label,
+            color=COLORS[label],
+        )
+    ax1.set_ylabel("Makespan [s]")
+    xlabels = [
+        "{} VMs\n{} jobs".format(num_vm, ntasks)
+        for num_vm, ntasks in zip(num_vms, num_tasks)
+    ]
+    ax1.set_xticks(xs)
+    ax1.set_xticklabels(xlabels, rotation=25, ha="center")
+    ax1.legend(loc="upper left")
+    ax1.set_ylim(bottom=0, top=800)
+
+    # Second plot: box plot of execution times
+    for ind, label in enumerate(labels):
+        bplot = ax2.boxplot(
+            exec_times[label],
+            positions=[x - width * 2 + width * ind for x in xs],
+            widths=width,
+            patch_artist=True,
+            flierprops=dict(
+                marker=".",
+                markerfacecolor=COLORS[label],
+                markersize=1,
+                linestyle="none",
+                markeredgecolor=COLORS[label],
+            ),
+            boxprops=dict(linewidth=0),
+            medianprops=dict(color="black", linewidth=1),
+            whiskerprops=dict(linewidth=1),
+            showfliers=False,
+            vert=True,
+        )
+        for box in bplot["boxes"]:
+            box.set_facecolor(COLORS[label])
+    ax1.set_ylim(bottom=0)
+    ax2.set_xticks(xs)
+    ax2.set_xticklabels(xlabels, rotation=25, ha="center")
+    ax2.set_ylabel("Execution time [s]")
+
+    fig.tight_layout()
+    plt.savefig(
+        join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
+    )
+
+    print("Plot saved to: {}".format(join(PLOTS_DIR, out_file_name)))
