@@ -205,11 +205,6 @@ def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
 def scaling(
     ctx, backend="k8s", num_vms=None, num_tasks=None, num_cores_per_vm=8
 ):
-    """
-    Creates two plots:
-        ->Makespan for multiple cluster sizes and numner of tasks combinations
-        ->Average per-job execution time for multiple cluster sizes and number of tasks combinations
-    """
     if not num_vms:
         num_vms = [16, 32, 64, 128]
     else:
@@ -255,14 +250,6 @@ def scaling(
             exec_times[label].append(
                 result_dict_et[num_vm][label]["exec-time"]
             )
-    """
-        #For the second plot
-        granny_execution.append(mean(current_dict[labels[0]]["exec-time"]))
-        native1_execution.append(mean(current_dict[labels[1]]["exec-time"]))
-        native2_execution.append(mean(current_dict[labels[2]]["exec-time"]))
-        native4_execution.append(mean(current_dict[labels[3]]["exec-time"]))
-        native8_execution.append(mean(current_dict[labels[4]]["exec-time"]))
-    """
 
     # First plot: bar plot of makespans
     width = 0.15
@@ -272,7 +259,7 @@ def scaling(
             xs - width * 2 + width * ind,
             makespans[label],
             width,
-            label=label,
+            label=LABELS[label],
             color=COLORS[label],
         )
     ax1.set_ylabel("Makespan [s]")
