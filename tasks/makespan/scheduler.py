@@ -117,13 +117,12 @@ def thread_pool_thread(
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
             # We always use the same LAMMPS benchmark
-            # data_file = get_faasm_benchmark("compute")["data"][0]
-            data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark("compute")["data"][0]
+            # data_file = get_faasm_benchmark("compute-xl")["data"][0]
 
         # Record the start timestamp
         start_ts = 0
         if workload in NATIVE_WORKLOAD:
-            # TODO(openmp): add the option of openmp here
             if (
                 work_item.task.app == "mpi"
                 or work_item.task.app == "mpi-migrate"
@@ -206,6 +205,7 @@ def thread_pool_thread(
                     "user": user,
                     "function": func,
                     "cmdline": cmdline,
+                    "mpi": True,
                     "mpi_world_size": work_item.task.size,
                     "async": True,
                 }

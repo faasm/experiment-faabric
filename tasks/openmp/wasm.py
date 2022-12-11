@@ -1,14 +1,11 @@
 from invoke import task
+from os.path import join
 from requests import put
-from tasks.lammps.env import LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
-from tasks.lammps.data import upload as lammps_data_upload
+from subprocess import CalledProcessError, run
 from tasks.makespan.env import (
     DGEMM_DOCKER_WASM,
     DGEMM_FAASM_USER,
     DGEMM_FAASM_FUNC,
-    LAMMPS_DOCKER_WASM,
-    LAMMPS_MIGRATION_DOCKER_WASM,
-    LAMMPS_FAASM_MIGRATION_FUNC,
     LULESH_DOCKER_WASM,
     LULESH_FAASM_USER,
     LULESH_FAASM_FUNC,
@@ -16,16 +13,14 @@ from tasks.makespan.env import (
 )
 from tasks.util.env import PROJ_ROOT, get_version
 from tasks.util.faasm import get_faasm_upload_host_port
-from subprocess import CalledProcessError, run
 
 
-@task
+@task(default=True)
 def upload(ctx):
     """
-    Upload the two functions and two pieces of input data needed for the
-    experiment
+    Upload the OpenMP functions to Granny
     """
-
+    # TODO: remove duplication with makespan experiment!
     def start_container(image_name):
         """
         Start build container in the background
@@ -48,31 +43,18 @@ def upload(ctx):
     # First, start the build container
     start_container(tmp_image_name)
 
-    # TODO: re-use the path from somewhere
+    # TODO: eventually pass this as an argument to the shared function
     wasm_file_details = [
-        #        {
-        #            "wasm_file": LAMMPS_DOCKER_WASM,
-        #            "wasm_user": LAMMPS_FAASM_USER,
-        #            "wasm_function": LAMMPS_FAASM_FUNC,
-        #            "copies": 1,
-        #        },
-        #        {
-        #            "wasm_file": LULESH_DOCKER_WASM,
-        #            "wasm_user": LULESH_FAASM_USER,
-        #            "wasm_function": LULESH_FAASM_FUNC,
-        #            "copies": 1,
-        #        },
-        #        {
-        #            "wasm_file": DGEMM_DOCKER_WASM,
-        #            "wasm_user": DGEMM_FAASM_USER,
-        #            "wasm_function": DGEMM_FAASM_FUNC,
-        #            "copies": 100,
-        #        },
         {
-            # "wasm_file": "/home/csegarra/examples-faasm/examples/lammps-migration/build/wasm/lmp",
-            "wasm_file": LAMMPS_MIGRATION_DOCKER_WASM,
-            "wasm_user": LAMMPS_FAASM_USER,
-            "wasm_function": LAMMPS_FAASM_MIGRATION_FUNC,
+            "wasm_file": LULESH_DOCKER_WASM,
+            "wasm_user": LULESH_FAASM_USER,
+            "wasm_function": LULESH_FAASM_FUNC,
+            "copies": 1,
+        },
+        {
+            "wasm_file": DGEMM_DOCKER_WASM,
+            "wasm_user": DGEMM_FAASM_USER,
+            "wasm_function": DGEMM_FAASM_FUNC,
             "copies": 1,
         },
     ]
@@ -115,16 +97,6 @@ def upload(ctx):
             if response.status_code != 200:
                 print("Error! Upload failed, check the upload pod logs")
                 stop_container(tmp_image_name)
-
-    # Upload LAMMPS data
-    try:
-        lammps_data_upload(
-            ctx, ["compute", "compute-xl", "compute-xxl", "network"]
-        )
-    except RuntimeError as e:
-        print("Detected error while uploading LAMMPS data!")
-        stop_container(tmp_image_name)
-        raise e
 
     # Lastly, remove the container
     stop_container(tmp_image_name)

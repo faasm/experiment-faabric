@@ -84,14 +84,78 @@ def saturation(
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
 
-    # First figure: MPI, OpenMP, and `mix` at saturation
-    out_file_name = "idle-cores_{}_{}_{}.pdf".format(
-        backend, num_vms, mpi_trace[10:-4]
-    )
-    fig, (ax_row1, ax_row2) = plt.subplots(nrows=2, ncols=3, figsize=(12, 4))
     # Plot one row of plots for MPI, and one for OpenMP, and one for mix
-    _plot_row(ax_row1, "mpi", backend, num_vms, mpi_trace)
-    _plot_row(ax_row2, "omp", backend, num_vms, omp_trace, True)
+    _plot_row("mpi", backend, num_vms, mpi_trace)
+    _plot_row("omp", backend, num_vms, omp_trace)
+
+
+def _plot_row(workload_in, backend, num_vms, trace):
+    """
+    Plot one of the rows for each workload: `mpi` or `omp`
+    """
+    out_file_name = "idle-cores_{}_{}_{}_{}.pdf".format(
+        workload_in, backend, num_vms, trace[10:-4]
+    )
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(12, 2))
+
+    # First plot: breakdown of makespans
+    result_dict_et = _read_results(
+        "exec-time", workload_in, backend, num_vms, trace
+    )
+    num_workloads = len(result_dict_et)
+    width = 0.5
+    xs = arange(num_workloads)
+    labels = list(result_dict_et.keys())
+    labels.sort()
+    ys = [result_dict_et[la]["makespan"] for la in labels]
+    bars = ax1.bar(xs, ys, width)
+    for bar, key in zip(bars, labels):
+        bar.set_label(LABELS[key])
+        bar.set_color(COLORS[key])
+    ax1.set_ylim(bottom=0)
+    ax1.set_ylabel("Makespan [s]")
+    ax1.set_xticks(xs)
+    ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
+
+    # Second plot: CDF of idle cores
+    result_dict_ic = _read_results(
+        "idle-cores", workload_in, backend, num_vms, trace
+    )
+    total_num_cores = num_vms * get_num_cores_from_trace(trace)
+    nbins = 100
+    for workload in result_dict_ic:
+        xs = [
+            int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]
+        ]
+        bars = ax2.hist(
+            xs,
+            nbins,
+            color=COLORS[workload],
+            histtype="step",
+            density=True,
+            cumulative=True,
+        )
+    ax2.set_xlim(left=0, right=100)
+    ax2.set_ylim(bottom=0, top=1)
+    ax2.set_ylabel("CDF [%]")
+    ax2.set_xlabel("Percentage of idle vCPUs [%]")
+
+    # Third plot: CDF of execution time and normalised (?) service time
+    for workload in result_dict_et:
+        xs = result_dict_et[workload]["exec-time"]
+        ax3.hist(
+            xs,
+            nbins,
+            color=COLORS[workload],
+            histtype="step",
+            density=True,
+            cumulative=True,
+        )
+    ax3.set_xlim(left=0)
+    ax3.set_ylim(bottom=0, top=1)
+    ax3.set_ylabel("CDF [%]")
+    ax3.set_xlabel("Execution Time [s]")
+
     # Finally, save the figure
     fig.tight_layout()
     plt.savefig(
@@ -122,85 +186,6 @@ def mods(ctx, backend="k8s", num_vms=32, num_tasks=100, num_cores_per_vm=8):
     pass
 
 
-def _plot_row(axes_row, workload_in, backend, num_vms, trace, last_row=False):
-    """
-    Plot one of the rows for each workload: `mpi` or `omp`
-    """
-    ax1 = axes_row[0]
-    ax2 = axes_row[1]
-    ax3 = axes_row[2]
-
-    # First plot: breakdown of makespans
-    result_dict_et = _read_results(
-        "exec-time", workload_in, backend, num_vms, trace
-    )
-    num_workloads = len(result_dict_et)
-    width = 0.5
-    xs = arange(num_workloads)
-    labels = list(result_dict_et.keys())
-    labels.sort()
-    ys = [result_dict_et[la]["makespan"] for la in labels]
-    bars = ax1.bar(xs, ys, width)
-    for bar, key in zip(bars, labels):
-        bar.set_label(LABELS[key])
-        bar.set_color(COLORS[key])
-    ax1.set_ylim(bottom=0)
-    ax1.set_ylabel("Makespan [s]")
-    if last_row:
-        ax1.set_xticks(xs)
-        ax1.set_xticklabels(
-            [LABELS[_l] for _l in labels], rotation=25, ha="right"
-        )
-    else:
-        ax1.set_xticks([])
-
-    # Second plot: CDF of idle cores
-    result_dict_ic = _read_results(
-        "idle-cores", workload_in, backend, num_vms, trace
-    )
-    total_num_cores = num_vms * get_num_cores_from_trace(trace)
-    nbins = 100
-    for workload in result_dict_ic:
-        xs = [
-            int(ic / total_num_cores * 100) for ic in result_dict_ic[workload]
-        ]
-        bars = ax2.hist(
-            xs,
-            nbins,
-            color=COLORS[workload],
-            histtype="step",
-            density=True,
-            cumulative=True,
-        )
-    ax2.set_xlim(left=0, right=100)
-    ax2.set_ylim(bottom=0, top=1)
-    ax2.set_title("{}".format(workload_in))
-    ax2.set_ylabel("CDF [%]")
-    if last_row:
-        ax2.set_xlabel("Percentage of idle vCPUs [%]")
-    else:
-        ax2.set_xticks([])
-
-    # Third plot: CDF of execution time and normalised (?) service time
-    for workload in result_dict_et:
-        xs = result_dict_et[workload]["exec-time"]
-        ax3.hist(
-            xs,
-            nbins,
-            color=COLORS[workload],
-            histtype="step",
-            density=True,
-            cumulative=True,
-        )
-    ax3.set_xlim(left=0)
-    ax3.set_ylim(bottom=0, top=1)
-    ax3.set_ylabel("CDF [%]")
-    if last_row:
-        ax3.set_xlabel("Execution Time [s]")
-    else:
-        ax3.set_xticks([])
-
-
 @task(default=False)
 def scaling(
     ctx, backend="k8s", num_vms=None, num_tasks=None, num_cores_per_vm=8
@@ -229,7 +214,7 @@ def scaling(
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
 
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 3))
 
     result_dict_et = {}
     for num_vm, trace in zip(num_vms, traces):
@@ -269,8 +254,8 @@ def scaling(
     ]
     ax1.set_xticks(xs)
     ax1.set_xticklabels(xlabels, rotation=25, ha="center")
-    ax1.legend(loc="upper left")
-    ax1.set_ylim(bottom=0, top=800)
+    ax1.legend(loc="upper left", ncol=2)
+    ax1.set_ylim(bottom=0, top=700)
 
     # Second plot: box plot of execution times
     for ind, label in enumerate(labels):
