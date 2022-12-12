@@ -1,26 +1,25 @@
 from invoke import task
-from json import loads as json_loads
 from os import makedirs
 from os.path import join
-from pprint import pprint
-from requests import post
-from time import sleep, time
 from tasks.util.env import (
+    DGEMM_DOCKER_BINARY,
+    DGEMM_FAASM_USER,
+    DGEMM_FAASM_FUNC,
+    LULESH_DOCKER_BINARY,
+    LULESH_FAASM_USER,
+    LULESH_FAASM_FUNC,
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
     flush_hosts,
+    post_async_msg_and_get_result_json,
 )
+from time import time
 
 # TODO: move this to tasks.openmp.env
 from tasks.makespan.env import (
-    DGEMM_DOCKER_BINARY,
-    DGEMM_FAASM_USER,
-    DGEMM_FAASM_FUNC,
-    LULESH_FAASM_USER,
-    LULESH_FAASM_FUNC,
     get_dgemm_cmdline,
     get_lulesh_cmdline,
 )
@@ -53,12 +52,13 @@ def _write_csv_line(csv_name, num_threads, run, exec_time):
 
 
 @task
-def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
+def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
         # num_threads = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
-        num_threads = [1, 2, 3, 4, 5, 6, 7, 8]
+        # num_threads = [1, 2, 3, 4, 5, 6, 7, 8]
+        num_threads = [7, 8]
 
     all_workloads = ["dgemm", "lulesh", "all"]
     if workload not in all_workloads:
@@ -78,14 +78,14 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
     for wload in workload:
         csv_name = "openmp_{}_granny.csv".format(wload)
         _init_csv_file(csv_name)
-        flush_hosts()
         for r in range(int(repeats)):
             for nthread in num_threads:
+
+                flush_hosts()
 
                 if wload == "dgemm":
                     user = DGEMM_FAASM_USER
                     func = DGEMM_FAASM_FUNC
-                    # cmdline = get_dgemm_cmdline(nthread)
                     cmdline = get_dgemm_cmdline(nthread, iterations=20)
                 else:
                     user = LULESH_FAASM_USER
@@ -99,56 +99,17 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
                 }
                 if wload == "lulesh":
                     msg["input_data"] = str(nthread)
-                print("Posting to {} msg:".format(url))
-                pprint(msg)
-                # Post asynch request
-                response = post(url, json=msg, timeout=None)
 
-                # Get the async message id
-                if response.status_code != 200:
-                    print(
-                        "Initial request failed: {}:\n{}".format(
-                            response.status_code, response.text
-                        )
-                    )
-                print("Response: {}".format(response.text))
-                msg_id = int(response.text.strip())
-
-                # Start polling for the result
-                print("Polling message {}".format(msg_id))
-                while True:
-                    interval = 2
-                    sleep(interval)
-
-                    status_msg = {
-                        "user": user,
-                        "function": func,
-                        "status": True,
-                        "id": msg_id,
-                    }
-                    response = post(url, json=status_msg)
-
-                    if not response.text or response.text.startswith("FAILED"):
-                        raise RuntimeError("Error running task!")
-                    elif response.text.startswith("RUNNING"):
-                        continue
-                    elif not response.text:
-                        raise RuntimeError("Empty status response")
-
-                    # If we reach this point it means the call has succeeded
-                    result_json = json_loads(response.text, strict=False)
-                    actual_time = int(
-                        get_faasm_exec_time_from_json(result_json)
-                    )
-                    _write_csv_line(csv_name, nthread, r, actual_time)
-                    break
-                print("Actual time for msg {}: {}".format(msg_id, actual_time))
-
-                sleep(1)
+                result_json = post_async_msg_and_get_result_json(msg, url)
+                actual_time = int(
+                    get_faasm_exec_time_from_json(result_json)
+                )
+                _write_csv_line(csv_name, nthread, r, actual_time)
+                print("Actual time: {}".format(actual_time))
 
 
 @task
-def native(ctx, workload="dgemm", num_threads=None, repeats=5, ctrs_per_vm=1):
+def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
@@ -175,9 +136,16 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=5, ctrs_per_vm=1):
         _init_csv_file(csv_name)
         for r in range(int(repeats)):
             for nthread in num_threads:
-                openmp_cmd = "bash -c '{} {}'".format(
-                    DGEMM_DOCKER_BINARY,
-                    get_dgemm_cmdline(nthread, iterations=20),
+                if wload == "dgemm":
+                    binary = DGEMM_DOCKER_BINARY,
+                    cmdline = get_dgemm_cmdline(nthread, iterations=20)
+                else:
+                    binary = LULESH_DOCKER_BINARY
+                    cmdline = get_lulesh_cmdline()
+                openmp_cmd = "bash -c 'OPENMP_NUM_THREADS={} {} {}'".format(
+                    nthread,
+                    binary,
+                    cmdline
                 )
 
                 exec_cmd = [

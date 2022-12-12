@@ -25,13 +25,15 @@ RUN rm -rf /code \
         lulesh --native \
         lulesh \
     && inv \
-        func lammps chain
+        func lammps chain \
+        func mpi migrate
 
 # Prepare the runtime to run the native experiments
 FROM faasm/openmpi:0.2.0
 
 COPY --from=build --chown=mpirun:mpirun /code/faasm-examples /code/faasm-examples
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/chain/function.wasm /code/faasm-examples/lammps_chain.wasm
+COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/mpi/migrate/function.wasm /code/faasm-examples/mpi_migrate.wasm
 
 # Install OpenMP
 ARG DEBIAN_FRONTEND=noninteractive

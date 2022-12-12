@@ -9,8 +9,9 @@ from tasks.makespan.util import (
     get_trace_from_parameters,
 )
 from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
-from tasks.util.plot import PLOT_COLORS, PLOT_LABELS
+from tasks.util.plot import PLOT_COLORS, PLOT_LABELS, PLOT_PATTERNS
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -99,6 +100,8 @@ def _plot_row(workload_in, backend, num_vms, trace):
     for bar, key in zip(bars, labels):
         bar.set_label(PLOT_LABELS[key])
         bar.set_color(PLOT_COLORS[key])
+        bar.set_hatch(PLOT_PATTERNS[labels.index(key)])
+        bar.set_edgecolor("black")
     ax1.set_ylim(bottom=0)
     ax1.set_ylabel("Makespan [s]")
     ax1.set_xticks(xs)
@@ -234,6 +237,8 @@ def scaling(
             width,
             label=PLOT_LABELS[label],
             color=PLOT_COLORS[label],
+            hatch=PLOT_PATTERNS[ind],
+            edgecolor="black",
         )
     ax.set_ylabel("Makespan [s]", fontsize=12)
     xlabels = [
@@ -242,8 +247,7 @@ def scaling(
     ]
     ax.set_xticks(xs)
     ax.set_xticklabels(xlabels, rotation=25, ha="center", fontsize=12)
-    ax.legend(loc="upper left", ncol=2)
-    ax.set_ylim(bottom=0, top=700)
+    ax.set_ylim(bottom=0)
     fig.tight_layout()
     plt.savefig(
         join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
@@ -253,6 +257,7 @@ def scaling(
     # Second plot: box plot of execution times
     out_file_name = "scaling_{}_exec_time.pdf".format(backend)
     fig, ax = plt.subplots(figsize=(4, 3))
+    legend_handles = []
     for ind, label in enumerate(labels):
         bplot = ax.boxplot(
             exec_times[label],
@@ -274,7 +279,16 @@ def scaling(
         )
         for box in bplot["boxes"]:
             box.set_facecolor(PLOT_COLORS[label])
-    ax.set_ylim(bottom=0)
+            box.set_hatch(PLOT_PATTERNS[labels.index(label)])
+        legend_handles.append(
+            mpatches.Patch(facecolor=PLOT_COLORS[label],
+                           hatch=PLOT_PATTERNS[ind],
+                           edgecolor="black",
+                           lw=1,
+                           label=label)
+        )
+    ax.legend(handles=legend_handles, loc="upper left", ncol=2, prop={'size': 12})
+    ax.set_ylim(bottom=0, top=300)
     ax.set_xticks(xs)
     ax.set_xticklabels(xlabels, rotation=25, ha="center", fontsize=12)
     ax.set_ylabel("Execution time [s]", fontsize=12)
