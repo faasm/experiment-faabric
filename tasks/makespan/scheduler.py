@@ -654,7 +654,7 @@ class BatchScheduler:
             # the inter-arrival times
             if get_workload_from_trace(self.state.trace_str) == "mpi-migrate":
                 print(
-                    "Sleeping {} seconds to simulate inter-arrival time...".format(
+                    "Sleeping {} sec to simulate inter-arrival time...".format(
                         t.inter_arrival_time
                     )
                 )
