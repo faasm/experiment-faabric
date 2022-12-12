@@ -14,4 +14,4 @@ PLOT_LABELS = {
     "native-8": "8-ctr-per-vm",
 }
 
-PLOT_PATTERNS = ["//", "\\\\", "||", "-"]
+PLOT_PATTERNS = ["//", "\\\\", "||", "-", "*-"]

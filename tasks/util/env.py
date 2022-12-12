@@ -67,6 +67,12 @@ KERNELS_NATIVE_DIR = join(KERNELS_DOCKER_DIR, "build", "native")
 KERNELS_FAASM_USER = "kernels-mpi"
 KERNELS_FAASM_FUNCS = ["p2p", "sparse", "transpose", "reduce"]
 
+# --- MPI Migration Microbenchmark
+
+MPI_MIGRATE_WASM_BINARY = join(EXAMPLES_BASE_DIR, "mpi_migrate.wasm")
+MPI_MIGRATE_FAASM_USER = "mpi"
+MPI_MIGRATE_FAASM_FUNC = "migrate"
+
 
 def get_version():
     ver_file = join(PROJ_ROOT, "VERSION")
