@@ -25,6 +25,9 @@ MPL_STYLE_FILE = join(PROJ_ROOT, "faasm.mplstyle")
 
 EXAMPLES_BASE_DIR = join("/code", "faasm-examples")
 EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
+
+# --- LAMMPS ---
+
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
 LAMMPS_DOCKER_BINARY = join(LAMMPS_DOCKER_DIR, "build", "native", "lmp")
 LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
@@ -39,16 +42,30 @@ LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LAMMPS_FAASM_USER = "lammps"
 LAMMPS_FAASM_FUNC = "main"
 LAMMPS_FAASM_DATA_PREFIX = "/lammps-data"
+
+# --- LULESH ---
+
 LULESH_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "LULESH")
 LULESH_DOCKER_BINARY = join(LULESH_DOCKER_DIR, "build", "native", "lulesh2.0")
 LULESH_DOCKER_WASM = join(LULESH_DOCKER_DIR, "build", "wasm", "lulesh2.0")
 LULESH_FAASM_USER = "lulesh"
 LULESH_FAASM_FUNC = "main"
+
+# --- DGEMM (OpenMP Kernel) ---
+
 DGEMM_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
 DGEMM_DOCKER_BINARY = join(DGEMM_DOCKER_DIR, "build", "native", "omp_dgemm.o")
 DGEMM_DOCKER_WASM = join(DGEMM_DOCKER_DIR, "build", "wasm", "omp_dgemm.wasm")
 DGEMM_FAASM_USER = "dgemm"
 DGEMM_FAASM_FUNC = "main"
+
+# --- MPI Kernels ---
+
+KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
+KERNELS_WASM_DIR = join(KERNELS_DOCKER_DIR, "build", "wasm")
+KERNELS_NATIVE_DIR = join(KERNELS_DOCKER_DIR, "build", "native")
+KERNELS_FAASM_USER = "kernels-mpi"
+KERNELS_FAASM_FUNCS = ["p2p", "sparse", "transpose", "reduce"]
 
 
 def get_version():

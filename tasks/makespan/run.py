@@ -79,7 +79,7 @@ def native(
     ctrs_per_vm=1,
 ):
     """
-    Run: `inv makespan.run.native --workload [omp,mpi,mpi-migrate,mix,all] --ctrs-per-vm <>
+    Run the native baselines of the makespan experiment
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:

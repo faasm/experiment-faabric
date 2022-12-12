@@ -1,8 +1,9 @@
 from configparser import ConfigParser
-from pprint import pprint
+from json import loads as json_loads
 from os.path import expanduser, join, exists
+from pprint import pprint
+from requests import post
 
-import requests
 import time
 
 FAASM_INI_FILE = join(expanduser("~"), ".config", "faasm.ini")
@@ -73,7 +74,7 @@ def flush_hosts():
     print("Flushing functions, state, and shared files from workers")
     print("Posting to {} msg:".format(url))
     pprint(msg)
-    response = requests.post(url, json=msg, timeout=None)
+    response = post(url, json=msg, timeout=None)
     if response.status_code != 200:
         print(
             "Flush request failed: {}:\n{}".format(
@@ -83,3 +84,45 @@ def flush_hosts():
     print("Waiting for flush to propagate...")
     time.sleep(5)
     print("Done waiting")
+
+
+def post_async_msg_and_get_result_json(msg, url):
+    print("Posting to {} msg:".format(url))
+    pprint(msg)
+
+    # Post asynch request
+    response = post(url, json=msg, timeout=None)
+    # Get the async message id
+    if response.status_code != 200:
+        print(
+            "Initial request failed: {}:\n{}".format(
+                response.status_code, response.text
+            )
+        )
+    print("Response: {}".format(response.text))
+    msg_id = int(response.text.strip())
+
+    # Start polling for the result
+    print("Polling message {}".format(msg_id))
+    while True:
+        interval = 2
+        time.sleep(interval)
+
+        status_msg = {
+            "user": msg["user"],
+            "function": msg["function"],
+            "status": True,
+            "id": msg_id,
+        }
+        response = post(url, json=status_msg)
+
+        if not response.text or response.text.startswith("FAILED"):
+            raise RuntimeError("Error running task!")
+        elif response.text.startswith("RUNNING"):
+            continue
+        elif not response.text:
+            raise RuntimeError("Empty status response")
+
+        # If we reach this point it means the call has succeeded
+        result_json = json_loads(response.text, strict=False)
+        return result_json

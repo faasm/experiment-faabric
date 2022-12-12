@@ -86,7 +86,7 @@ def lammps(ctx):
 
 def _read_kernels_results():
     result_dict = {}
-    results_dir = join(PROJ_ROOT, "results", "kernels")
+    results_dir = join(PROJ_ROOT, "results", "mpi")
 
     for csv in glob(join(results_dir, "kernels_*.csv")):
         results = read_csv(csv)
@@ -95,7 +95,7 @@ def _read_kernels_results():
         kernel = csv.split("_")[-1].split(".")[0]
 
         # First filter only the timing stats, and then group by kernel
-        results = results.loc[results["StatName"] == "Avg time (s)"]
+        # results = results.loc[results["StatName"] == "Avg time (s)"]
 
         groupped_results = results.groupby("WorldSize", as_index=False)
         if baseline not in result_dict:
@@ -123,17 +123,17 @@ def kernels(ctx):
     fig, ax = plt.subplots(figsize=(6, 2))
     xs = arange(1, 9)
     width = 0.15
-    for ind, kernel in enumerate(result_dict["wasm"]):
+    for ind, kernel in enumerate(result_dict["granny"]):
         ys = []
-        for x in xs:
+        for x in 2 * xs:
             try:
-                idx_wasm = result_dict["wasm"][kernel]["num-procs"].index(x)
+                idx_wasm = result_dict["granny"][kernel]["num-procs"].index(x)
                 idx_native = result_dict["native"][kernel]["num-procs"].index(
                     x
                 )
                 ys.append(
                     float(
-                        result_dict["wasm"][kernel]["mean"][idx_wasm]
+                        result_dict["granny"][kernel]["mean"][idx_wasm]
                         / result_dict["native"][kernel]["mean"][idx_native]
                     )
                 )

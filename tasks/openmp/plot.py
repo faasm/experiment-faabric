@@ -1,11 +1,10 @@
 from glob import glob
 from invoke import task
-from numpy import arange
 from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
-from tasks.util.plot import PLOT_COLORS, PLOT_LABELS, PLOT_PATTERNS
+from tasks.util.plot import PLOT_COLORS, PLOT_PATTERNS
 
 import matplotlib.pyplot as plt
 
@@ -50,10 +49,12 @@ def plot(ctx):
         ys = []
         for x in xs:
             try:
-                idx_granny = result_dict["granny"][workload]["num-threads"].index(x)
-                idx_native = result_dict["native-1"][workload]["num-threads"].index(
-                    x
-                )
+                idx_granny = result_dict["granny"][workload][
+                    "num-threads"
+                ].index(x)
+                idx_native = result_dict["native-1"][workload][
+                    "num-threads"
+                ].index(x)
                 ys.append(
                     float(
                         result_dict["granny"][workload]["mean"][idx_granny]
