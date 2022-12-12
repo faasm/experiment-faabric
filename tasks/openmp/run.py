@@ -11,6 +11,7 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
+    flush_hosts,
 )
 
 # TODO: move this to tasks.openmp.env
@@ -56,7 +57,8 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
-        num_threads = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
+        # num_threads = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
+        num_threads = [1, 2, 3, 4, 5, 6, 7, 8]
 
     all_workloads = ["dgemm", "lulesh", "all"]
     if workload not in all_workloads:
@@ -73,25 +75,10 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
     host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)
 
-    # Flush the cluster first
-    print("Flushing functions, state, and shared files from workers")
-    msg = {"type": MESSAGE_TYPE_FLUSH}
-    print("Posting to {} msg:".format(url))
-    pprint(msg)
-    response = post(url, json=msg, timeout=None)
-    if response.status_code != 200:
-        print(
-            "Flush request failed: {}:\n{}".format(
-                response.status_code, response.text
-            )
-        )
-    print("Waiting for flush to propagate...")
-    sleep(5)
-    print("Done waiting")
-
     for wload in workload:
-        csv_name = "openmp_{}_granny.csv".format(workload)
+        csv_name = "openmp_{}_granny.csv".format(wload)
         _init_csv_file(csv_name)
+        flush_hosts()
         for r in range(int(repeats)):
             for nthread in num_threads:
 
@@ -103,13 +90,15 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
                 else:
                     user = LULESH_FAASM_USER
                     func = LULESH_FAASM_FUNC
-                    cmdline = get_lulesh_cmdline(nthread)
+                    cmdline = get_lulesh_cmdline()
                 msg = {
                     "user": user,
                     "function": func,
                     "cmdline": cmdline,
                     "async": True,
                 }
+                if wload == "lulesh":
+                    msg["input_data"] = str(nthread)
                 print("Posting to {} msg:".format(url))
                 pprint(msg)
                 # Post asynch request
@@ -154,6 +143,8 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=5):
                     _write_csv_line(csv_name, nthread, r, actual_time)
                     break
                 print("Actual time for msg {}: {}".format(msg_id, actual_time))
+
+                sleep(1)
 
 
 @task
