@@ -9,6 +9,7 @@ from tasks.makespan.util import (
     get_trace_from_parameters,
 )
 from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.plot import PLOT_COLORS, PLOT_LABELS
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,20 +21,6 @@ WORKLOAD_TO_LABEL = {
     "wasm": "Granny",
     "batch": "Batch (1 usr)",
     "batch2": "Batch (2 usr)",
-}
-COLORS = {
-    "granny": (1, 0.4, 0.4),
-    "native-1": (0.29, 0.63, 0.45),
-    "native-2": (0.2, 0.6, 1.0),
-    "native-4": (0.3, 0.3, 0.3),
-    "native-8": (0.7, 0.6, 0.2),
-}
-LABELS = {
-    "granny": "granny",
-    "native-1": "1-ctr-per-vm",
-    "native-2": "2-ctr-per-vm",
-    "native-4": "4-ctr-per-vm",
-    "native-8": "8-ctr-per-vm",
 }
 
 
@@ -110,12 +97,14 @@ def _plot_row(workload_in, backend, num_vms, trace):
     ys = [result_dict_et[la]["makespan"] for la in labels]
     bars = ax1.bar(xs, ys, width)
     for bar, key in zip(bars, labels):
-        bar.set_label(LABELS[key])
-        bar.set_color(COLORS[key])
+        bar.set_label(PLOT_LABELS[key])
+        bar.set_color(PLOT_COLORS[key])
     ax1.set_ylim(bottom=0)
     ax1.set_ylabel("Makespan [s]")
     ax1.set_xticks(xs)
-    ax1.set_xticklabels([LABELS[_l] for _l in labels], rotation=25, ha="right")
+    ax1.set_xticklabels(
+        [PLOT_LABELS[_l] for _l in labels], rotation=25, ha="right"
+    )
 
     # Second plot: CDF of idle cores
     result_dict_ic = _read_results(
@@ -130,7 +119,7 @@ def _plot_row(workload_in, backend, num_vms, trace):
         bars = ax2.hist(
             xs,
             nbins,
-            color=COLORS[workload],
+            color=PLOT_COLORS[workload],
             histtype="step",
             density=True,
             cumulative=True,
@@ -146,7 +135,7 @@ def _plot_row(workload_in, backend, num_vms, trace):
         ax3.hist(
             xs,
             nbins,
-            color=COLORS[workload],
+            color=PLOT_COLORS[workload],
             histtype="step",
             density=True,
             cumulative=True,
@@ -210,11 +199,8 @@ def scaling(
             get_trace_from_parameters("mpi", tasks, num_cores_per_vm)
         )
 
-    out_file_name = "scaling_{}.pdf".format(backend)
     makedirs(PLOTS_DIR, exist_ok=True)
     plt.style.use(MPL_STYLE_FILE)
-
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 3))
 
     result_dict_et = {}
     for num_vm, trace in zip(num_vms, traces):
@@ -224,7 +210,7 @@ def scaling(
 
     makespans = {}
     exec_times = {}
-    labels = list(LABELS.keys())
+    labels = list(PLOT_LABELS.keys())
     labels.sort()
     for label in labels:
         for num_vm in num_vms:
@@ -237,39 +223,48 @@ def scaling(
             )
 
     # First plot: bar plot of makespans
+    out_file_name = "scaling_{}_makespan.pdf".format(backend)
+    fig, ax = plt.subplots(figsize=(4, 3))
     width = 0.15
     xs = arange(len(num_vms))
     for ind, label in enumerate(labels):
-        ax1.bar(
+        ax.bar(
             xs - width * 2 + width * ind,
             makespans[label],
             width,
-            label=LABELS[label],
-            color=COLORS[label],
+            label=PLOT_LABELS[label],
+            color=PLOT_COLORS[label],
         )
-    ax1.set_ylabel("Makespan [s]")
+    ax.set_ylabel("Makespan [s]", fontsize=12)
     xlabels = [
         "{} VMs\n{} jobs".format(num_vm, ntasks)
         for num_vm, ntasks in zip(num_vms, num_tasks)
     ]
-    ax1.set_xticks(xs)
-    ax1.set_xticklabels(xlabels, rotation=25, ha="center")
-    ax1.legend(loc="upper left", ncol=2)
-    ax1.set_ylim(bottom=0, top=700)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(xlabels, rotation=25, ha="center", fontsize=12)
+    ax.legend(loc="upper left", ncol=2)
+    ax.set_ylim(bottom=0, top=700)
+    fig.tight_layout()
+    plt.savefig(
+        join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
+    )
+    print("Plot saved to: {}".format(join(PLOTS_DIR, out_file_name)))
 
     # Second plot: box plot of execution times
+    out_file_name = "scaling_{}_exec_time.pdf".format(backend)
+    fig, ax = plt.subplots(figsize=(4, 3))
     for ind, label in enumerate(labels):
-        bplot = ax2.boxplot(
+        bplot = ax.boxplot(
             exec_times[label],
             positions=[x - width * 2 + width * ind for x in xs],
             widths=width,
             patch_artist=True,
             flierprops=dict(
                 marker=".",
-                markerfacecolor=COLORS[label],
+                markerfacecolor=PLOT_COLORS[label],
                 markersize=1,
                 linestyle="none",
-                markeredgecolor=COLORS[label],
+                markeredgecolor=PLOT_COLORS[label],
             ),
             boxprops=dict(linewidth=0),
             medianprops=dict(color="black", linewidth=1),
@@ -278,15 +273,13 @@ def scaling(
             vert=True,
         )
         for box in bplot["boxes"]:
-            box.set_facecolor(COLORS[label])
-    ax1.set_ylim(bottom=0)
-    ax2.set_xticks(xs)
-    ax2.set_xticklabels(xlabels, rotation=25, ha="center")
-    ax2.set_ylabel("Execution time [s]")
-
+            box.set_facecolor(PLOT_COLORS[label])
+    ax.set_ylim(bottom=0)
+    ax.set_xticks(xs)
+    ax.set_xticklabels(xlabels, rotation=25, ha="center", fontsize=12)
+    ax.set_ylabel("Execution time [s]", fontsize=12)
     fig.tight_layout()
     plt.savefig(
         join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
     )
-
     print("Plot saved to: {}".format(join(PLOTS_DIR, out_file_name)))
