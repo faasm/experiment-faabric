@@ -1,14 +1,6 @@
 from requests import put
 from subprocess import CalledProcessError, run
-from tasks.makespan.env import (
-    DGEMM_DOCKER_WASM,
-    DGEMM_FAASM_USER,
-    DGEMM_FAASM_FUNC,
-    LULESH_DOCKER_WASM,
-    LULESH_FAASM_USER,
-    LULESH_FAASM_FUNC,
-    MAKESPAN_IMAGE_NAME,
-)
+from tasks.makespan.env import MAKESPAN_IMAGE_NAME
 from tasks.util.env import PROJ_ROOT, get_version
 from tasks.util.faasm import get_faasm_upload_host_port
 
