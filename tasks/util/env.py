@@ -51,6 +51,12 @@ DGEMM_DOCKER_WASM = join(DGEMM_DOCKER_DIR, "build", "wasm", "omp_dgemm.wasm")
 DGEMM_FAASM_USER = "dgemm"
 DGEMM_FAASM_FUNC = "main"
 
+# --- OpenMP Kernels ---
+
+OPENMP_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
+OPENMP_KERNELS = ["global", "p2p", "nstream", "reduce", "dgemm"]
+OPENMP_KERNELS_FAASM_USER = "kernels-omp"
+
 # --- MPI Kernels ---
 
 KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")

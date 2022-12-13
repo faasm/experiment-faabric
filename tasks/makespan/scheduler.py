@@ -117,8 +117,7 @@ def thread_pool_thread(
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
             # We always use the same LAMMPS benchmark
-            data_file = get_faasm_benchmark("compute")["data"][0]
-            # data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark("compute-xl")["data"][0]
 
         # Record the start timestamp
         start_ts = 0
@@ -212,6 +211,8 @@ def thread_pool_thread(
                 # If attempting to migrate, add a check period
                 if work_item.task.app == "mpi-migrate":
                     msg["migration_check_period"] = 5
+                    # Do 2 loops, check at the end of loop 1
+                    msg["input_data"] = "1 2"
             elif work_item.task.app == "omp":
                 if work_item.task.size > num_slots_per_vm:
                     print(

@@ -1,5 +1,4 @@
 from invoke import task
-from os.path import join
 from tasks.lammps.data import upload as lammps_data_upload
 from tasks.util.env import (
     LAMMPS_MIGRATION_DOCKER_WASM,
@@ -34,4 +33,4 @@ def upload(ctx):
 
     upload_wasm(wasm_file_details)
 
-    lammps_data_upload(ctx, ["compute"])
+    lammps_data_upload(ctx, ["compute", "compute-xl", "network"])

@@ -49,7 +49,7 @@ def lammps(ctx):
     width = 0.25
     for ind, workload in enumerate(result_dict["granny"]):
         ys = [
-            float(mean_granny / mean_native)
+            float(mean_native / mean_granny)
             for mean_granny, mean_native in zip(
                 result_dict["granny"][workload]["mean"],
                 result_dict["native-1"][workload]["mean"],
@@ -73,7 +73,7 @@ def lammps(ctx):
     ax.set_xlim(left=xlim_left, right=xlim_right)
     ax.set_xlabel("Number of MPI processes")
     ax.set_ylim(bottom=0, top=1.5)
-    ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
+    ax.set_ylabel("Speed-up \n [OpenMPI / Granny]")
     ax.legend(loc="upper left", ncol=2)
 
     fig.tight_layout()
@@ -138,8 +138,8 @@ def kernels(ctx):
                 )
                 ys.append(
                     float(
-                        result_dict["granny"][kernel]["mean"][idx_wasm]
-                        / result_dict["native"][kernel]["mean"][idx_native]
+                        result_dict["native"][kernel]["mean"][idx_native]
+                        / result_dict["granny"][kernel]["mean"][idx_wasm]
                     )
                 )
             except ValueError:
@@ -161,9 +161,9 @@ def kernels(ctx):
     plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
     ax.set_xlim(left=xlim_left, right=xlim_right)
     ax.set_xlabel("Number of MPI processes")
-    ax.set_ylim(bottom=0, top=2)
-    ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
-    ax.legend(loc="upper left", ncol=4)
+    ax.set_ylim(bottom=0, top=2.5)
+    ax.set_ylabel("Speed-up \n [OpenMPI / Granny]")
+    ax.legend(loc="upper right", ncol=4)
 
     fig.tight_layout()
     plt.savefig(

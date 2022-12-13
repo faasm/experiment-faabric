@@ -46,9 +46,16 @@ def plot(ctx):
     xs = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
     xticks = arange(1, len(xs) + 1)
     num_ctrs_per_vm = 8
-    width = 0.25
-    ymax = 10.5
+    allowed_workloads = ["dgemm", "reduce"]
+    width = 0.5 / len(allowed_workloads)
+    if len(allowed_workloads) == 2:
+        x_offset = 0.5
+    elif len(allowed_workloads) == 1:
+        x_offset = 0
+    ymax = 1.5
     for ind, workload in enumerate(result_dict["granny"]):
+        if workload not in allowed_workloads:
+            continue
         ys = []
         for x_ind, x in enumerate(xs):
             try:
@@ -64,8 +71,8 @@ def plot(ctx):
                         "num-threads"
                     ].index(x)
                 yval = float(
-                    result_dict["granny"][workload]["mean"][idx_granny]
-                    / result_dict["native-1"][workload]["mean"][idx_native]
+                    result_dict["native-1"][workload]["mean"][idx_native]
+                    / result_dict["granny"][workload]["mean"][idx_granny]
                 )
                 ys.append(yval)
                 if yval > ymax:
@@ -77,9 +84,8 @@ def plot(ctx):
                     )
             except ValueError:
                 ys.append(0)
-        print(ys)
         barlist = ax.bar(
-            [x - width * 0.5 + width * ind for x in xticks],
+            [x - width * x_offset + width * ind for x in xticks],
             ys,
             width,
             label=workload,
@@ -96,10 +102,10 @@ def plot(ctx):
     ax.set_xticklabels(xs)
     ax.set_ylim(bottom=0, top=ymax)
     plt.vlines(8.5, 0, ymax, linestyle="dashed", color="gray")
-    plt.text(8.5 - 1, ymax + 0.5, "VM capacity")
+    plt.text(8.5 - 1, ymax + 0.1, "VM capacity")
     plt.hlines(1, 0, 17, linestyle="dashed", colors="red")
     ax.legend(loc="upper left", ncol=1)
-    ax.set_ylabel("Slowdown \n [Granny / OpenMP]")
+    ax.set_ylabel("Speed-up \n [OpenMP / Granny]")
 
     fig.tight_layout()
     plt.savefig(

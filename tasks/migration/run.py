@@ -1,4 +1,3 @@
-import time
 from invoke import task
 from os import makedirs
 from os.path import basename, join
@@ -87,12 +86,14 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
                     )
                 else:
                     file_name = basename(
-                        get_faasm_benchmark("compute")["data"][0]
+                        get_faasm_benchmark("network")["data"][0]
                     )
                     user = LAMMPS_MIGRATION_FAASM_USER
                     func = LAMMPS_MIGRATION_FAASM_FUNC
                     cmdline = "-in faasm://lammps-data/{}".format(file_name)
-                    input = "{} 5".format(check)
+                    num_loops = 5
+                    check_at_loop = check / 2
+                    input_data = "{} {}".format(check_at_loop, num_loops)
                 # Setting a check fraction of 0 means we don't under-schedule as
                 # a baseline
                 if check == 0:
@@ -113,7 +114,7 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
                     "topology_hint": "{}".format(topology_hint),
                 }
                 if wload == "lammps":
-                    msg["input"] = input
+                    msg["input_data"] = input_data
                 result_json = post_async_msg_and_get_result_json(msg, url)
                 actual_time = get_faasm_exec_time_from_json(result_json)
                 _write_csv_line(

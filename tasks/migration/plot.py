@@ -1,35 +1,38 @@
 from glob import glob
 from invoke import task
+from numpy import arange
 from os import makedirs
 from os.path import join
+from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
+from tasks.util.plot import PLOT_COLORS, PLOT_PATTERNS
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
-RESULTS_DIR = join(PROJ_ROOT, "results", "migration")
-PLOTS_DIR = join(PLOTS_ROOT, "migration")
-OUT_FILE = join(PLOTS_DIR, "runtime.{}".format(PLOTS_FORMAT))
-PATTERNS = ["//", "\\\\", "||", "-"]
+ALL_WORKLOADS = ["lammps", "all-to-all"]
 
 
 def _read_results():
+    results_dir = join(PROJ_ROOT, "results", "migration")
     result_dict = {}
 
-    for csv in glob(join(RESULTS_DIR, "migration_*.csv")):
+    for csv in glob(join(results_dir, "migration_*.csv")):
+        workload = csv.split("_")[-1].split(".")[0]
+        if workload not in ["lammps", "all-to-all"]:
+            continue
+
         results = pd.read_csv(csv)
+        groupped_results = results.groupby("Check", as_index=False)
 
-        check = int(csv.split("_")[-1].split(".")[0])
-        nproc = int(csv.split("_")[1])
+        if workload not in result_dict:
+            result_dict[workload] = {}
 
-        if nproc not in result_dict:
-            result_dict[nproc] = {}
-
-        result_dict[nproc][check] = [
-            results["Time"].mean(),
-            results["Time"].sem(),
-        ]
+        result_dict[workload] = {
+            "checks": groupped_results.mean()["Check"].to_list(),
+            "mean": groupped_results.mean()["Time"].to_list(),
+            "sem": groupped_results.sem()["Time"].to_list(),
+        }
 
     return result_dict
 
@@ -39,59 +42,51 @@ def plot(ctx):
     """
     Plot migration figure
     """
-    # Use our matplotlib style file
-    plt.style.use(MPL_STYLE_FILE)
-
-    makedirs(PLOTS_DIR, exist_ok=True)
-
-    # Load results
     migration_results = _read_results()
 
-    # Plot results
-    fig, ax = plt.subplots(figsize=(6, 2))
-    num_cols = 2  # len(migration_results.keys())
-    col_width = float(1 / num_cols)
-    for ind, nproc in enumerate([4, 8]):
-        x = [int(key) for key in migration_results[nproc].keys()]
-        x.sort()
-        if ind < (num_cols / 2):
-            factor = -1
-        else:
-            factor = 1
-        disp_x = [xs + factor * col_width / 2 for xs in x]
+    # First plot: all-to-all kernel
+    do_plot("all-to-all", migration_results)
+    do_plot("lammps", migration_results)
 
-        y = [migration_results[nproc][xs][0] for xs in x]
-        print(x)
-        print(y)
-        yerr = [migration_results[nproc][xs][1] for xs in x]
-        ax.bar(
-            disp_x,
-            y,
-            yerr=yerr,
-            width=col_width,
-            hatch=PATTERNS[ind],
-            edgecolor="black",
+
+def do_plot(workload, migration_results):
+    plots_dir = join(PLOTS_ROOT, "migration")
+    makedirs(plots_dir, exist_ok=True)
+    out_file = join(plots_dir, "migration_speedup_{}.pdf".format(workload))
+    fig, ax = plt.subplots(figsize=(3, 2))
+    xs = [0, 2, 4, 6, 8]
+    xticks = arange(1, 6)
+    width = 0.5
+    idx_ref = migration_results[workload]["checks"].index(10)
+    ind = ALL_WORKLOADS.index(workload)
+    ys = []
+    for x in xs:
+        idx_granny = migration_results[workload]["checks"].index(x)
+        ys.append(
+            float(
+                migration_results[workload]["mean"][idx_ref]
+                / migration_results[workload]["mean"][idx_granny]
+            )
         )
-
-    # Prepare legend
-    ax.legend(["{} processes".format(np) for np in [4, 8]])
-
-    # Aesthetics
-    ax.set_ylabel("Elapsed time [s]")
-    ax.set_xlabel("Percentage of execution at which migration takes place [%]")
-    ax.set_xticklabels(
-        [
-            0,
-            "single host",
-            "20",
-            "40",
-            "60",
-            "80",
-            "no migration",
-        ]
+    ax.bar(
+        xticks,
+        ys,
+        width,
+        label=workload,
+        color=list(PLOT_COLORS.values())[ind],
+        hatch=PLOT_PATTERNS[ind],
+        edgecolor="black",
     )
-
+    # Aesthetics
+    ax.set_ylabel("Speed-up \n [No mig. / mig.]")
+    ax.set_xlabel("% of execution when to migrate")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(["1 VM", "20", "40", "60", "80"])
+    xlim_left = 0.5
+    xlim_right = 5.5
+    ax.set_xlim(left=xlim_left, right=xlim_right)
+    ax.set_ylim(bottom=0)
+    plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
     fig.tight_layout()
-    plt.savefig(OUT_FILE, format=PLOTS_FORMAT, bbox_inches="tight")
-
-    return
+    plt.savefig(out_file, format="pdf")  # , bbox_inches="tight")
+    print("Plot saved to: {}".format(out_file))
