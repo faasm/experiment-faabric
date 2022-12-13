@@ -88,11 +88,16 @@ def _read_kernels_results():
     result_dict = {}
     results_dir = join(PROJ_ROOT, "results", "mpi")
 
+    kernels_to_plot = ["reduce", "p2p", "nstream", "stencil"]
+
     for csv in glob(join(results_dir, "kernels_*.csv")):
         results = read_csv(csv)
 
         baseline = csv.split("_")[1]
         kernel = csv.split("_")[-1].split(".")[0]
+
+        if kernel not in kernels_to_plot:
+            continue
 
         # First filter only the timing stats, and then group by kernel
         # results = results.loc[results["StatName"] == "Avg time (s)"]
@@ -140,7 +145,7 @@ def kernels(ctx):
             except ValueError:
                 ys.append(0)
         ax.bar(
-            xs - width * 1.5 + width * ind,
+            xs - width * 2 + width * ind,
             ys,
             width,
             label=kernel,
@@ -156,7 +161,7 @@ def kernels(ctx):
     plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
     ax.set_xlim(left=xlim_left, right=xlim_right)
     ax.set_xlabel("Number of MPI processes")
-    ax.set_ylim(bottom=0)
+    ax.set_ylim(bottom=0, top=2)
     ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
     ax.legend(loc="upper left", ncol=4)
 

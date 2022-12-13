@@ -281,13 +281,17 @@ def scaling(
             box.set_facecolor(PLOT_COLORS[label])
             box.set_hatch(PLOT_PATTERNS[labels.index(label)])
         legend_handles.append(
-            mpatches.Patch(facecolor=PLOT_COLORS[label],
-                           hatch=PLOT_PATTERNS[ind],
-                           edgecolor="black",
-                           lw=1,
-                           label=label)
+            mpatches.Patch(
+                facecolor=PLOT_COLORS[label],
+                hatch=PLOT_PATTERNS[ind],
+                edgecolor="black",
+                lw=1,
+                label=label,
+            )
         )
-    ax.legend(handles=legend_handles, loc="upper left", ncol=2, prop={'size': 12})
+    ax.legend(
+        handles=legend_handles, loc="upper left", ncol=2, prop={"size": 12}
+    )
     ax.set_ylim(bottom=0, top=300)
     ax.set_xticks(xs)
     ax.set_xticklabels(xlabels, rotation=25, ha="center", fontsize=12)

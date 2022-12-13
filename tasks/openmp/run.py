@@ -101,9 +101,7 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
                     msg["input_data"] = str(nthread)
 
                 result_json = post_async_msg_and_get_result_json(msg, url)
-                actual_time = int(
-                    get_faasm_exec_time_from_json(result_json)
-                )
+                actual_time = int(get_faasm_exec_time_from_json(result_json))
                 _write_csv_line(csv_name, nthread, r, actual_time)
                 print("Actual time: {}".format(actual_time))
 
@@ -137,15 +135,13 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
         for r in range(int(repeats)):
             for nthread in num_threads:
                 if wload == "dgemm":
-                    binary = DGEMM_DOCKER_BINARY,
+                    binary = (DGEMM_DOCKER_BINARY,)
                     cmdline = get_dgemm_cmdline(nthread, iterations=20)
                 else:
                     binary = LULESH_DOCKER_BINARY
                     cmdline = get_lulesh_cmdline()
                 openmp_cmd = "bash -c 'OPENMP_NUM_THREADS={} {} {}'".format(
-                    nthread,
-                    binary,
-                    cmdline
+                    nthread, binary, cmdline
                 )
 
                 exec_cmd = [

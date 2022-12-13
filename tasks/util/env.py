@@ -31,14 +31,6 @@ EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
 LAMMPS_DOCKER_BINARY = join(LAMMPS_DOCKER_DIR, "build", "native", "lmp")
 LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
-LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
-LAMMPS_MIGRATION_DOCKER_BINARY = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "native", "lmp"
-)
-LAMMPS_MIGRATION_DOCKER_WASM = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
-)
-LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LAMMPS_FAASM_USER = "lammps"
 LAMMPS_FAASM_FUNC = "main"
 LAMMPS_FAASM_DATA_PREFIX = "/lammps-data"
@@ -65,13 +57,29 @@ KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
 KERNELS_WASM_DIR = join(KERNELS_DOCKER_DIR, "build", "wasm")
 KERNELS_NATIVE_DIR = join(KERNELS_DOCKER_DIR, "build", "native")
 KERNELS_FAASM_USER = "kernels-mpi"
-KERNELS_FAASM_FUNCS = ["p2p", "sparse", "transpose", "reduce"]
+KERNELS_FAASM_FUNCS = [
+    "p2p",
+    "sparse",
+    "transpose",
+    "reduce",
+    "nstream",
+    "stencil",
+]
 
 # --- MPI Migration Microbenchmark
 
 MPI_MIGRATE_WASM_BINARY = join(EXAMPLES_BASE_DIR, "mpi_migrate.wasm")
 MPI_MIGRATE_FAASM_USER = "mpi"
 MPI_MIGRATE_FAASM_FUNC = "migrate"
+LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
+LAMMPS_MIGRATION_DOCKER_BINARY = join(
+    LAMMPS_MIGRATION_DOCKER_DIR, "build", "native", "lmp"
+)
+LAMMPS_MIGRATION_DOCKER_WASM = join(
+    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
+)
+LAMMPS_MIGRATION_FAASM_FUNC = "migration"
+LAMMPS_MIGRATION_FAASM_USER = "lammps"
 
 
 def get_version():

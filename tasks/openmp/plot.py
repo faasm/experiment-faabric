@@ -64,12 +64,17 @@ def plot(ctx):
                         "num-threads"
                     ].index(x)
                 yval = float(
-                        result_dict["granny"][workload]["mean"][idx_granny]
-                        / result_dict["native-1"][workload]["mean"][idx_native]
-                    )
+                    result_dict["granny"][workload]["mean"][idx_granny]
+                    / result_dict["native-1"][workload]["mean"][idx_native]
+                )
                 ys.append(yval)
                 if yval > ymax:
-                    plt.text(xticks[x_ind] - 0.4, ymax/2, "{}x".format(int(yval)), fontdict={"rotation": 90})
+                    plt.text(
+                        xticks[x_ind] - 0.4,
+                        ymax / 2,
+                        "{}x".format(int(yval)),
+                        fontdict={"rotation": 90},
+                    )
             except ValueError:
                 ys.append(0)
         print(ys)
@@ -87,7 +92,6 @@ def plot(ctx):
                 bar.set_alpha(0.5)
     ax.set_xlim(left=0)
     ax.set_xlabel("Number of OpenMP threads")
-    print(xticks)
     ax.set_xticks(xticks)
     ax.set_xticklabels(xs)
     ax.set_ylim(bottom=0, top=ymax)

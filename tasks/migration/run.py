@@ -1,12 +1,13 @@
-import json
-import requests
 import time
 from invoke import task
 from os import makedirs
-from os.path import join
-from pprint import pprint
-
+from os.path import basename, join
+from tasks.lammps.env import get_faasm_benchmark
 from tasks.util.env import (
+    MPI_MIGRATE_FAASM_USER,
+    MPI_MIGRATE_FAASM_FUNC,
+    LAMMPS_MIGRATION_FAASM_USER,
+    LAMMPS_MIGRATION_FAASM_FUNC,
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
@@ -41,10 +42,22 @@ def _write_csv_line(csv_name, nprocs, check, run_num, actual_time):
 
 
 @task(default=True)
-def run(ctx, num_cores_per_vm=8, check_in=None, repeats=1):
+def run(ctx, workload="all-to-all", check_in=None, repeats=1):
     """
     Run migration experiment
     """
+
+    all_workloads = ["all-to-all", "lammps", "all"]
+    if workload == "all":
+        workload = all_workloads[:-1]
+    elif workload in all_workloads:
+        workload = [workload]
+    else:
+        raise RuntimeError(
+            "Unrecognised workload: {}. Must be one in: {}".format(
+                workload, all_workloads
+            )
+        )
 
     if check_in is None:
         check_array = [0, 2, 4, 6, 8, 10]
@@ -54,42 +67,57 @@ def run(ctx, num_cores_per_vm=8, check_in=None, repeats=1):
     # Url and headers for requests
     host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)
+    num_cores_per_vm = 8
 
-    for check in check_array:
-        csv_name = "migration_{}_{}.csv".format(num_cores_per_vm, check)
-        result_file = _init_csv_file(csv_name)
+    for wload in workload:
+        csv_name = "migration_{}.csv".format(wload)
+        _init_csv_file(csv_name)
 
-        for run_num in range(repeats):
-            # First, flush the host state
-            flush_hosts()
+        for check in check_array:
+            for run_num in range(repeats):
+                # First, flush the host state
+                flush_hosts()
 
-            num_loops = 100000
-            # Setting a check fraction of 0 means we don't under-schedule as
-            # a baseline
-            if check == 0:
-                migration_check_period = 0
-                topology_hint = "NONE"
-            else:
-                migration_check_period = 2
-                topology_hint = "UNDERFULL"
+                if wload == "all-to-all":
+                    num_loops = 100000
+                    user = MPI_MIGRATE_FAASM_USER
+                    func = MPI_MIGRATE_FAASM_FUNC
+                    cmdline = "{} {}".format(
+                        check if check != 0 else 5, num_loops
+                    )
+                else:
+                    file_name = basename(
+                        get_faasm_benchmark("compute")["data"][0]
+                    )
+                    user = LAMMPS_MIGRATION_FAASM_USER
+                    func = LAMMPS_MIGRATION_FAASM_FUNC
+                    cmdline = "-in faasm://lammps-data/{}".format(file_name)
+                    input = "{} 5".format(check)
+                # Setting a check fraction of 0 means we don't under-schedule as
+                # a baseline
+                if check == 0:
+                    migration_check_period = 0
+                    topology_hint = "NONE"
+                else:
+                    migration_check_period = 2
+                    topology_hint = "UNDERFULL"
 
-            msg = {
-                "user": "mpi",
-                "function": "migrate",
-                "mpi": True,
-                "mpi_world_size": int(num_cores_per_vm),
-                "async": True,
-                "migration_check_period": migration_check_period,
-                "cmdline": "{} {}".format(
-                    check if check != 0 else 5, num_loops
-                ),
-                "topology_hint": "{}".format(topology_hint),
-            }
-            result_json = post_async_msg_and_get_result_json(msg, url)
-            actual_time = get_faasm_exec_time_from_json(result_json)
-            _write_csv_line(csv_name, num_cores_per_vm, check, run_num, actual_time)
+                msg = {
+                    "user": user,
+                    "function": func,
+                    "mpi": True,
+                    "mpi_world_size": int(num_cores_per_vm),
+                    "async": True,
+                    "migration_check_period": migration_check_period,
+                    "cmdline": cmdline,
+                    "topology_hint": "{}".format(topology_hint),
+                }
+                if wload == "lammps":
+                    msg["input"] = input
+                result_json = post_async_msg_and_get_result_json(msg, url)
+                actual_time = get_faasm_exec_time_from_json(result_json)
+                _write_csv_line(
+                    csv_name, num_cores_per_vm, check, run_num, actual_time
+                )
 
-            print("Sleeping after function is done, before flushing")
-            time.sleep(5)
-
-    print("Results written to {}".format(result_file))
+                print("Actual time: {}".format(actual_time))
