@@ -1,11 +1,11 @@
 # Build the experiments' code
-FROM faasm/examples-build:0.2.0_0.2.0 as build
+FROM faasm/examples-build:0.2.4_0.2.5 as build
 
 RUN rm -rf /code \
     && mkdir -p /code \
     && cd /code \
     # TODO: clone from main eventually
-    && git clone -b llvm https://github.com/faasm/examples /code/faasm-examples \
+    && git clone https://github.com/faasm/examples /code/faasm-examples \
     && cd /code/faasm-examples \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
@@ -29,9 +29,10 @@ RUN rm -rf /code \
         func mpi migrate
 
 # Prepare the runtime to run the native experiments
-FROM faasm/openmpi:0.2.0
+FROM faasm.azurecr.io/openmpi:0.3.0
 
 COPY --from=build --chown=mpirun:mpirun /code/faasm-examples /code/faasm-examples
+COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/main/function.wasm /code/faasm-examples/lammps.wasm
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/chain/function.wasm /code/faasm-examples/lammps_chain.wasm
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/mpi/migrate/function.wasm /code/faasm-examples/mpi_migrate.wasm
 

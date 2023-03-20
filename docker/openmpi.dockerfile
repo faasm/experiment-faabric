@@ -1,4 +1,4 @@
-FROM faasm/cpp-sysroot:0.2.0
+FROM faasm.azurecr.io/cpp-sysroot:0.2.4
 
 # Download and install OpenMPI
 WORKDIR /tmp

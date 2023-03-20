@@ -97,7 +97,7 @@ First, deploy Granny on the cluster:
 ```bash
 cd ~/faasm
 source ./bin/workon.sh
-inv deploy.k8s --workers 32
+inv k8s.deploy --workers 32
 ```
 
 Then, upload the necessary files and WASM. This will copy the pre-compiled

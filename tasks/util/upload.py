@@ -1,7 +1,11 @@
 from requests import put
 from subprocess import CalledProcessError, run
-from tasks.makespan.env import MAKESPAN_IMAGE_NAME
-from tasks.util.env import PROJ_ROOT, get_version
+from tasks.util.env import (
+    ACR_NAME,
+    FAABRIC_EXP_IMAGE_NAME,
+    PROJ_ROOT,
+    get_version,
+)
 from tasks.util.faasm import get_faasm_upload_host_port
 
 
@@ -19,7 +23,7 @@ def upload_wasm(wasm_file_details):
         docker_cmd = [
             "docker run -d",
             "--name {}".format(tmp_image_name),
-            "faasm/{}:{}".format(MAKESPAN_IMAGE_NAME, get_version()),
+            "{}/{}:{}".format(ACR_NAME, FAABRIC_EXP_IMAGE_NAME, get_version()),
         ]
         docker_cmd = " ".join(docker_cmd)
         print(docker_cmd)

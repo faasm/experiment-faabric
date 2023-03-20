@@ -1,7 +1,7 @@
 from invoke import Collection
 
+from . import docker
 from . import format_code
-from . import openmpi
 
 import logging
 
@@ -16,8 +16,8 @@ from tasks.openmp import ns as openmp_ns
 logging.getLogger().setLevel(logging.DEBUG)
 
 ns = Collection(
+    docker,
     format_code,
-    openmpi,
 )
 
 ns.add_collection(lammps_ns, name="lammps")

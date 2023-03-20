@@ -5,8 +5,6 @@ MAKESPAN_DIR = join(PROJ_ROOT, "tasks", "makespan")
 MAKESPAN_NATIVE_COMPOSE_NAME = "makespan-native"
 MAKESPAN_NATIVE_DIR = join(MAKESPAN_DIR, "native")
 MAKESPAN_WASM_DIR = join(MAKESPAN_DIR, "wasm")
-MAKESPAN_IMAGE_NAME = "experiment-makespan"
-MAKESPAN_DOCKERFILE = join(PROJ_ROOT, "docker", "makespan.dockerfile")
 
 EXAMPLES_BASE_DIR = join("/code", "faasm-examples")
 EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")

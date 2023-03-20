@@ -1,9 +1,7 @@
 from invoke import task
 from subprocess import run
-from tasks.makespan.env import (
-    MAKESPAN_DIR,
-    MAKESPAN_IMAGE_NAME,
-)
+from tasks.makespan.env import MAKESPAN_DIR
+from tasks.util.env import FAABRIC_EXP_IMAGE_NAME
 from tasks.util.openmpi import (
     deploy_native_mpi,
     delete_native_mpi,
@@ -20,7 +18,7 @@ def deploy(ctx, backend="k8s", num_vms=32, num_cores_per_vm=8, ctrs_per_vm=1):
     num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     if backend == "k8s":
         deploy_native_mpi(
-            "makespan", MAKESPAN_IMAGE_NAME, num_ctrs, num_cores_per_ctr
+            "makespan", FAABRIC_EXP_IMAGE_NAME, num_ctrs, num_cores_per_ctr
         )
     else:
         # TODO: update .env file
@@ -42,7 +40,7 @@ def delete(ctx, backend="k8s", num_vms=32, num_cores_per_vm=8, ctrs_per_vm=1):
     num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     if backend == "k8s":
         delete_native_mpi(
-            "makespan", MAKESPAN_IMAGE_NAME, num_ctrs, num_cores_per_ctr
+            "makespan", FAABRIC_EXP_IMAGE_NAME, num_ctrs, num_cores_per_ctr
         )
     else:
         compose_cmd = [
