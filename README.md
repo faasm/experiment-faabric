@@ -17,7 +17,7 @@ inv -l
 ## Experiment status
 
 | Experiment Name | Native | Granny | Plots |
-|---|---|---|
+|---|---|---|---|
 | Array:MPI:Saturated |  |  | |
 | Array:MPI:Unsaturated |  |  | |
 | Array:OMP:Saturated |  |  | |
