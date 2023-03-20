@@ -94,8 +94,8 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
                     num_loops = 5
                     check_at_loop = check / 2
                     input_data = "{} {}".format(check_at_loop, num_loops)
-                # Setting a check fraction of 0 means we don't under-schedule as
-                # a baseline
+                # Setting a check fraction of 0 means we don't under-schedule
+                # as a baseline
                 if check == 0:
                     migration_check_period = 0
                     topology_hint = "NONE"
