@@ -22,8 +22,23 @@ inv -l
 | Array:MPI:Unsaturated |  |  | |
 | Array:OMP:Saturated |  |  | |
 | Array:OMP:Unsaturated |  |  | |
-| Benefits:MPI:Consolidation |  |  | |
+| Other:Scale |  |  | |
+| [Benefits:MPI:Consolidation](./tasks/migration) |  |  | |
 | Benefits:OMP:Elasticity |  |  | |
 | FT:Granule |  |  | |
 | FT:Node |  |  | |
 | FT:Deployment |  |  | |
+
+EM Experiments (in order of priority):
+1. Array:MPI:Saturated
+2. Array:OMP:Saturated
+3. Array:MPI:Unsaturated
+4. Array:OMP:Unsaturated
+5. Other:Scale
+
+CS Experiments (in order of priority):
+1. Benefits:MPI:Consolidation
+2. Benefits:OMP:Elasticity
+3. FT:Granule
+4. FT:Node
+5. FT:Deployment
