@@ -1,5 +1,5 @@
 # Build the experiments' code
-FROM faasm/examples-build:0.2.4_0.2.5 as build
+FROM faasm/examples-build:0.2.5_0.2.5 as build
 
 RUN rm -rf /code \
     && mkdir -p /code \
