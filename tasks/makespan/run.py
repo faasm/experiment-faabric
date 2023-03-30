@@ -59,7 +59,7 @@ def granny(
     num_tasks=100,
 ):
     """
-    Run: `inv makespan.run.native --workload [omp,mpi,mix,mpi-migrate,all]
+    Run: `inv makespan.run.granny --workload [omp,mpi,mix,mpi-migrate,all]
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
