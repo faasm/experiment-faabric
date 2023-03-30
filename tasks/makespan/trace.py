@@ -96,7 +96,7 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     # Work out the possible different workloads
     if workload == "mpi":
         possible_workloads = ["mpi"]
-    if workload == "mpi-migrate":
+    elif workload == "mpi-migrate":
         possible_workloads = ["mpi-migrate"]
     elif workload == "omp":
         possible_workloads = ["omp"]
