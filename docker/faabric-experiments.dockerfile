@@ -5,7 +5,7 @@ RUN rm -rf /code \
     && mkdir -p /code \
     && cd /code \
     # TODO: clone from main eventually
-    && git clone https://github.com/faasm/examples /code/faasm-examples \
+    && git clone -b new-wamr https://github.com/faasm/examples /code/faasm-examples \
     && cd /code/faasm-examples \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
