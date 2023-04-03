@@ -32,6 +32,7 @@ EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
 # --- LAMMPS ---
 
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
+LAMMPS_DOCKER_DATA_DIR = join(LAMMPS_DOCKER_DIR, "bench")
 LAMMPS_DOCKER_BINARY = join(LAMMPS_DOCKER_DIR, "build", "native", "lmp")
 LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
 LAMMPS_FAASM_USER = "lammps"
@@ -110,7 +111,7 @@ def clean_dir(dir_path, clean):
 
 
 def get_docker_tag(img_name):
-    img_tag = "faasm/{}:{}".format(img_name, get_version())
+    img_tag = "{}/{}:{}".format(ACR_NAME, img_name, get_version())
     return img_tag
 
 
