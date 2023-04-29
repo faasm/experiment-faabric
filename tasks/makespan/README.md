@@ -1,24 +1,17 @@
 # Makespan Experiment
 
-**IMPORTANT:** this experiment assumes that you have faasm checked-out under
-`~/faasm`. It also assumes that the experiments repos are cloned as submodules:
-`experiment-base/experiments/experiment-mpi`.
+First, deploy the VM cluster:
 
-To run all the commands here included, first activate the virtual environment
-in experiments base, `source ../../bin/workon.sh`.
+## Granny (MPI)
 
-**Note:** we have now agreed that we will run the experiments on k8s with 32
-VMs and 8 cores per VM. As a consequence, most commands now have the following
-default values:
+First, deploy the k8s cluster:
 
 ```bash
-backend="k8s"
-num-vms=32
-num-cores-per-vm=8
+cd ${FAASM_SRC_DIR}
+WASM_VM=wamr inv k8s.deploy --workers=4
 ```
 
-Additionally, we have also agreed on the native baselines. We will compare
-`granny` with native configured with `--ctrs-per-vm=1, 2, 4, 8`.
+# Old instructions, remove
 
 ## Generate the experiment trace
 

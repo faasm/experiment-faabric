@@ -12,8 +12,29 @@ inv cluster.credentials --name ${CLUSTER_NAME}
 
 ## Granny
 
+First, deploy the K8s cluster:
+
 ```bash
 cd ~/faasm
 source ./bin/workon.sh
 inv k8s.deploy --workers 2
+```
+
+Second, upload the WASM files:
+
+```bash
+inv migration.wasm.upload
+```
+
+Third, run the experiments:
+
+```bash
+# TODO: make `--workload=all` the default option if it works
+inv migration.run
+```
+
+Lastly, plot the results:
+
+```bash
+inv migration.plot
 ```
