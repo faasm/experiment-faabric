@@ -14,7 +14,11 @@ def wait_for_pods(namespace, label):
         ]
         cmd = " ".join(cmd)
 
-        output = run(cmd, shell=True, check=True, capture_output=True).stdout.decode("utf-8").rstrip()
+        output = (
+            run(cmd, shell=True, check=True, capture_output=True)
+            .stdout.decode("utf-8")
+            .rstrip()
+        )
         statuses = [o.strip() for o in output.split(" ") if o.strip()]
         if all([s == "True" for s in statuses]):
             print("All {} pods ready, continuing...".format(namespace))

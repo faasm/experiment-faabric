@@ -24,7 +24,11 @@ from typing import Dict
 from os.path import basename
 from pprint import pprint
 from requests import post
-from tasks.util.faasm import get_faasm_invoke_host_port
+from tasks.util.faasm import (
+    get_faasm_invoke_host_port,
+    reset_planner,
+    wait_for_workers as wait_for_planner_workers,
+)
 from tasks.lammps.env import get_faasm_benchmark
 
 
@@ -119,6 +123,11 @@ def _do_run(
         workload = "native"
         num_ctrs = int(num_vms * ctrs_per_vm)
         num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
+
+    # Reset the planner and wait for the workers to register with it
+    if granny:
+        reset_planner()
+        wait_for_planner_workers(num_vms)
 
     scheduler = BatchScheduler(
         backend,

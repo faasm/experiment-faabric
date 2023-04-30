@@ -1,16 +1,19 @@
 from invoke import task
 from os import environ, makedirs
 from os.path import basename, join
-from tasks.util.faasm import (
-    get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
-    flush_hosts,
-    post_async_msg_and_get_result_json,
-)
 from tasks.util.env import (
     LAMMPS_DOCKER_BINARY,
     LAMMPS_DOCKER_DATA_DIR,
     RESULTS_DIR,
+)
+from tasks.util.faasm import (
+    get_faasm_exec_time_from_json,
+    get_faasm_planner_host_port,
+    get_faasm_worker_ips,
+    flush_workers as flush_planner_workers,
+    post_async_msg_and_get_result_json,
+    reset_planner,
+    wait_for_workers as wait_for_planner_workers,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -47,17 +50,23 @@ def _write_csv_line(csv_name, nprocs, run_num, actual_time):
 
 
 @task()
-def granny(ctx, data="compute-xl", repeats=3):
+def granny(ctx, data="compute-xl", repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
-    host, port = get_faasm_invoke_host_port()
+    host, port = get_faasm_planner_host_port()
     url = "http://{}:{}".format(host, port)
+    num_workers = len(get_faasm_worker_ips())
+
     wasm_vm = "wavm"
     if "WASM_VM" in environ:
         wasm_vm = environ["WASM_VM"]
     csv_name = "lammps_{}.csv".format(wasm_vm)
     _init_csv_file(csv_name)
+
+    # Reset the planner and wait for the workers to register with it
+    reset_planner()
+    wait_for_planner_workers(num_workers)
 
     # Run multiple benchmarks if desired for convenience
     data_file = basename(get_faasm_benchmark(data)["data"][0])
@@ -71,7 +80,7 @@ def granny(ctx, data="compute-xl", repeats=3):
         for nrep in range(repeats):
             # First, flush the host state
             print("Flushing functions, state, and shared files from workers")
-            flush_hosts()
+            flush_planner_workers()
 
             # Run LAMMPS
             cmdline = "-in faasm://lammps-data/{}".format(data_file)
@@ -80,7 +89,6 @@ def granny(ctx, data="compute-xl", repeats=3):
                 "function": LAMMPS_FAASM_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
-                "async": True,
             }
             result_json = post_async_msg_and_get_result_json(msg, url)
             actual_time = get_faasm_exec_time_from_json(result_json)
@@ -130,6 +138,6 @@ def native(ctx, data="compute-xl", repeats=3):
             start = time()
             exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
             end = time()
-            actual_time = end - start
             print(exec_output)
+            actual_time = end - start
             _write_csv_line(csv_name, nproc, nrep, actual_time)

@@ -1,10 +1,6 @@
-from json import loads as json_loads
-from json.decoder import JSONDecodeError
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
-from pprint import pprint
-from requests import post
 from typing import Dict, List, Tuple, Union
 from tasks.lammps.env import (
     LAMMPS_FAASM_USER,
@@ -44,8 +40,9 @@ from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_worker_ips,
     get_faasm_worker_pods,
-    get_faasm_invoke_host_port,
-    flush_hosts as flush_faasm_hosts,
+    get_faasm_planner_host_port,
+    flush_workers as flush_faasm_workers,
+    post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import (
     get_native_mpi_pods,
@@ -117,7 +114,8 @@ def thread_pool_thread(
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
             # We always use the same LAMMPS benchmark
-            data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            # data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark("network")["data"][0]
 
         # Record the start timestamp
         start_ts = 0
@@ -184,7 +182,7 @@ def thread_pool_thread(
             thread_print("Actual time: {}".format(actual_time))
         else:
             # WASM specific data
-            host, port = get_faasm_invoke_host_port()
+            host, port = get_faasm_planner_host_port()
             url = "http://{}:{}".format(host, port)
 
             # Prepare Faasm request
@@ -206,7 +204,6 @@ def thread_pool_thread(
                     "cmdline": cmdline,
                     "mpi": True,
                     "mpi_world_size": work_item.task.size,
-                    "async": True,
                 }
                 # If attempting to migrate, add a check period
                 if work_item.task.app == "mpi-migrate":
@@ -226,85 +223,19 @@ def thread_pool_thread(
                 msg = {
                     "user": user,
                     "function": func,
-                    "cmdline": get_dgemm_cmdline(work_item.task.size),
                     # The input_data is the number of OMP threads
-                    "async": True,
+                    "cmdline": get_dgemm_cmdline(work_item.task.size),
                 }
-            thread_print("Posting to {} msg:".format(url))
-            pprint(msg)
 
-            # Post asynch request
             start_ts = time()
-            response = post(url, json=msg, timeout=None)
-            # Get the async message id
-            if response.status_code != 200:
-                thread_print(
-                    "Initial request failed: {}:\n{}".format(
-                        response.status_code, response.text
-                    )
+            # Post asynch request and wait for JSON result
+            result_json = post_async_msg_and_get_result_json(msg, url)
+            actual_time = int(get_faasm_exec_time_from_json(result_json))
+            thread_print(
+                "Finished executiong app {} (time: {})".format(
+                    result_json["appId"], actual_time
                 )
-                thread_print("--------------- ERROR ---------------")
-                thread_print(
-                    "Marking task {} as failed".format(work_item.task.task_id)
-                )
-                thread_print("-------------------------------------")
-                result_queue.put(
-                    ResultQueueItem(
-                        work_item.task.task_id, -1, time(), time(), "-1"
-                    )
-                )
-                continue
-            thread_print("Response: {}".format(response.text))
-            msg_id = int(response.text.strip())
-
-            # Start polling for the result
-            thread_print("Polling message {}".format(msg_id))
-            while True:
-                interval = 2
-                sleep(interval)
-
-                status_msg = {
-                    "user": LAMMPS_FAASM_USER,
-                    "function": LAMMPS_FAASM_FUNC,
-                    "status": True,
-                    "id": msg_id,
-                }
-                response = post(url, json=status_msg)
-
-                if not response.text or response.text.startswith("FAILED"):
-                    thread_print("--------------- ERROR ---------------")
-                    thread_print(
-                        "Marking task {} as failed".format(
-                            work_item.task.task_id
-                        )
-                    )
-                    thread_print("-------------------------------------")
-                    actual_time = -1
-                    break
-                elif response.text.startswith("RUNNING"):
-                    continue
-                else:
-                    thread_print("Call finished succesfully")
-
-                # Get the executed time from the response
-                try:
-                    result_json = json_loads(response.text, strict=False)
-                except JSONDecodeError:
-                    thread_print("--------------- ERROR ---------------")
-                    thread_print(
-                        "Marking task {} as failed".format(
-                            work_item.task.task_id
-                        )
-                    )
-                    thread_print("-------------------------------------")
-                    actual_time = -1
-                    break
-
-                actual_time = int(get_faasm_exec_time_from_json(result_json))
-                thread_print("Actual time: {}".format(actual_time))
-
-                # Finally exit the polling loop
-                break
+            )
 
         result_queue.put(
             ResultQueueItem(
@@ -641,7 +572,7 @@ class BatchScheduler:
         """
         # If running a WASM workload, flush the hosts first
         if self.state.current_workload in GRANNY_WORKLOAD:
-            flush_faasm_hosts()
+            flush_faasm_workers()
 
         # Mark the initial timestamp
         self.start_ts = time()

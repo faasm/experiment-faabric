@@ -11,7 +11,7 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
-    flush_hosts,
+    flush_workers,
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import (
@@ -131,7 +131,7 @@ def granny(ctx, repeats=1, num_procs=None, kernel=None):
         for run_num in range(repeats):
             for np in num_procs:
                 # Flush the cluster fist
-                flush_hosts()
+                flush_workers()
 
                 try:
                     cmdline = get_kernels_cmdline(kernel, np)

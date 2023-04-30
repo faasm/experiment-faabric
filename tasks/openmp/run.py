@@ -13,7 +13,7 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
-    flush_hosts,
+    flush_workers,
     post_async_msg_and_get_result_json,
 )
 from time import time
@@ -109,7 +109,7 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
         for r in range(int(repeats)):
             for nthread in num_threads:
 
-                flush_hosts()
+                flush_workers()
 
                 if wload == "dgemm":
                     user = DGEMM_FAASM_USER

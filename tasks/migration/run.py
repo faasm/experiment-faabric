@@ -11,12 +11,13 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
-    flush_hosts,
+    get_faasm_planner_host_port,
+    get_faasm_worker_ips,
+    flush_workers,
     post_async_msg_and_get_result_json,
+    reset_planner,
+    wait_for_workers as wait_for_planner_workers,
 )
-
-MESSAGE_TYPE_FLUSH = 3
 
 
 def _init_csv_file(csv_name):
@@ -45,6 +46,9 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
     """
     Run migration experiment
     """
+    num_workers = len(get_faasm_worker_ips())
+    reset_planner()
+    wait_for_planner_workers(num_workers)
 
     all_workloads = ["all-to-all", "lammps", "all"]
     if workload == "all":
@@ -64,7 +68,7 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
         check_array = [int(check_in)]
 
     # Url and headers for requests
-    host, port = get_faasm_invoke_host_port()
+    host, port = get_faasm_planner_host_port()
     url = "http://{}:{}".format(host, port)
     num_cores_per_vm = 8
 
@@ -75,7 +79,7 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
         for check in check_array:
             for run_num in range(repeats):
                 # First, flush the host state
-                flush_hosts()
+                flush_workers()
 
                 if wload == "all-to-all":
                     num_loops = 100000
@@ -108,7 +112,6 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
                     "function": func,
                     "mpi": True,
                     "mpi_world_size": int(num_cores_per_vm),
-                    "async": True,
                     "migration_check_period": migration_check_period,
                     "cmdline": cmdline,
                     "topology_hint": "{}".format(topology_hint),

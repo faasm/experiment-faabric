@@ -11,7 +11,7 @@ from tasks.util.env import (
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_invoke_host_port,
-    flush_hosts,
+    flush_workers,
 )
 from tasks.util.env import (
     LAMMPS_DOCKER_BINARY,
@@ -73,7 +73,7 @@ def granny(ctx, workload="compute", num_procs=None, repeats=5):
         workload = [workload]
 
     # Flush the cluster first
-    flush_hosts()
+    flush_workers()
 
     host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)

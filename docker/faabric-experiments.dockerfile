@@ -4,8 +4,7 @@ FROM faasm.azurecr.io/examples-build:0.2.5_0.2.5 as build
 RUN rm -rf /code \
     && mkdir -p /code \
     && cd /code \
-    # TODO: clone from main eventually
-    && git clone -b new-wamr https://github.com/faasm/examples /code/faasm-examples \
+    && git clone https://github.com/faasm/examples /code/faasm-examples \
     && cd /code/faasm-examples \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
