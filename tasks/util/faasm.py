@@ -97,9 +97,10 @@ def flush_workers():
         )
 
 
-def post_async_msg_and_get_result_json(msg, url):
-    print("Posting to {} msg:".format(url))
-    pprint(msg)
+def post_async_msg_and_get_result_json(msg, url, verbose=False):
+    if verbose:
+        print("Posting to {} msg:".format(url))
+        pprint(msg)
 
     planner_msg_execute = prepare_planner_msg("EXECUTE", msg)
 

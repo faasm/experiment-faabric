@@ -1,4 +1,5 @@
 from invoke import task
+from logging import getLogger, WARNING as log_level_WARNING
 from os.path import join
 from tasks.makespan.data import ExecutedTaskInfo
 from tasks.makespan.scheduler import (
@@ -30,6 +31,10 @@ from tasks.util.faasm import (
     wait_for_workers as wait_for_planner_workers,
 )
 from tasks.lammps.env import get_faasm_benchmark
+
+# Configure the logging settings globally
+getLogger("requests").setLevel(log_level_WARNING)
+getLogger("urllib3").setLevel(log_level_WARNING)
 
 
 def _get_workload_from_cmdline(workload):

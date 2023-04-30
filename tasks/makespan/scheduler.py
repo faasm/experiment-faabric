@@ -1,3 +1,7 @@
+from logging import (
+    getLogger,
+    INFO as log_level_INFO,
+)
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
@@ -50,6 +54,12 @@ from tasks.util.openmpi import (
 )
 from time import sleep, time
 
+# Configure a global logger for the scheduler
+getLogger("root").setLevel(log_level_INFO)
+sch_logger = getLogger("Scheduler")
+sch_logger.setLevel(log_level_INFO)
+
+
 # Different workloads
 GRANNY_WORKLOAD = ["granny"]
 NATIVE_WORKLOAD = ["native"]
@@ -71,7 +81,7 @@ def dequeue_with_timeout(
             break
         except Queue_Empty:
             if not silent:
-                print(
+                sch_logger.debug(
                     "Timed-out dequeuing from {}. Trying again...".format(
                         queue_str
                     )
@@ -95,7 +105,7 @@ def thread_pool_thread(
     """
 
     def thread_print(msg):
-        print("[Thread {}] {}".format(thread_idx, msg))
+        sch_logger.debug("[Thread {}] {}".format(thread_idx, msg))
 
     thread_print("Pool thread {} starting".format(thread_idx))
 
@@ -323,26 +333,26 @@ class SchedulerState:
             raise RuntimeError("Unrecognised backend: {}".format(backend))
         # Sanity-check the VM names and IPs we got
         if len(vm_names) != self.num_ctrs:
-            print(
+            sch_logger.error(
                 "ERROR: expected {} VM names, but got {}".format(
                     self.num_ctrs, len(vm_names)
                 )
             )
-            print("VM names: {}".format(vm_names))
+            sch_logger.info("VM names: {}".format(vm_names))
             raise RuntimeError("Inconsistent scheduler state")
         if len(vm_ips) != self.num_ctrs:
-            print(
+            sch_logger.error(
                 "ERROR: expected {} VM IPs, but got {}".format(
                     self.num_ctrs, len(vm_ips)
                 )
             )
-            print("VM IPs: {}".format(vm_ips))
+            sch_logger.info("VM IPs: {}".format(vm_ips))
             raise RuntimeError("Inconsistent scheduler state")
-        print("Initialised VM Map:")
+        sch_logger.info("Initialised VM Map:")
         for ip, name in zip(vm_ips, vm_names):
             self.vm_map[ip] = self.num_cores_per_ctr
             self.vm_ip_to_name[ip] = name
-            print(
+            sch_logger.info(
                 "- IP: {} (name: {}) - Slots: {}".format(
                     ip, name, self.num_cores_per_ctr
                 )
@@ -351,7 +361,9 @@ class SchedulerState:
     def remove_in_flight_task(self, task_id: int) -> None:
         if task_id not in self.in_flight_tasks:
             raise RuntimeError("Task {} not in-flight!".format(task_id))
-        print("Removing task {} from in-flight tasks".format(task_id))
+        sch_logger.debug(
+            "Removing task {} from in-flight tasks".format(task_id)
+        )
 
         # Return the slots to each pod
         scheduling_decision: List[Tuple[str, int]] = self.in_flight_tasks[
@@ -360,6 +372,54 @@ class SchedulerState:
         for ip, slots in scheduling_decision:
             self.vm_map[ip] += slots
             self.total_available_slots += slots
+
+    def print_executed_task_info(self, footer_text=None):
+        """
+        Log the state of the experiment (in particular the state of the
+        executed_task_info dictionary). The possible task states are:
+        NONE, EXECUTING, and FINISHED
+        TODO: what about failure?
+        """
+
+        # Populate the task array with the task state
+        task_state_array = ["NONE" for _ in range(self.num_tasks)]
+        for task_id in self.executed_task_info:
+            exec_task = self.executed_task_info[task_id]
+            if exec_task.time_executing == 0:
+                task_state_array[task_id] = "EXECUTING"
+            else:
+                task_state_array[task_id] = "FINISHED"
+
+        def color_text_from_state(state):
+            if state == "NONE":
+                return " "
+            if state == "EXECUTING":
+                return "\033[38;5;3mO\033[0;0m"
+            if state == "FINISHED":
+                return "\033[38;5;2mX\033[0;0m"
+
+        header = "============== EXPERIMENT STATE ==============="
+        divider = "------------------------------------------------"
+        footer = "==============================================="
+
+        print(header)
+        # Print it
+        tasks_per_line = 10
+        line = ""
+        for i in range(self.num_tasks):
+            color_text = color_text_from_state(task_state_array[i])
+            if i == 0:
+                line = "{}:  [{}]".format(i, color_text)
+            elif i % tasks_per_line == 0:
+                print(line)
+                line = "{}: [{}]".format(i, color_text)
+            else:
+                line += " [{}]".format(color_text)
+        print(line)
+        if footer_text:
+            print(divider)
+            print(footer_text)
+        print(footer)
 
     def update_records_from_result(self, result: ResultQueueItem):
         """
@@ -391,6 +451,9 @@ class SchedulerState:
             self.executed_task_info[result.task_id].exec_start_ts,
             self.executed_task_info[result.task_id].exec_end_ts,
         )
+
+        # Lastly, print the executed task info for visualisation purposes
+        self.print_executed_task_info()
 
 
 class BatchScheduler:
@@ -473,7 +536,7 @@ class BatchScheduler:
     ) -> Union[str, List[Tuple[str, int]]]:
         if self.state.total_available_slots < task.size:
             # TODO(autoscale): scale up here
-            print(
+            sch_logger.debug(
                 "Not enough slots to schedule task "
                 "{}-{} (needed: {} - have: {})".format(
                     task.app,
@@ -513,7 +576,7 @@ class BatchScheduler:
                 self.state.vm_map[vm] -= num_on_this_vm
                 self.state.total_available_slots -= num_on_this_vm
                 left_to_assign -= num_on_this_vm
-                print(
+                sch_logger.debug(
                     "Assigning {} slots to VM {} (left: {})".format(
                         num_on_this_vm, vm, left_to_assign
                     )
@@ -523,7 +586,7 @@ class BatchScheduler:
                 if left_to_assign <= 0:
                     break
             else:
-                print(
+                sch_logger.error(
                     "Ran out of pods to assign task slots to, "
                     "but still {} to assign".format(left_to_assign)
                 )
@@ -585,19 +648,19 @@ class BatchScheduler:
             # experiments, we want the cluster to be saturated, so we ignore
             # the inter-arrival times
             if get_workload_from_trace(self.state.trace_str) == "mpi-migrate":
-                print(
+                sch_logger.debug(
                     "Sleeping {} sec to simulate inter-arrival time...".format(
                         t.inter_arrival_time
                     )
                 )
                 sleep(t.inter_arrival_time)
-                print("Done sleeping!")
+                sch_logger.debug("Done sleeping!")
             else:
-                print(
+                sch_logger.debug(
                     "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
                 )
                 sleep(INTERTASK_SLEEP)
-                print("Done sleeping")
+                sch_logger.debug("Done sleeping")
 
             # Try to schedule the task with the current available
             # resources
@@ -626,15 +689,18 @@ class BatchScheduler:
             self.state.executed_task_info[t.task_id] = ExecutedTaskInfo(
                 t.task_id, 0, time_in_queue, 0, 0
             )
+            self.state.print_executed_task_info()
 
             # Log the scheduling decision
             master_vm = scheduling_decision[0][0]
-            print(
+            sch_logger.debug(
                 "Scheduling work task "
                 "{} ({} slots) with master VM {}".format(
                     t.task_id, t.size, master_vm
                 )
             )
+            # TODO: print here
+            # self.state.update_experiment_state(t.task_id, scheduled=True)
 
             # Lastly, put the scheduled task in the work queue
             vms = [it[0] for it in scheduling_decision]

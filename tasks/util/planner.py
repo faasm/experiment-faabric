@@ -151,7 +151,7 @@ def get_msg_result(host, port, msg):
     return result_json
 
 
-def get_app_result(host, port, app_id, app_size):
+def get_app_result(host, port, app_id, app_size, verbose=False):
     """
     Wait for all messages in an app identified by `app_id` to have finished.
     We will wait for a total of `app_size` messages
@@ -159,27 +159,30 @@ def get_app_result(host, port, app_id, app_size):
     # First, poll the planner until all messages are registered with the app
     registered_msgs = get_app_messages(host, port, app_id)
     while len(registered_msgs) != app_size:
-        print(
-            "Waiting for messages to be registered with app {} ({}/{})".format(
-                app_id, len(registered_msgs), app_size
+        if verbose:
+            print(
+                "Waiting for messages to be registered with app {} ({}/{})".format(
+                    app_id, len(registered_msgs), app_size
+                )
             )
-        )
         sleep(2)
         registered_msgs = get_app_messages(host, port, app_id)
 
-    print(
-        "All messages registerd with app {} ({}/{})".format(
-            app_id, len(registered_msgs), app_size
+    if verbose:
+        print(
+            "All messages registerd with app {} ({}/{})".format(
+                app_id, len(registered_msgs), app_size
+            )
         )
-    )
     # Now, for each message, wait for it to be completed
     results = []
     for i, msg in enumerate(registered_msgs):
-        print(
-            "Polling message {} (app: {}, {}/{})".format(
-                msg["id"], app_id, i + 1, len(registered_msgs)
+        if verbose:
+            print(
+                "Polling message {} (app: {}, {}/{})".format(
+                    msg["id"], app_id, i + 1, len(registered_msgs)
+                )
             )
-        )
         result_json = get_msg_result(host, port, msg)
         results.append(result_json)
 

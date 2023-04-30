@@ -2,7 +2,7 @@ from invoke import task
 from signal import signal, SIGINT
 from sys import exit
 from tasks.util.faasm import get_faasm_planner_host_port
-from tasks.util.planner import print_planner_resources, get_in_fligh_apps
+from tasks.util.planner import print_planner_resources
 from time import sleep
 
 
