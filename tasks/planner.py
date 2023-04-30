@@ -2,7 +2,7 @@ from invoke import task
 from signal import signal, SIGINT
 from sys import exit
 from tasks.util.faasm import get_faasm_planner_host_port
-from tasks.util.planner import print_planner_resources
+from tasks.util.planner import print_planner_resources, get_in_fligh_apps
 from time import sleep
 
 
@@ -19,7 +19,7 @@ def monitor(ctx):
 
     signal(SIGINT, sigint_handler)
 
-    print("Starting monitoring planner resources at {}:{}", host, port)
+    print("Starting monitoring planner resources at {}:{}".format(host, port))
     print("Press C-c to stop...")
     while True:
         print_planner_resources(host, port)
