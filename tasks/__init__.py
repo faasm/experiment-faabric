@@ -2,6 +2,7 @@ from invoke import Collection
 
 from . import docker
 from . import format_code
+from . import planner
 
 import logging
 
@@ -18,6 +19,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 ns = Collection(
     docker,
     format_code,
+    planner,
 )
 
 ns.add_collection(lammps_ns, name="lammps")

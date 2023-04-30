@@ -70,7 +70,7 @@ def granny(ctx, data="compute-xl", repeats=1):
 
     # Run multiple benchmarks if desired for convenience
     data_file = basename(get_faasm_benchmark(data)["data"][0])
-    for nproc in NPROCS_EXPERIMENT:
+    for nproc in [16]:  # NPROCS_EXPERIMENT:
         print(
             "Running LAMMPS on Granny with {} MPI processes (data: {})".format(
                 nproc, data

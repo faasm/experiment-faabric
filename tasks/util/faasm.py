@@ -1,14 +1,23 @@
 from configparser import ConfigParser
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
+from os import environ
 from os.path import expanduser, join, exists
 from pprint import pprint
 from requests import post
-from tasks.util.planner import prepare_planner_msg
+from tasks.util.planner import (
+    get_app_result,
+    get_registered_workers as get_planner_registerd_workers,
+    prepare_planner_msg,
+    reset as do_reset_planner,
+)
 from time import sleep
 
 
-FAASM_INI_FILE = join(expanduser("~"), ".config", "faasm.ini")
+if "FAASM_INI_FILE" in environ:
+    FAASM_INI_FILE = environ["FAASM_INI_FILE"]
+else:
+    FAASM_INI_FILE = join(expanduser("~"), ".config", "faasm.ini")
 
 
 def get_faasm_ini_value(section, key):
@@ -109,46 +118,17 @@ def post_async_msg_and_get_result_json(msg, url):
         print("Error deserialising JSON message: {}".format(e.msg))
         print("Actual message: {}".format(response.text))
 
-    msg_id = execute_msg["id"]
     app_id = execute_msg["appId"]
+    # TODO: this may have to be re-considered for OpenMP calls
+    app_size = (
+        execute_msg["mpi_world_size"] if "mpi_world_size" in execute_msg else 1
+    )
 
-    # Start polling for the result
-    print("Polling message {} (app: {})".format(msg_id, app_id))
-    while True:
-        interval = 2
-        sleep(interval)
-
-        planner_status_msg = prepare_planner_msg("EXECUTE_STATUS", execute_msg)
-        status_response = post(url, json=planner_status_msg)
-
-        if (
-            status_response.status_code == 200
-            and status_response.text.startswith("RUNNING")
-        ):
-            continue
-        elif not status_response.text:
-            print(
-                "Empty response text (status: {})".format(
-                    status_response.status
-                )
-            )
-            raise RuntimeError("Empty status response")
-        elif (
-            status_response.status_code >= 400
-            or status_response.text.startswith("FAILED")
-        ):
-            print("Error running task: {}".format(status_response.status))
-            print("Error message: {}".format(status_response.text))
-            raise RuntimeError("Error running task!")
-
-        # If we reach this point it means the call has succeeded
-        try:
-            result_json = json_loads(status_response.text)
-        except JSONDecodeError as e:
-            print("Error deserialising JSON message: {}".format(e.msg))
-            print("Actual message: {}".format(status_response.text))
-
-        return result_json
+    # Get app results
+    host, port = get_faasm_planner_host_port()
+    # We return the JSON for the first message only, for backwards
+    # compatibility. We can consider changing this eventually
+    return get_app_result(host, port, app_id, app_size)[0]
 
 
 def wait_for_workers(expected_num_workers):
@@ -156,31 +136,10 @@ def wait_for_workers(expected_num_workers):
     Wait for the workers to have reigstered with the planner
     """
     host, port = get_faasm_planner_host_port()
-    url = "http://{}:{}".format(host, port)
-
-    planner_msg = prepare_planner_msg("GET_AVAILABLE_HOSTS")
 
     def get_num_registered_workers():
-        response = post(url, json=planner_msg, timeout=None)
-
-        if response.status_code != 200:
-            print(
-                "Error waiting for workers (code: {}): {}".format(
-                    response.status_code, response.text
-                )
-            )
-            raise RuntimeError("Error waiting for workers")
-
-        try:
-            response_json = json_loads(response.text)
-        except JSONDecodeError as e:
-            print("Error deserialising JSON message: {}".format(e.msg))
-            print("Actual message: {}".format(response.text))
-
-        if "hosts" not in response_json:
-            return 0
-
-        return len(response_json["hosts"])
+        registred_workers = get_planner_registerd_workers(host, port)
+        return len(registred_workers) if registred_workers else 0
 
     num_registered = get_num_registered_workers()
     while num_registered != expected_num_workers:
@@ -201,16 +160,4 @@ def reset_planner():
     Reset the planner
     """
     host, port = get_faasm_planner_host_port()
-    url = "http://{}:{}".format(host, port)
-
-    planner_msg = prepare_planner_msg("RESET")
-
-    response = post(url, json=planner_msg, timeout=None)
-
-    if response.status_code != 200:
-        print(
-            "Error resetting planner (code: {}): {}".format(
-                response.status_code, response.text
-            )
-        )
-        raise RuntimeError("Error resetting planner")
+    do_reset_planner(host, port)
