@@ -161,9 +161,8 @@ def get_app_result(host, port, app_id, app_size, verbose=False):
     while len(registered_msgs) != app_size:
         if verbose:
             print(
-                "Waiting for messages to be registered with app {} ({}/{})".format(
-                    app_id, len(registered_msgs), app_size
-                )
+                "Waiting for messages to be registered with app "
+                "{} ({}/{})".format(app_id, len(registered_msgs), app_size)
             )
         sleep(2)
         registered_msgs = get_app_messages(host, port, app_id)
