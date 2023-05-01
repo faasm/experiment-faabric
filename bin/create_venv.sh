@@ -9,6 +9,5 @@ echo "Setting up venv at ${PROJ_ROOT}/venv"
 python3.10 -m venv ${PROJ_ROOT}/venv
 source ${PROJ_ROOT}/venv/bin/activate
 
-pip3 install -U pip
-pip3 install -U setuptools
+pip3 install -U pip setuptools wheel
 pip3 install -r requirements.txt
