@@ -112,12 +112,14 @@ def post_async_msg_and_get_result_json(msg, url, verbose=False):
                 response.status_code, response.text
             )
         )
+        raise RuntimeError("Error sending EXECUTE request to planner")
 
     try:
         execute_msg = json_loads(response.text)
     except JSONDecodeError as e:
         print("Error deserialising JSON message: {}".format(e.msg))
         print("Actual message: {}".format(response.text))
+        raise RuntimeError("Error deserialising EXECUTE response")
 
     app_id = execute_msg["appId"]
     # TODO: this may have to be re-considered for OpenMP calls

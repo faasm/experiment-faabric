@@ -17,6 +17,8 @@ PLANNER_HTTP_MESSAGE_TYPE = {
     "EXECUTE_STATUS": 9,
 }
 
+PLANNER_JSON_MESSAGE_FAILED = {"dead": "beef"}
+
 # ----------
 # Util
 # ----------
@@ -175,6 +177,7 @@ def get_app_result(host, port, app_id, app_size, verbose=False):
         )
     # Now, for each message, wait for it to be completed
     results = []
+    app_has_failed = False
     for i, msg in enumerate(registered_msgs):
         if verbose:
             print(
@@ -182,8 +185,21 @@ def get_app_result(host, port, app_id, app_size, verbose=False):
                     msg["id"], app_id, i + 1, len(registered_msgs)
                 )
             )
-        result_json = get_msg_result(host, port, msg)
-        results.append(result_json)
+        # Poll for all the messages even if some of them have failed to ensure
+        # a graceful recovery of the error
+        try:
+            result_json = get_msg_result(host, port, msg)
+            results.append(result_json)
+        # TODO: define a custom error like MessageExecuteFailure
+        except RuntimeError:
+            app_has_failed = True
+            results.append(PLANNER_JSON_MESSAGE_FAILED)
+
+    # If some messages in the app have actually failed, raise an error once
+    # we have all of them
+    # TODO: define a better error
+    if app_has_failed:
+        raise RuntimeError("App failed")
 
     return results
 

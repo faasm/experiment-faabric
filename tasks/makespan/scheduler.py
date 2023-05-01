@@ -125,7 +125,8 @@ def thread_pool_thread(
         if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
             # We always use the same LAMMPS benchmark
             # data_file = get_faasm_benchmark("compute-xl")["data"][0]
-            data_file = get_faasm_benchmark("network")["data"][0]
+            # data_file = get_faasm_benchmark("network")["data"][0]
+            data_file = get_faasm_benchmark("compute")["data"][0]
 
         # Record the start timestamp
         start_ts = 0
