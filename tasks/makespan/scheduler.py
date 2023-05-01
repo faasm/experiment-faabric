@@ -295,6 +295,7 @@ class SchedulerState:
     # Accounting of the executed tasks and their information
     executed_task_info: Dict[int, ExecutedTaskInfo] = {}
     executed_task_count: int = 0
+    next_task_in_queue: TaskObject = None
 
     def __init__(
         self,
@@ -413,6 +414,41 @@ class SchedulerState:
         footer = "==========================================="
 
         print(header)
+        # Print some information on the experiment
+        if len(self.backend) <= 3:
+            print(
+                "Backend: {}\t\tWorkload: {}".format(
+                    self.backend, self.current_workload
+                )
+            )
+        else:
+            print(
+                "Backend: {}\tWorkload: {}".format(
+                    self.backend, self.current_workload
+                )
+            )
+        print(
+            "Num VMs: {}\t\tCores/VM: {}".format(
+                len(self.vm_map), self.num_cores_per_ctr
+            )
+        )
+        print(
+            "Total cluster occupation: {}/{} ({} %)".format(
+                self.total_slots - self.total_available_slots,
+                self.total_slots,
+                (self.total_slots - self.total_available_slots)
+                / self.total_slots
+                * 100,
+            )
+        )
+        if self.next_task_in_queue:
+            print(
+                "Next task in queue: {} (size: {})".format(
+                    self.next_task_in_queue.task_id,
+                    self.next_task_in_queue.size,
+                )
+            )
+        print(divider)
         # Print it
         tasks_per_line = 10
         line = ""
@@ -555,6 +591,7 @@ class BatchScheduler:
                     int(self.state.total_available_slots),
                 )
             )
+            self.state.next_task_in_queue = task
             return NOT_ENOUGH_SLOTS
 
         # A scheduling decision is a list of (ip, slots) pairs inidicating
