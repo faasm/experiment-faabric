@@ -135,7 +135,7 @@ def get_msg_result(host, port, msg):
             status_response.status_code >= 400
             or status_response.text.startswith("FAILED")
         ):
-            print("Error running task: {}".format(status_response.status))
+            print("Error running task: {}".format(status_response.status_code))
             print("Error message: {}".format(status_response.text))
             raise RuntimeError("Error running task!")
 
@@ -278,7 +278,9 @@ def print_planner_resources(host, port):
                     len(occupation),
                 )
             )
-            raise RuntimeError("Inconsistent planner state!")
+            # This may happen sometime due to some funny race condition,
+            # wait to recover in the next heart beat
+            return
         for i in range(host_msg["slots"]):
             if i < used_slots:
                 line += " [{}]".format(color_text(occupation[i]))

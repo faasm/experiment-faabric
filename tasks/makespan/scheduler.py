@@ -239,13 +239,19 @@ def thread_pool_thread(
 
             start_ts = time()
             # Post asynch request and wait for JSON result
-            result_json = post_async_msg_and_get_result_json(msg, url)
-            actual_time = int(get_faasm_exec_time_from_json(result_json))
-            thread_print(
-                "Finished executiong app {} (time: {})".format(
-                    result_json["appId"], actual_time
+            try:
+                result_json = post_async_msg_and_get_result_json(msg, url)
+                actual_time = int(get_faasm_exec_time_from_json(result_json))
+                thread_print(
+                    "Finished executiong app {} (time: {})".format(
+                        result_json["appId"], actual_time
+                    )
                 )
-            )
+            except RuntimeError:
+                actual_time = -1
+                sch_logger.error(
+                    "Error executing task {}".format(work_item.task.task_id)
+                )
 
         result_queue.put(
             ResultQueueItem(
@@ -377,7 +383,7 @@ class SchedulerState:
         """
         Log the state of the experiment (in particular the state of the
         executed_task_info dictionary). The possible task states are:
-        NONE, EXECUTING, and FINISHED
+        NONE, EXECUTING, FINISHED, and FAILED
         TODO: what about failure?
         """
 
@@ -387,6 +393,8 @@ class SchedulerState:
             exec_task = self.executed_task_info[task_id]
             if exec_task.time_executing == 0:
                 task_state_array[task_id] = "EXECUTING"
+            elif exec_task.time_executing == -1:
+                task_state_array[task_id] = "FAILED"
             else:
                 task_state_array[task_id] = "FINISHED"
 
@@ -397,10 +405,12 @@ class SchedulerState:
                 return "\033[38;5;3mO\033[0;0m"
             if state == "FINISHED":
                 return "\033[38;5;2mX\033[0;0m"
+            if state == "FAILED":
+                return "\033[38;5;1mX\033[0;0m"
 
-        header = "============== EXPERIMENT STATE ==============="
-        divider = "------------------------------------------------"
-        footer = "==============================================="
+        header = "============ EXPERIMENT STATE ============="
+        divider = "--------------------------------------------"
+        footer = "==========================================="
 
         print(header)
         # Print it
@@ -536,7 +546,7 @@ class BatchScheduler:
     ) -> Union[str, List[Tuple[str, int]]]:
         if self.state.total_available_slots < task.size:
             # TODO(autoscale): scale up here
-            sch_logger.debug(
+            sch_logger.info(
                 "Not enough slots to schedule task "
                 "{}-{} (needed: {} - have: {})".format(
                     task.app,
