@@ -2,6 +2,11 @@
 
 First, deploy the VM cluster:
 
+```bash
+inv cluster.provision --vm Standard_D8_v5 --nodes 32
+inv cluster.credentials
+```
+
 ## Granny (MPI)
 
 First, deploy the k8s cluster:
