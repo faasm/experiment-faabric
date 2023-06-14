@@ -13,6 +13,7 @@ from tasks.migration import ns as migration_ns
 from tasks.motivation import ns as motivation_ns
 from tasks.mpi import ns as mpi_ns
 from tasks.openmp import ns as openmp_ns
+from tasks.polybench import ns as polybench_ns
 
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -30,3 +31,4 @@ ns.add_collection(migration_ns, name="migration")
 ns.add_collection(motivation_ns, name="motivation")
 ns.add_collection(mpi_ns, name="mpi")
 ns.add_collection(openmp_ns, name="openmp")
+ns.add_collection(polybench_ns, name="polybench")

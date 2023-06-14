@@ -73,7 +73,9 @@ def get_faasm_exec_time_from_json(result_json):
     Return the execution time (included in Faasm's response JSON) in seconds
     """
     actual_time = (
-        float(int(result_json["finish_ts"]) - int(result_json["start_ts"]))
+        # TODO(planner)
+        # float(int(result_json["finish_ts"]) - int(result_json["start_ts"]))
+        float(int(result_json["finish"]) - int(result_json["timestamp"]))
         / 1000
     )
 
@@ -85,9 +87,26 @@ def flush_workers():
     Flush faasm workers through the planner
     """
     # Prepare URL and headers
-    host, port = get_faasm_planner_host_port()
+# TODO(planner):
+#     host, port = get_faasm_planner_host_port()
+#     url = "http://{}:{}".format(host, port)
+#     msg = prepare_planner_msg("FLUSH_EXECUTORS")
+#     response = post(url, json=msg, timeout=None)
+#     if response.status_code != 200:
+#         print(
+#             "Flush request failed: {}:\n{}".format(
+#                 response.status_code, response.text
+#             )
+#         )
+    # Prepare URL and headers
+    host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)
-    msg = prepare_planner_msg("FLUSH_EXECUTORS")
+
+    # Prepare message
+    msg = {"type": 3}
+    # print("Flushing functions, state, and shared files from workers")
+    # print("Posting to {} msg:".format(url))
+    # pprint(msg)
     response = post(url, json=msg, timeout=None)
     if response.status_code != 200:
         print(
@@ -95,43 +114,88 @@ def flush_workers():
                 response.status_code, response.text
             )
         )
+    print("Waiting for flush to propagate...")
+    sleep(5)
+    print("Done waiting")
 
 
-def post_async_msg_and_get_result_json(msg, url, verbose=False):
-    if verbose:
-        print("Posting to {} msg:".format(url))
-        pprint(msg)
-
-    planner_msg_execute = prepare_planner_msg("EXECUTE", msg)
+# TODO(planner)
+# def post_async_msg_and_get_result_json(msg, url, verbose=False):
+#     if verbose:
+#         print("Posting to {} msg:".format(url))
+#         pprint(msg)
+#
+#     planner_msg_execute = prepare_planner_msg("EXECUTE", msg)
+#
+#     # Post asynch request
+#     response = post(url, json=planner_msg_execute, timeout=None)
+#     if response.status_code != 200:
+#         print(
+#             "Initial request failed: {}:\n{}".format(
+#                 response.status_code, response.text
+#             )
+#         )
+#         raise RuntimeError("Error sending EXECUTE request to planner")
+#
+#     try:
+#         execute_msg = json_loads(response.text)
+#     except JSONDecodeError as e:
+#         print("Error deserialising JSON message: {}".format(e.msg))
+#         print("Actual message: {}".format(response.text))
+#         raise RuntimeError("Error deserialising EXECUTE response")
+#
+#     app_id = execute_msg["appId"]
+#     # TODO: this may have to be re-considered for OpenMP calls
+#     app_size = (
+#         execute_msg["mpi_world_size"] if "mpi_world_size" in execute_msg else 1
+#     )
+#
+#     # Get app results
+#     host, port = get_faasm_planner_host_port()
+#     # We return the JSON for the first message only, for backwards
+#     # compatibility. We can consider changing this eventually
+#     return get_app_result(host, port, app_id, app_size)[0]
+def post_async_msg_and_get_result_json(msg, url):
+    print("Posting to {} msg:".format(url))
+    pprint(msg)
 
     # Post asynch request
-    response = post(url, json=planner_msg_execute, timeout=None)
+    response = post(url, json=msg, timeout=None)
+    # Get the async message id
     if response.status_code != 200:
         print(
             "Initial request failed: {}:\n{}".format(
                 response.status_code, response.text
             )
         )
-        raise RuntimeError("Error sending EXECUTE request to planner")
+    print("Response: {}".format(response.text))
+    msg_id = int(response.text.strip())
 
-    try:
-        execute_msg = json_loads(response.text)
-    except JSONDecodeError as e:
-        print("Error deserialising JSON message: {}".format(e.msg))
-        print("Actual message: {}".format(response.text))
-        raise RuntimeError("Error deserialising EXECUTE response")
+    # Start polling for the result
+    print("Polling message {}".format(msg_id))
+    while True:
+        interval = 2
+        sleep(interval)
 
-    app_id = execute_msg["appId"]
-    # TODO: this may have to be re-considered for OpenMP calls
-    app_size = (
-        execute_msg["mpi_world_size"] if "mpi_world_size" in execute_msg else 1
-    )
+        status_msg = {
+            "user": msg["user"],
+            "function": msg["function"],
+            "status": True,
+            "id": msg_id,
+        }
+        response = post(url, json=status_msg)
 
-    # Get app results
-    host, port = get_faasm_planner_host_port()
-    # We return the JSON for the first message only, for backwards
-    # compatibility. We can consider changing this eventually
-    return get_app_result(host, port, app_id, app_size)[0]
+        if not response.text or response.text.startswith("FAILED"):
+            raise RuntimeError("Error running task!")
+        elif response.text.startswith("RUNNING"):
+            continue
+        elif not response.text:
+            raise RuntimeError("Empty status response")
+
+        # If we reach this point it means the call has succeeded
+        result_json = json_loads(response.text, strict=False)
+        # print(result_json)
+        return result_json
 
 
 def wait_for_workers(expected_num_workers):
