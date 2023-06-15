@@ -35,7 +35,9 @@ def _read_results():
     result_dict = {}
     trace = get_trace_from_parameters(workload, 100, 8)
     trace_ending = trace[6:]
-    glob_str = "makespan_exec-task-info_*_{}_{}_{}".format("k8s", 32, trace_ending)
+    glob_str = "makespan_exec-task-info_*_{}_{}_{}".format(
+        "k8s", 32, trace_ending
+    )
     for csv in glob(join(RESULTS_DIR, glob_str)):
         # Filter-out baselines
         baseline = csv.split("_")[2]
@@ -46,15 +48,9 @@ def _read_results():
         # Results for per-job exec time and time-in-queue
         result_dict[baseline] = {}
         results = pd.read_csv(csv)
-        task_ids = results[
-            "TaskId"
-        ].to_list()
-        times_exec = results[
-            "TimeExecuting"
-        ].to_list()
-        times_queue = results[
-                "TimeInQueue"
-        ].to_list()
+        task_ids = results["TaskId"].to_list()
+        times_exec = results["TimeExecuting"].to_list()
+        times_queue = results["TimeInQueue"].to_list()
         result_dict[baseline]["exec-time"] = [-1 for _ in task_ids]
         result_dict[baseline]["queue-time"] = [-1 for _ in task_ids]
 
@@ -120,8 +116,12 @@ def plot(ctx):
     x1 = range(num_jobs)
     ax1.plot(x1, results["slurm"]["exec-time"], label="slurm", color="orange")
     ax1.plot(x1, results["batch"]["exec-time"], label="batch", color="blue")
-    ax1.plot(x1, results["slurm"]["queue-time"], color="orange", linestyle="dashed")
-    ax1.plot(x1, results["batch"]["queue-time"], color="blue", linestyle="dashed")
+    ax1.plot(
+        x1, results["slurm"]["queue-time"], color="orange", linestyle="dashed"
+    )
+    ax1.plot(
+        x1, results["batch"]["queue-time"], color="blue", linestyle="dashed"
+    )
     ax1.legend()
 
     out_file = join(plots_dir, "motivation.{}".format(PLOTS_FORMAT))

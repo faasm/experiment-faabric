@@ -71,7 +71,7 @@ def _template_k8s_files(
     return namespace_yml, deployment_yml
 
 
-def run_kubectl_cmd(experiment_name, cmd):
+def run_kubectl_cmd(experiment_name, cmd, capture_stderr=False):
     namespace = get_native_mpi_namespace(experiment_name)
     kubecmd = "kubectl -n {} {}".format(namespace, cmd)
     print(kubecmd)
@@ -83,6 +83,9 @@ def run_kubectl_cmd(experiment_name, cmd):
         shell=True,
         check=True,
     )
+
+    if capture_stderr:
+        return res.stderr.decode("utf-8")
 
     return res.stdout.decode("utf-8")
 

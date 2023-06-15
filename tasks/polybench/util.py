@@ -1,8 +1,11 @@
 from os.path import join
-from tasks.util.env import EXAMPLES_BASE_DIR
+from tasks.util.env import EXAMPLES_BASE_DIR, EXAMPLES_DOCKER_DIR
 
 POLYBENCH_USER = "polybench"
 POLYBENCH_DOCKER_DIR = join(EXAMPLES_BASE_DIR, POLYBENCH_USER)
+POLYBENCH_NATIVE_DOCKER_BUILD_DIR = join(
+    EXAMPLES_DOCKER_DIR, "polybench", "build", "native"
+)
 
 # This list of functions can be obtained by going to the examples directory,
 # and listing the files in `./dev/faasm-local/wasm/polybench`

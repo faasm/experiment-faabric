@@ -87,17 +87,17 @@ def flush_workers():
     Flush faasm workers through the planner
     """
     # Prepare URL and headers
-# TODO(planner):
-#     host, port = get_faasm_planner_host_port()
-#     url = "http://{}:{}".format(host, port)
-#     msg = prepare_planner_msg("FLUSH_EXECUTORS")
-#     response = post(url, json=msg, timeout=None)
-#     if response.status_code != 200:
-#         print(
-#             "Flush request failed: {}:\n{}".format(
-#                 response.status_code, response.text
-#             )
-#         )
+    # TODO(planner):
+    #     host, port = get_faasm_planner_host_port()
+    #     url = "http://{}:{}".format(host, port)
+    #     msg = prepare_planner_msg("FLUSH_EXECUTORS")
+    #     response = post(url, json=msg, timeout=None)
+    #     if response.status_code != 200:
+    #         print(
+    #             "Flush request failed: {}:\n{}".format(
+    #                 response.status_code, response.text
+    #             )
+    #         )
     # Prepare URL and headers
     host, port = get_faasm_invoke_host_port()
     url = "http://{}:{}".format(host, port)
