@@ -41,16 +41,26 @@ def _read_results():
         baseline = csv.split("_")[2]
         if baseline not in baseline_map:
             continue
+        baseline = baseline_map[baseline]
 
         # Results for per-job exec time and time-in-queue
         result_dict[baseline] = {}
         results = pd.read_csv(csv)
-        result_dict[baseline]["exec-time"] = results[
+        task_ids = results[
+            "TaskId"
+        ].to_list()
+        times_exec = results[
             "TimeExecuting"
         ].to_list()
-        result_dict[baseline]["queue-time"] = results[
+        times_queue = results[
                 "TimeInQueue"
         ].to_list()
+        result_dict[baseline]["exec-time"] = [-1 for _ in task_ids]
+        result_dict[baseline]["queue-time"] = [-1 for _ in task_ids]
+
+        for tid, texec, tqueue in zip(task_ids, times_exec, times_queue):
+            result_dict[baseline]["exec-time"][tid] = texec
+            result_dict[baseline]["queue-time"][tid] = tqueue
 
         # -----
         # Results to visualise job churn
@@ -98,6 +108,21 @@ def plot(ctx):
     - LHS: per-job comparison of the time in queue and execution time
     - RHS: tbd
     """
+    plots_dir = join(PLOTS_ROOT, "motivation")
+    makedirs(plots_dir, exist_ok=True)
+
     results = _read_results()
-    # TODO: finish plots
-    print(results)
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
+
+    # TODO: check result integrity
+
+    num_jobs = len(results["slurm"]["exec-time"])
+    x1 = range(num_jobs)
+    ax1.plot(x1, results["slurm"]["exec-time"], label="slurm", color="orange")
+    ax1.plot(x1, results["batch"]["exec-time"], label="batch", color="blue")
+    ax1.plot(x1, results["slurm"]["queue-time"], color="orange", linestyle="dashed")
+    ax1.plot(x1, results["batch"]["queue-time"], color="blue", linestyle="dashed")
+    ax1.legend()
+
+    out_file = join(plots_dir, "motivation.{}".format(PLOTS_FORMAT))
+    plt.savefig(out_file, format=PLOTS_FORMAT, bbox_inches="tight")
