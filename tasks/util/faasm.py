@@ -150,7 +150,7 @@ def flush_workers():
 #     app_id = execute_msg["appId"]
 #     # TODO: this may have to be re-considered for OpenMP calls
 #     app_size = (
-#         execute_msg["mpi_world_size"] if "mpi_world_size" in execute_msg else 1
+#   execute_msg["mpi_world_size"] if "mpi_world_size" in execute_msg else 1
 #     )
 #
 #     # Get app results

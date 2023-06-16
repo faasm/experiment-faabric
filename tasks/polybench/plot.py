@@ -34,7 +34,7 @@ def _read_results(baseline):
 def _check_results(native_results, granny_results):
     if len(native_results) != len(granny_results):
         raise RuntimeError(
-            "Different number of kernels for native ({}) and granny ({})".format(
+            "Different num. of kernels for native ({}) and granny ({})".format(
                 len(native_results), len(granny_results)
             )
         )

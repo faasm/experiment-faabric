@@ -122,11 +122,6 @@ def _read_results():
                         vm = ip_to_vm_line[i + 1]
                         ip_to_vm[ip] = vm
                         i += 2
-                    print(
-                        "Ips: {} - Vms: {}".format(
-                            len(ip_to_vm), len(set(ip_to_vm.values()))
-                        )
-                    )
 
                     continue
 
@@ -139,11 +134,9 @@ def _read_results():
                 assert len(sched_info) % 2 == 0
 
                 i = 0
-                print(task_id)
                 while i < len(sched_info):
                     vm = ip_to_vm[sched_info[i]]
                     slots = sched_info[i + 1]
-                    print(vm, slots)
 
                     if vm not in vm_to_id:
                         len_map = len(vm_to_id)
@@ -207,8 +200,6 @@ def plot(ctx):
     # Plot 2: Job Churn
     # ----------
 
-    print(results["slurm"]["task_scheduling"])
-    print(results["slurm"]["tasks_per_ts"])
     # Fix one baseline (should we?)
     baseline = "slurm"
     # On the X axis, we have each job as a bar
@@ -224,7 +215,6 @@ def plot(ctx):
     # (where  m is the row and n the column)
     data = [[-1 for _ in range(ncols)] for _ in range(nrows)]
 
-    print("nrows: {} - ncols: {}".format(nrows, ncols))
     for ts in results[baseline]["tasks_per_ts"]:
         # This dictionary contains the in-flight tasks per timestamp (where
         # the timestamp has already been de-duplicated)
@@ -242,11 +232,10 @@ def plot(ctx):
                 vm_offset = vm * num_cpus_per_vm
                 this_offset = vm_offset + cpu_offset
                 for j in range(this_offset, this_offset + cpus_in_vm):
-                    # print("writig {} to (row: {}, col: {})".format(t_id, j, ts))
                     data[j][ts] = t_id
                 vm_cpu_offset[vm] += cpus_in_vm
 
-    ax2.imshow(data)
+    ax2.imshow(data, origin="lower")
 
     # ----------
     # Save figure
