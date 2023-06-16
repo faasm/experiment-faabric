@@ -1,14 +1,17 @@
 from configparser import ConfigParser
 from json import loads as json_loads
-from json.decoder import JSONDecodeError
+
+# TODO(planner):
+# from json.decoder import JSONDecodeError
 from os import environ
 from os.path import expanduser, join, exists
 from pprint import pprint
 from requests import post
 from tasks.util.planner import (
-    get_app_result,
+    # TODO(planner):
+    # get_app_result,
     get_registered_workers as get_planner_registerd_workers,
-    prepare_planner_msg,
+    # prepare_planner_msg,
     reset as do_reset_planner,
 )
 from time import sleep

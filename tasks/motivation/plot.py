@@ -1,17 +1,10 @@
 from glob import glob
 from invoke import task
-from numpy import arange
 from os import makedirs
 from os.path import join
-from tasks.makespan.util import (
-    get_num_cores_from_trace,
-    get_trace_ending,
-    get_trace_from_parameters,
-)
-from tasks.util.env import MPL_STYLE_FILE, PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
-from tasks.util.plot import PLOT_COLORS, PLOT_LABELS, PLOT_PATTERNS
+from tasks.makespan.util import get_trace_from_parameters
+from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -29,7 +22,6 @@ def _read_results():
     # TODO: decide
     # workload = "mpi-migrate"
     workload = "mpi"
-    baseline_map = {"native-8": "slurm", "native-1": "batch"}
 
     # Load results
     result_dict = {}
@@ -39,11 +31,12 @@ def _read_results():
         "k8s", 32, trace_ending
     )
     for csv in glob(join(RESULTS_DIR, glob_str)):
-        # Filter-out baselines
         baseline = csv.split("_")[2]
-        if baseline not in baseline_map:
-            continue
-        baseline = baseline_map[baseline]
+
+        # -----
+        # Results to visualise differences between execution time and time
+        # in queue
+        # -----
 
         # Results for per-job exec time and time-in-queue
         result_dict[baseline] = {}
@@ -85,13 +78,92 @@ def _read_results():
 
         # Prune the timeseries
         pruned_tasks_per_ts = {}
-        prev_tasks = []
+        # prev_tasks = []
         for ts, tasks in enumerate(tasks_per_ts):
-            if tasks != prev_tasks:
-                pruned_tasks_per_ts[ts] = tasks
-            prev_tasks = tasks
+            # NOTE: we are not pruning at the moment
+            pruned_tasks_per_ts[ts] = tasks
+            # if tasks != prev_tasks:
+            # pruned_tasks_per_ts[ts] = tasks
+            # prev_tasks = tasks
 
         result_dict[baseline]["tasks_per_ts"] = pruned_tasks_per_ts
+
+        # -----
+        # Results to visualise scheduling info per task
+        # -----
+
+        result_dict[baseline]["task_scheduling"] = {}
+
+        # We identify VMs by numbers, not IPs
+        ip_to_vm = {}
+        vm_to_id = {}
+        sched_info_csv = "makespan_sched-info_{}_{}_{}_{}".format(
+            csv.split("_")[2], "k8s", "32", trace_ending
+        )
+        with open(join(RESULTS_DIR, sched_info_csv), "r") as sched_fd:
+            # Process the file line by line, as each line will be different in
+            # length
+            for num, line in enumerate(sched_fd):
+                # Skip the header
+                if num == 0:
+                    continue
+
+                line = line.strip()
+
+                # In line 1 we include the IP to node conversion as one
+                # comma-separated line, so we parse it here
+                if num == 1:
+                    ip_to_vm_line = line.split(",")
+                    assert len(ip_to_vm_line) % 2 == 0
+
+                    i = 0
+                    while i < len(ip_to_vm_line):
+                        ip = ip_to_vm_line[i]
+                        vm = ip_to_vm_line[i + 1]
+                        ip_to_vm[ip] = vm
+                        i += 2
+                    print(
+                        "Ips: {} - Vms: {}".format(
+                            len(ip_to_vm), len(set(ip_to_vm.values()))
+                        )
+                    )
+
+                    continue
+
+                # Get the task id and the scheduling decision from the line
+                task_id = line.split(",")[0]
+                result_dict[baseline]["task_scheduling"][task_id] = {}
+                sched_info = line.split(",")[1:]
+                # The scheduling decision must be even, as it contains pairs
+                # of ip + slots
+                assert len(sched_info) % 2 == 0
+
+                i = 0
+                print(task_id)
+                while i < len(sched_info):
+                    vm = ip_to_vm[sched_info[i]]
+                    slots = sched_info[i + 1]
+                    print(vm, slots)
+
+                    if vm not in vm_to_id:
+                        len_map = len(vm_to_id)
+                        vm_to_id[vm] = len_map
+
+                    vm_id = vm_to_id[vm]
+                    if (
+                        vm_id
+                        not in result_dict[baseline]["task_scheduling"][
+                            task_id
+                        ]
+                    ):
+                        result_dict[baseline]["task_scheduling"][task_id][
+                            vm_id
+                        ] = 0
+
+                    result_dict[baseline]["task_scheduling"][task_id][
+                        vm_id
+                    ] += int(slots)
+                    i += 2
 
     return result_dict
 
@@ -112,6 +184,10 @@ def plot(ctx):
 
     # TODO: check result integrity
 
+    # ----------
+    # Plot 1: Comparison of execution time/time-in-queue trade-off
+    # ----------
+
     num_jobs = len(results["slurm"]["exec-time"])
     x1 = range(num_jobs)
     ax1.plot(x1, results["slurm"]["exec-time"], label="slurm", color="orange")
@@ -123,6 +199,58 @@ def plot(ctx):
         x1, results["batch"]["queue-time"], color="blue", linestyle="dashed"
     )
     ax1.legend()
+
+    out_file = join(plots_dir, "motivation.{}".format(PLOTS_FORMAT))
+    plt.savefig(out_file, format=PLOTS_FORMAT, bbox_inches="tight")
+
+    # ----------
+    # Plot 2: Job Churn
+    # ----------
+
+    print(results["slurm"]["task_scheduling"])
+    print(results["slurm"]["tasks_per_ts"])
+    # Fix one baseline (should we?)
+    baseline = "slurm"
+    # On the X axis, we have each job as a bar
+    num_ts = len(results[baseline]["tasks_per_ts"])
+    ncols = num_ts
+    num_vms = 32
+    num_cpus_per_vm = 8
+    nrows = num_vms * num_cpus_per_vm
+
+    # Data shape is (nrows, ncols). We have as many columns as tasks, and as
+    # many rows as the total number of CPUs.
+    # data[m, n] = task_id if cpu m is being used by task_id at timestamp n
+    # (where  m is the row and n the column)
+    data = [[-1 for _ in range(ncols)] for _ in range(nrows)]
+
+    print("nrows: {} - ncols: {}".format(nrows, ncols))
+    for ts in results[baseline]["tasks_per_ts"]:
+        # This dictionary contains the in-flight tasks per timestamp (where
+        # the timestamp has already been de-duplicated)
+        tasks_in_flight = results[baseline]["tasks_per_ts"][ts]
+        vm_cpu_offset = {}
+        for i in range(num_vms):
+            vm_cpu_offset[i] = 0
+        for t in tasks_in_flight:
+            t_id = int(t)
+            sched_decision = results[baseline]["task_scheduling"][str(t_id)]
+            # Work out which rows (i.e. CPU cores) to paint
+            for vm in sched_decision:
+                cpus_in_vm = sched_decision[vm]
+                cpu_offset = vm_cpu_offset[vm]
+                vm_offset = vm * num_cpus_per_vm
+                this_offset = vm_offset + cpu_offset
+                for j in range(this_offset, this_offset + cpus_in_vm):
+                    # print("writig {} to (row: {}, col: {})".format(t_id, j, ts))
+                    data[j][ts] = t_id
+                vm_cpu_offset[vm] += cpus_in_vm
+
+    ax2.imshow(data)
+
+    # ----------
+    # Save figure
+    # ----------
 
     out_file = join(plots_dir, "motivation.{}".format(PLOTS_FORMAT))
     plt.savefig(out_file, format=PLOTS_FORMAT, bbox_inches="tight")

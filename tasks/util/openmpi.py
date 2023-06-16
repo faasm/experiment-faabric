@@ -48,17 +48,13 @@ def _template_k8s_file(experiment_name, filename, template_vars):
     return output_file
 
 
-def _template_k8s_files(
-    experiment_name, image_name, num_nodes=32, cores_per_ctr=8
-):
+def _template_k8s_files(experiment_name, image_name, num_vms=32):
     image_tag = get_docker_tag(image_name)
     namespace = get_native_mpi_namespace(experiment_name)
     template_vars = {
         "native_mpi_namespace": namespace,
         "native_mpi_image": image_tag,
-        "num_nodes": num_nodes,
-        "cpus_per_ctr_lim": cores_per_ctr,
-        "cpus_per_ctr_req": cores_per_ctr / 2,
+        "num_vms": num_vms,
     }
 
     namespace_yml = _template_k8s_file(
@@ -116,9 +112,33 @@ def get_native_mpi_pods(experiment_name):
     return pod_names, pod_ips
 
 
-def deploy_native_mpi(experiment_name, image_name, num_nodes, cores_per_ctr):
+def get_native_mpi_pods_ip_to_vm(experiment_name):
+    # List all pods
+    cmd_out = run_kubectl_cmd(
+        experiment_name, "get pods -o wide -l run=faasm-openmpi"
+    )
+
+    # Split output into list of strings
+    lines = cmd_out.split("\n")[1:]
+    lines = [line.strip() for line in lines if line.strip()]
+
+    pod_ips = list()
+    pod_nodes = list()
+    for line in lines:
+        line_parts = line.split(" ")
+        line_parts = [p.strip() for p in line_parts if p.strip()]
+
+        pod_ips.append(line_parts[5])
+        pod_nodes.append(line_parts[6])
+
+    return pod_ips, pod_nodes
+
+
+def deploy_native_mpi(experiment_name, image_name, num_vms):
     namespace_yml, deployment_yml = _template_k8s_files(
-        experiment_name, image_name, num_nodes, cores_per_ctr
+        experiment_name,
+        image_name,
+        num_vms,
     )
     run(
         "kubectl apply -f {}".format(namespace_yml),
@@ -133,9 +153,9 @@ def deploy_native_mpi(experiment_name, image_name, num_nodes, cores_per_ctr):
     )
 
 
-def delete_native_mpi(experiment_name, image_name, num_nodes, cores_per_ctr):
+def delete_native_mpi(experiment_name, image_name, num_vms):
     _, deployment_yml = _template_k8s_files(
-        experiment_name, image_name, num_nodes, cores_per_ctr
+        experiment_name, image_name, num_vms
     )
 
     # Note we don't delete the namespace as it takes a while and doesn't do any

@@ -4,22 +4,29 @@ from os.path import join
 from tasks.util.env import (
     RESULTS_DIR,
 )
+from tasks.util.openmpi import get_native_mpi_pods_ip_to_vm
 
 IDLE_CORES_FILE_PREFIX = "idle-cores"
 EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
+SCHEDULINNG_INFO_FILE_PREFIX = "sched-info"
+
+# Allowed system baselines:
+# - Granny: is our system
+# - Batch: native OpenMPI where we schedule jobs at VM granularity
+# - Slurm: native OpenMPI where we schedule jobs at process granularity
+NATIVE_BASELINES = ["batch", "slurm"]
+GRANNY_BASELINES = ["granny"]
+ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
 
-def init_csv_file(workload, backend, num_vms, trace_str, ctrs_per_vm):
+def init_csv_file(baseline, backend, num_vms, trace_str):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
-
-    if workload == "native":
-        workload = "native-{}".format(ctrs_per_vm)
 
     # Idle Cores file
     csv_name_ic = "makespan_{}_{}_{}_{}_{}".format(
         IDLE_CORES_FILE_PREFIX,
-        workload,
+        baseline,
         backend,
         num_vms,
         get_trace_ending(trace_str),
@@ -31,7 +38,7 @@ def init_csv_file(workload, backend, num_vms, trace_str, ctrs_per_vm):
     # Executed task info file
     csv_name = "makespan_{}_{}_{}_{}_{}".format(
         EXEC_TASK_INFO_FILE_PREFIX,
-        workload,
+        baseline,
         backend,
         num_vms,
         get_trace_ending(trace_str),
@@ -42,19 +49,28 @@ def init_csv_file(workload, backend, num_vms, trace_str, ctrs_per_vm):
             "TaskId,TimeExecuting,TimeInQueue,StartTimeStamp,EndTimeStamp\n"
         )
 
+    # Schedulign info file
+    csv_name = "makespan_{}_{}_{}_{}_{}".format(
+        SCHEDULINNG_INFO_FILE_PREFIX,
+        baseline,
+        backend,
+        num_vms,
+        get_trace_ending(trace_str),
+    )
+    csv_file = join(result_dir, csv_name)
+    with open(csv_file, "w") as out_file:
+        out_file.write("TaskId,SchedulingDecision\n")
+        ips, vms = get_native_mpi_pods_ip_to_vm("makespan")
+        ip_to_vm = ["{},{}".format(ip, vm) for ip, vm in zip(ips, vms)]
+        out_file.write(",".join(ip_to_vm) + "\n")
 
-def write_line_to_csv(
-    workload, backend, exp_key, num_vms, trace_str, ctrs_per_vm, *args
-):
-    # TODO: this method could be simplified and more code reused
-    if workload == "native":
-        workload = "native-{}".format(ctrs_per_vm)
 
+def write_line_to_csv(baseline, backend, exp_key, num_vms, trace_str, *args):
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}_{}".format(
             IDLE_CORES_FILE_PREFIX,
-            workload,
+            baseline,
             backend,
             num_vms,
             get_trace_ending(trace_str),
@@ -65,7 +81,7 @@ def write_line_to_csv(
     elif exp_key == EXEC_TASK_INFO_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}_{}".format(
             EXEC_TASK_INFO_FILE_PREFIX,
-            workload,
+            baseline,
             backend,
             num_vms,
             get_trace_ending(trace_str),
@@ -73,6 +89,20 @@ def write_line_to_csv(
         makespan_file = join(result_dir, csv_name)
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{},{},{},{}\n".format(*args))
+    elif exp_key == SCHEDULINNG_INFO_FILE_PREFIX:
+        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+            SCHEDULINNG_INFO_FILE_PREFIX,
+            baseline,
+            backend,
+            num_vms,
+            get_trace_ending(trace_str),
+        )
+        makespan_file = join(result_dir, csv_name)
+        task_id = args[0]
+        task_sched = ["{},{}".format(ip, slots) for (ip, slots) in args[1]]
+        sched_str = ",".join([str(task_id)] + task_sched)
+        with open(makespan_file, "a") as out_file:
+            out_file.write("{}\n".format(sched_str))
 
 
 # ----------------------------
@@ -98,15 +128,15 @@ def get_num_tasks_from_trace(trace_str):
     return int(trace_str.split("_")[2])
 
 
-def get_num_cores_from_trace(trace_str):
+def get_num_cpus_per_vm_from_trace(trace_str):
     """
-    Get number of cores from trace string
+    Get number of cpus per VM from trace string
     """
     return int(trace_str.split("_")[3][:-4])
 
 
-def get_trace_from_parameters(workload, num_tasks=100, num_cores_per_vm=8):
-    return "trace_{}_{}_{}.csv".format(workload, num_tasks, num_cores_per_vm)
+def get_trace_from_parameters(workload, num_tasks=100, num_cpus_per_vm=8):
+    return "trace_{}_{}_{}.csv".format(workload, num_tasks, num_cpus_per_vm)
 
 
 # ----------------------------
@@ -115,12 +145,11 @@ def get_trace_from_parameters(workload, num_tasks=100, num_cores_per_vm=8):
 
 
 def get_idle_core_count_from_task_info(
+    baseline,
     executed_task_info,
     task_trace,
     num_vms,
-    num_cores_per_vm,
-    ctrs_per_vm,
-    is_granny,
+    num_cpus_per_vm,
 ):
     """
     Given a map of <task_id, ExecutedTaskInfo> work out the number of idle
@@ -144,10 +173,9 @@ def get_idle_core_count_from_task_info(
         )
 
     # Initialise each time slot to the maximum number of cores
-    num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
     num_idle_cores_per_time_step = {}
     for ts in range(time_elapsed_secs):
-        num_idle_cores_per_time_step[ts] = num_vms * num_cores_per_vm
+        num_idle_cores_per_time_step[ts] = num_vms * num_cpus_per_vm
 
     # Then, for each task, subtract its size to all the seconds it elapsed. We
     # are conservative here and round up for start times, and down for end
@@ -168,8 +196,8 @@ def get_idle_core_count_from_task_info(
         # In a native OpenMP task, we may have overcommited to a smaller number
         # of cores. Given that we don't distribute OpenMP jobs, it is safe to
         # just subtract the container size in case of overcomitment
-        if task.app == "omp" and not is_granny:
-            task_size = min(task.size, num_cores_per_ctr)
+        if task.app == "omp" and not baseline == "granny":
+            task_size = min(task.size, num_cpus_per_vm)
 
         # Get the start and end ts as offsets from our global minimum timestamp
         start_t = executed_task_info[task_id].exec_start_ts - min_start_ts

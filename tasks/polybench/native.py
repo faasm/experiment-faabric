@@ -21,7 +21,9 @@ def deploy(ctx, backend="k8s", num_vms=1, num_cores_per_vm=8, ctrs_per_vm=1):
             "polybench", FAABRIC_EXP_IMAGE_NAME, num_ctrs, num_cores_per_ctr
         )
 
-        wait_for_pods(get_native_mpi_namespace("polybench"), "run=faasm-openmpi")
+        wait_for_pods(
+            get_native_mpi_namespace("polybench"), "run=faasm-openmpi"
+        )
         generate_native_mpi_hostfile("polybench", slots=num_cores_per_ctr)
     else:
         raise RuntimeError("Compose backend not implemented!")

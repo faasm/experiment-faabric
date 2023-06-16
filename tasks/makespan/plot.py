@@ -4,7 +4,7 @@ from numpy import arange
 from os import makedirs
 from os.path import join
 from tasks.makespan.util import (
-    get_num_cores_from_trace,
+    get_num_cpus_per_vm_from_trace,
     get_trace_ending,
     get_trace_from_parameters,
 )
@@ -113,7 +113,7 @@ def _plot_row(workload_in, backend, num_vms, trace):
     result_dict_ic = _read_results(
         "idle-cores", workload_in, backend, num_vms, trace
     )
-    total_num_cores = num_vms * get_num_cores_from_trace(trace)
+    total_num_cores = num_vms * get_num_cpus_per_vm_from_trace(trace)
     nbins = 100
     for workload in result_dict_ic:
         xs = [

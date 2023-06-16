@@ -67,10 +67,9 @@ def plot(ctx):
     if not _check_results(native_results, granny_results):
         return
 
-    # Define the independent variables
-    # Note that we must fit all the columns for each kernel, e.g. if n is odd:
-    # ... [x - w - w /2, x - w/2] [x - w/2, x + w/2] [x + w/2, x + w + w/2] ...
-    poly_benchmarks = granny_results.keys()
+    # Plot the benchmarks in alphabetical order
+    poly_benchmarks = list(granny_results.keys())
+    poly_benchmarks.sort()
 
     # Define the dependent variables
     fig, ax = plt.subplots(figsize=(6, 3))
@@ -89,12 +88,6 @@ def plot(ctx):
         edgecolor="black",
     )
 
-    # Prepare legend
-    # ax.legend(
-    # ["{} processes".format(2 ** (num + 1)) for num in range(num_procs)],
-    # ncol=2,
-    # )
-
     # Aesthetics
     xmin = -0.5
     xmax = len(poly_benchmarks) - 0.5
@@ -108,7 +101,6 @@ def plot(ctx):
         ha="right",
     )
     ax.set_ylabel("Slowdown [WASM / Native]")
-    #     plt.ylim(0, 1.5)
     fig.tight_layout()
 
     out_file = join(plots_dir, "slowdown.{}".format(PLOTS_FORMAT))

@@ -30,7 +30,12 @@ from tasks.makespan.env import (
     get_dgemm_cmdline,
 )
 from tasks.makespan.util import (
+    ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
+    GRANNY_BASELINES,
+    NATIVE_BASELINES,
+    SCHEDULINNG_INFO_FILE_PREFIX,
+    get_num_cpus_per_vm_from_trace,
     get_workload_from_trace,
     write_line_to_csv,
 )
@@ -48,10 +53,7 @@ from tasks.util.faasm import (
     flush_workers as flush_faasm_workers,
     post_async_msg_and_get_result_json,
 )
-from tasks.util.openmpi import (
-    get_native_mpi_pods,
-    run_kubectl_cmd,
-)
+from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
 from time import sleep, time
 
 # Configure a global logger for the scheduler
@@ -59,11 +61,6 @@ getLogger("root").setLevel(log_level_INFO)
 sch_logger = getLogger("Scheduler")
 sch_logger.setLevel(log_level_INFO)
 
-
-# Different workloads
-GRANNY_WORKLOAD = ["granny"]
-NATIVE_WORKLOAD = ["native"]
-WORKLOAD_ALLOWLIST = GRANNY_WORKLOAD + NATIVE_WORKLOAD
 
 # Useful Constants
 NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
@@ -95,9 +92,9 @@ def thread_pool_thread(
     result_queue: Queue,
     thread_idx: int,
     backend: str,
-    workload: str,
+    baseline: str,
     vm_ip_to_name: Dict[str, str],
-    num_slots_per_vm: int,
+    num_cpus_per_vm: int,
 ) -> None:
     """
     Loop for the worker threads in the thread pool. Each thread performs a
@@ -130,7 +127,7 @@ def thread_pool_thread(
 
         # Record the start timestamp
         start_ts = 0
-        if workload in NATIVE_WORKLOAD:
+        if baseline in NATIVE_BASELINES:
             if (
                 work_item.task.app == "mpi"
                 or work_item.task.app == "mpi-migrate"
@@ -146,7 +143,7 @@ def thread_pool_thread(
                 )
                 world_size = work_item.task.size
                 allocated_pod_ips = [
-                    "{}:{}".format(pn, num_slots_per_vm)
+                    "{}:{}".format(pn, num_cpus_per_vm)
                     for pn in work_item.allocated_vms
                 ]
                 mpirun_cmd = [
@@ -222,11 +219,11 @@ def thread_pool_thread(
                     # Do 2 loops, check at the end of loop 1
                     msg["input_data"] = "1 2"
             elif work_item.task.app == "omp":
-                if work_item.task.size > num_slots_per_vm:
+                if work_item.task.size > num_cpus_per_vm:
                     print(
                         "Requested OpenMP execution with more parallelism"
                         "than slots in the current environment:"
-                        "{} > {}".format(work_item.task.size, num_slots_per_vm)
+                        "{} > {}".format(work_item.task.size, num_cpus_per_vm)
                     )
                     raise RuntimeError("Error in OpenMP task trace!")
                 user = DGEMM_FAASM_USER
@@ -268,14 +265,21 @@ def thread_pool_thread(
 
 
 class SchedulerState:
-    # Variables to identify the experiment being executed
+    # The backend indicates where are we running the experiment. It can either
+    # be `k8s` or `compose`
     backend: str
-    current_workload: str = ""
-    num_ctrs: int
-    num_tasks: int
-    num_cores_per_ctr: int
-    ctrs_per_vm: int
+    # The baseline indicate what system are we running. It can be either:
+    # `granny`, `batch`, or `slurm`
+    baseline: str = ""
+    # The trace indicates the experiment we are running. From the trace string
+    # we can infer the workload we are running, the number of tasks, and the
+    # number of cpus per vm
     trace_str: str
+    # The workload indicates the type of application we are runing. It can
+    # either be `omp` or `mpi`
+    workload: str
+    num_tasks: int
+    num_cpus_per_vm: int
 
     # Total accounting of slots
     total_slots: int
@@ -301,68 +305,72 @@ class SchedulerState:
     def __init__(
         self,
         backend: str,
-        current_workload: str,
-        num_ctrs: int,
-        num_cores_per_ctr: int,
-        ctrs_per_vm: int,
+        baseline: str,
+        num_tasks: int,
+        num_vms: int,
         trace_str: str,
     ):
         self.backend = backend
-        self.current_workload = current_workload
-        self.num_ctrs = num_ctrs
-        self.num_cores_per_ctr = num_cores_per_ctr
-        self.ctrs_per_vm = ctrs_per_vm
-        self.total_slots = num_ctrs * num_cores_per_ctr
-        self.total_available_slots = self.total_slots
+        self.baseline = baseline
+        self.num_tasks = num_tasks
+        self.num_vms = num_vms
         self.trace_str = trace_str
+        self.num_cpus_per_vm = get_num_cpus_per_vm_from_trace(trace_str)
+
+        # Work-out total number of slots
+        self.total_slots = num_vms * self.num_cpus_per_vm
+        self.total_available_slots = self.total_slots
 
         # Initialise the pod list depending on the workload
         self.init_vm_list(backend)
 
     def init_vm_list(self, backend):
-        # Initialise pod names and pod map depending on the backend and
-        # workload
+        """
+        Initialise pod names and pod map depending on the backend and
+        workload
+        """
         vm_ips = []
         vm_names = []
         if backend == "compose":
-            if self.current_workload in NATIVE_WORKLOAD:
+            if self.baseline in NATIVE_BASELINES:
                 compose_dir = MAKESPAN_DIR
             else:
                 compose_dir = FAASM_ROOT
             vm_names = get_container_names_from_compose(compose_dir)
             vm_ips = get_container_ips_from_compose(compose_dir)
         elif backend == "k8s":
-            if self.current_workload in NATIVE_WORKLOAD:
+            if self.baseline in NATIVE_BASELINES:
                 vm_names, vm_ips = get_native_mpi_pods("makespan")
             else:
                 vm_names = get_faasm_worker_pods()
                 vm_ips = get_faasm_worker_ips()
         else:
             raise RuntimeError("Unrecognised backend: {}".format(backend))
+
         # Sanity-check the VM names and IPs we got
-        if len(vm_names) != self.num_ctrs:
+        if len(vm_names) != self.num_vms:
             sch_logger.error(
                 "ERROR: expected {} VM names, but got {}".format(
-                    self.num_ctrs, len(vm_names)
+                    self.num_vms, len(vm_names)
                 )
             )
             sch_logger.info("VM names: {}".format(vm_names))
             raise RuntimeError("Inconsistent scheduler state")
-        if len(vm_ips) != self.num_ctrs:
+        if len(vm_ips) != self.num_vms:
             sch_logger.error(
                 "ERROR: expected {} VM IPs, but got {}".format(
-                    self.num_ctrs, len(vm_ips)
+                    self.num_vms, len(vm_ips)
                 )
             )
             sch_logger.info("VM IPs: {}".format(vm_ips))
             raise RuntimeError("Inconsistent scheduler state")
         sch_logger.info("Initialised VM Map:")
         for ip, name in zip(vm_ips, vm_names):
-            self.vm_map[ip] = self.num_cores_per_ctr
+            self.vm_map[ip] = self.num_cpus_per_vm
             self.vm_ip_to_name[ip] = name
             sch_logger.info(
                 "- IP: {} (name: {}) - Slots: {}".format(
-                    ip, name, self.num_cores_per_ctr
+                    ip, name, self.num_cpus_per_vm
                 )
             )
 
@@ -419,18 +427,16 @@ class SchedulerState:
         if len(self.backend) <= 3:
             print(
                 "Backend: {}\t\tWorkload: {}".format(
-                    self.backend, self.current_workload
+                    self.backend, self.baseline
                 )
             )
         else:
             print(
-                "Backend: {}\tWorkload: {}".format(
-                    self.backend, self.current_workload
-                )
+                "Backend: {}\tWorkload: {}".format(self.backend, self.baseline)
             )
         print(
             "Num VMs: {}\t\tCores/VM: {}".format(
-                len(self.vm_map), self.num_cores_per_ctr
+                len(self.vm_map), self.num_cpus_per_vm
             )
         )
         print(
@@ -486,12 +492,11 @@ class SchedulerState:
         # Note that we tag CSV files by the hardware we provision; i.e. the
         # number of VMs and the number of cores per VM
         write_line_to_csv(
-            self.current_workload,
+            self.baseline,
             self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
-            int(self.num_ctrs / self.ctrs_per_vm),
+            self.num_vms,
             self.trace_str,
-            self.ctrs_per_vm,
             self.executed_task_info[result.task_id].task_id,
             self.executed_task_info[result.task_id].time_executing,
             self.executed_task_info[result.task_id].time_in_queue,
@@ -513,35 +518,29 @@ class BatchScheduler:
     def __init__(
         self,
         backend: str,
-        workload: str,
-        num_ctrs: int,
+        baseline: str,
         num_tasks: int,
-        num_slots_per_vm: int,
-        ctrs_per_vm: int,
+        num_vms: int,
         trace_str: str,
     ):
         self.state = SchedulerState(
             backend,
-            workload,
-            num_ctrs,
-            num_slots_per_vm,
-            ctrs_per_vm,
+            baseline,
+            num_tasks,
+            num_vms,
             trace_str,
         )
-        self.state.backend = backend
-        self.state.num_tasks = num_tasks
 
         print("Initialised batch scheduler with the following parameters:")
         print("\t- Backend: {}".format(backend))
-        print("\t- Workload: {}".format(workload))
-        print("\t- Number of VMs: {}".format(self.state.num_ctrs))
-        print("\t- Cores per VM: {}".format(self.state.num_cores_per_ctr))
+        print("\t- Baseline: {}".format(baseline))
+        print("\t- Number of VMs: {}".format(self.state.num_vms))
+        print("\t- Cores per VM: {}".format(self.state.num_cpus_per_vm))
 
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
         # of a VM
-        num_vms = self.state.num_ctrs / self.state.ctrs_per_vm
-        self.num_threads_in_pool = int(2 * num_vms)
+        self.num_threads_in_pool = int(2 * self.state.num_vms)
         self.thread_pool = [
             Process(
                 target=thread_pool_thread,
@@ -550,9 +549,9 @@ class BatchScheduler:
                     self.result_queue,
                     i,
                     backend,
-                    workload,
+                    baseline,
                     self.state.vm_ip_to_name,
-                    self.state.num_cores_per_ctr,
+                    self.state.num_cpus_per_vm,
                 ),
             )
             for i in range(self.num_threads_in_pool)
@@ -582,7 +581,6 @@ class BatchScheduler:
         self, task: TaskObject
     ) -> Union[str, List[Tuple[str, int]]]:
         if self.state.total_available_slots < task.size:
-            # TODO(autoscale): scale up here
             sch_logger.info(
                 "Not enough slots to schedule task "
                 "{}-{} (needed: {} - have: {})".format(
@@ -606,16 +604,16 @@ class BatchScheduler:
         sorted_vms = sorted(
             self.state.vm_map.items(), key=lambda item: item[1], reverse=True
         )
+        # TODO(omp): why should it be any different with OpenMP?
         if task.app == "mpi" or task.app == "mpi-migrate":
             for vm, num_slots in sorted_vms:
                 # Work out how many slots can we take up in this pod
-                if self.state.current_workload in NATIVE_WORKLOAD:
-                    # If we are running a native workload we only allow one
-                    # task per node, which means that regardless of how many
-                    # slots we have left to assign, we take up all the node. In
-                    # fact, we should be able to assert that we have the whole
-                    # VM to allocate
-                    num_on_this_vm = self.state.num_cores_per_ctr
+                if self.state.baseline == "batch":
+                    # The batch native baseline allocates resources at VM
+                    # granularity. This means that the current VM should be
+                    # empty
+                    assert num_slots == self.state.num_cpus_per_vm
+                    num_on_this_vm = self.state.num_cpus_per_vm
                 else:
                     num_on_this_vm = min(num_slots, left_to_assign)
                 scheduling_decision.append((vm, num_on_this_vm))
@@ -641,6 +639,7 @@ class BatchScheduler:
                 raise RuntimeError(
                     "Scheduling error: inconsistent scheduler state"
                 )
+        """
         elif task.app == "omp":
             if len(sorted_vms) == 0:
                 # TODO: maybe we should raise an inconsistent state error here
@@ -649,16 +648,16 @@ class BatchScheduler:
             if num_slots == 0:
                 # TODO: maybe we should raise an inconsistent state error here
                 return NOT_ENOUGH_SLOTS
-            if self.state.current_workload in NATIVE_WORKLOAD:
-                if task.size > self.state.num_cores_per_ctr:
+            if self.state.baseline in NATIVE_BASELINES:
+                if task.size > self.state.num_cpus_per_vm:
                     print(
                         "Overcomitting for task {} ({} > {})".format(
                             task.task_id,
                             task.size,
-                            self.state.num_cores_per_ctr,
+                            self.state.num_cpus_per_vm,
                         )
                     )
-                num_on_this_vm = self.state.num_cores_per_ctr
+                num_on_this_vm = self.state.num_cpus_per_vm
             else:
                 if num_slots < task.size:
                     return NOT_ENOUGH_SLOTS
@@ -669,6 +668,7 @@ class BatchScheduler:
             # TODO: when we overcommit, do we substract the number of cores
             # we occupy, or the ones we agree to run?
             self.state.total_available_slots -= num_on_this_vm
+        """
 
         # Before returning, persist the scheduling decision to state
         self.state.in_flight_tasks[task.task_id] = scheduling_decision
@@ -682,7 +682,7 @@ class BatchScheduler:
         Execute a list of tasks, and return details on the task execution
         """
         # If running a WASM workload, flush the hosts first
-        if self.state.current_workload in GRANNY_WORKLOAD:
+        if self.state.baseline in GRANNY_BASELINES:
             flush_faasm_workers()
 
         # Mark the initial timestamp
@@ -716,7 +716,6 @@ class BatchScheduler:
 
             # If we don't have enough resources, wait for results until enough
             # resources, or autoscale if allowed to do so
-            # TODO(autoscale)
             time_in_queue_start = time()
             while scheduling_decision == NOT_ENOUGH_SLOTS:
                 result: ResultQueueItem
@@ -747,8 +746,17 @@ class BatchScheduler:
                     t.task_id, t.size, master_vm
                 )
             )
-            # TODO: print here
-            # self.state.update_experiment_state(t.task_id, scheduled=True)
+            # Log the scheduling decision to a file
+            # TODO: finsih
+            write_line_to_csv(
+                self.state.baseline,
+                self.state.backend,
+                SCHEDULINNG_INFO_FILE_PREFIX,
+                self.state.num_vms,
+                self.state.trace_str,
+                t.task_id,
+                scheduling_decision,
+            )
 
             # Lastly, put the scheduled task in the work queue
             vms = [it[0] for it in scheduling_decision]
@@ -764,28 +772,27 @@ class BatchScheduler:
         return self.state.executed_task_info
 
     def run(
-        self, backend: str, workload: str, tasks: List[TaskObject]
+        self, backend: str, baseline: str, tasks: List[TaskObject]
     ) -> Dict[int, ExecutedTaskInfo]:
         """
         Main entrypoint to run a number of tasks scheduled by our batch
         scheduler. The required parameters are:
             - backend: "compose", or "k8s"
-            - workload: "native", "batch" or "wasm"
+            - baseline: "batch", "slurm" or "granny"
             - tasks: a list of TaskObject's
         The method returns a dictionary with timing information to be plotted
         """
-        if workload in WORKLOAD_ALLOWLIST:
+        if baseline in ALLOWED_BASELINES:
             print(
                 "Batch scheduler received request to execute "
-                "{} {} tasks on {}".format(len(tasks), workload, backend)
+                "{} {} tasks on {}".format(len(tasks), baseline, backend)
             )
-            self.state.current_workload = workload
             # Initialise the scheduler state and pod list
             self.state.init_vm_list(backend)
             self.num_tasks = len(tasks)
         else:
-            print("Unrecognised workload type: {}".format(workload))
-            print("Allowed workloads are: {}".format(WORKLOAD_ALLOWLIST))
-            raise RuntimeError("Unrecognised workload type")
+            print("Unrecognised baseline: {}".format(baseline))
+            print("Allowed baselines are: {}".format(ALLOWED_BASELINES))
+            raise RuntimeError("Unrecognised baseline")
 
         return self.execute_tasks(tasks)

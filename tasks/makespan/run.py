@@ -7,11 +7,12 @@ from tasks.makespan.scheduler import (
 )
 from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
+    ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     IDLE_CORES_FILE_PREFIX,
     init_csv_file,
     get_idle_core_count_from_task_info,
-    get_num_cores_from_trace,
+    get_num_cpus_per_vm_from_trace,
     get_num_tasks_from_trace,
     get_trace_from_parameters,
     get_workload_from_trace,
@@ -27,8 +28,9 @@ from pprint import pprint
 from requests import post
 from tasks.util.faasm import (
     get_faasm_invoke_host_port,
-    reset_planner,
-    wait_for_workers as wait_for_planner_workers,
+    # TODO(planner):
+    # reset_planner,
+    # wait_for_workers as wait_for_planner_workers,
 )
 from tasks.lammps.env import get_faasm_benchmark
 
@@ -64,7 +66,7 @@ def granny(
     workload="all",
     backend="k8s",
     num_vms=32,
-    num_cores_per_vm=8,
+    num_cpus_per_vm=8,
     num_tasks=100,
 ):
     """
@@ -72,108 +74,115 @@ def granny(
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
-        trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
+        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(backend=backend, num_vms=num_vms, granny=True, trace=trace)
         sleep(5)
 
 
 @task()
-def native(
+def native_slurm(
     ctx,
     workload="all",
     backend="k8s",
     num_vms=32,
-    num_cores_per_vm=8,
+    num_cpus_per_vm=8,
     num_tasks=100,
-    ctrs_per_vm=1,
 ):
     """
-    Run the native baselines of the makespan experiment
+    Run the native `slurm` baseline of the makespan experiment. The `slurm`
+    baseline allocates resources at process/thread granularity
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
-        trace = get_trace_from_parameters(wload, num_tasks, num_cores_per_vm)
+        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(
-            backend=backend,
-            num_vms=num_vms,
-            ctrs_per_vm=ctrs_per_vm,
-            trace=trace,
+            backend,
+            "slurm",
+            num_vms,
+            trace,
         )
         sleep(5)
 
 
-def _do_run(
+@task()
+def native_batch(
+    ctx,
+    workload="all",
     backend="k8s",
     num_vms=32,
-    ctrs_per_vm=1,
-    granny=False,
-    trace=None,
+    num_cpus_per_vm=8,
+    num_tasks=100,
 ):
+    """
+    Run the native `batch` baseline of the makespan experiment. The `batch`
+    baseline allocates resources at VM granularity
+    """
+    workload = _get_workload_from_cmdline(workload)
+    for wload in workload:
+        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
+        _do_run(
+            backend,
+            "batch",
+            num_vms,
+            trace,
+        )
+        sleep(5)
+
+
+def _do_run(backend, baseline, num_vms, trace):
     num_vms = int(num_vms)
-    ctrs_per_vm = int(ctrs_per_vm)
+    job_workload = get_workload_from_trace(trace)
+    num_tasks = get_num_tasks_from_trace(trace)
+    num_cpus_per_vm = get_num_cpus_per_vm_from_trace(trace)
 
-    # If a trace file is specified, it takes preference over the other values
-    if trace is not None:
-        job_workload = get_workload_from_trace(trace)
-        num_tasks = get_num_tasks_from_trace(trace)
-        num_cores_per_vm = get_num_cores_from_trace(trace)
-    else:
-        raise RuntimeError("Must provide a trace file name")
-
-    if granny:
-        workload = "granny"
-        num_ctrs = num_vms
-        num_cores_per_ctr = num_cores_per_vm
-    else:
-        workload = "native"
-        num_ctrs = int(num_vms * ctrs_per_vm)
-        num_cores_per_ctr = int(num_cores_per_vm / ctrs_per_vm)
+    if baseline not in ALLOWED_BASELINES:
+        raise RuntimeError(
+            "Unrecognised baseline: {} - Must be one in: {}".format(
+                baseline, ALLOWED_BASELINES
+            )
+        )
 
     # Reset the planner and wait for the workers to register with it
-    if granny:
-        reset_planner()
-        wait_for_planner_workers(num_vms)
+    # TODO(planenr):
+    #     if granny:
+    #         reset_planner()
+    #         wait_for_planner_workers(num_vms)
 
     scheduler = BatchScheduler(
         backend,
-        workload,
-        num_ctrs,
+        baseline,
         num_tasks,
-        num_cores_per_ctr,
-        ctrs_per_vm,
+        num_vms,
         trace,
     )
 
     init_csv_file(
-        workload,
+        baseline,
         backend,
         num_vms,
         trace,
-        ctrs_per_vm,
     )
 
     task_trace = load_task_trace_from_file(
-        job_workload, num_tasks, num_cores_per_vm
+        job_workload, num_tasks, num_cpus_per_vm
     )
 
-    executed_task_info = scheduler.run(backend, workload, task_trace)
+    executed_task_info = scheduler.run(backend, baseline, task_trace)
 
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
+        baseline,
         executed_task_info,
         task_trace,
         num_vms,
-        num_cores_per_vm,
-        ctrs_per_vm,
-        granny,
+        num_cpus_per_vm,
     )
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
-            workload,
+            baseline,
             backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
             trace,
-            ctrs_per_vm,
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
@@ -185,40 +194,33 @@ def _do_run(
 @task()
 def idle_cores_from_exec_task(
     ctx,
+    baseline,
     workload,
     backend="k8s",
     num_vms=32,
-    ctrs_per_vm=1,
     num_tasks=100,
-    num_cores_per_vm=8,
-    granny=False,
+    num_cpus_per_vm=8,
 ):
     result_dir = join(RESULTS_DIR, "makespan")
     executed_task_info: Dict[int, ExecutedTaskInfo] = {}
 
     num_vms = int(num_vms)
-    ctrs_per_vm = int(ctrs_per_vm)
     num_tasks = int(num_tasks)
 
-    trace = get_trace_from_parameters(workload, num_tasks, num_cores_per_vm)
+    trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
     job_workload = get_workload_from_trace(trace)
     num_tasks = int(get_num_tasks_from_trace(trace))
-    num_cores_per_vm = int(get_num_cores_from_trace(trace))
-
-    if granny:
-        system = "granny"
-    else:
-        system = "native-{}".format(ctrs_per_vm)
+    num_cpus_per_vm = int(get_num_cpus_per_vm_from_trace(trace))
 
     # Get executed task info from file
     csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
         EXEC_TASK_INFO_FILE_PREFIX,
-        system,
+        baseline,
         backend,
         num_vms,
         workload,
         num_tasks,
-        num_cores_per_vm,
+        num_cpus_per_vm,
     )
     csv_file = join(result_dir, csv_name)
     with open(csv_file, "r") as in_file:
@@ -240,24 +242,22 @@ def idle_cores_from_exec_task(
             )
 
     task_trace = load_task_trace_from_file(
-        job_workload, num_tasks, num_cores_per_vm
+        job_workload, num_tasks, num_cpus_per_vm
     )
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         executed_task_info,
         task_trace,
         num_vms,
-        num_cores_per_vm,
-        ctrs_per_vm,
+        num_cpus_per_vm,
         granny,
     )
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
-            system,
+            baseline,
             backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
             trace,
-            ctrs_per_vm,
             time_step,
             num_idle_cores_per_time_step[time_step],
         )

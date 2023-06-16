@@ -7,6 +7,26 @@ inv cluster.provision --vm Standard_D8_v5 --nodes 32
 inv cluster.credentials
 ```
 
+## Native
+
+First, deploy the native `k8s` cluster:
+
+```bash
+inv makespan.native.deploy
+```
+
+Now, you can run the different baselines:
+
+```bash
+inv makespan.run.native-batch --workload [mpi,omp]
+```
+
+Lastly, remove the native `k8s` cluster:
+
+```bash
+inv makespan.native.delete
+```
+
 ## Granny (MPI)
 
 First, deploy the k8s cluster:
@@ -16,9 +36,14 @@ cd ${FAASM_SRC_DIR}
 WASM_VM=wamr inv k8s.deploy --workers=4
 ```
 
-# Old instructions, remove
+## Syntax
 
-## Generate the experiment trace
+### Workload
+
+A workload is the type of job that we are executing. It can either be `mpi`,
+or `omp`.
+
+### Experiment trace
 
 An experiment E is a set of jobs (or tasks), where each job is defined by: (i)
 its arrival time, (ii) its size requirements, and (iii) the user it belongs
@@ -30,19 +55,19 @@ To generate a trace run:
 inv makespan.trace.generate --workload [omp,mpi,mix] --num-tasks <> --num-cores-per-vm <>
 ```
 
+### Baseline
+
+A baseline is one of the systems that we evaluate in this experiment. We
+currently support three different baselines: `granny`, `batch`, and `slurm`.
+- `granny`: is our system
+- `batch`: is native OpenMPI where jobs are scheduled at VM granularity
+- `slurm` is native OpenMPI where jobs are shceduled at process granularity
+
+# Old instructions, remove
+
 ## Deploy the experiment
 
 ### On `docker compose`
-
-#### Native baselines
-
-As previously described, the deployment scripts default to `k8s` and 32 VMs
-with 8 cores per VM, so if you want to run on `compose` with smaller values
-you will have to run:
-
-```bash
-inv makespan.native.deploy --backend=compose --num-vms <> --num-cores-per-vm  <> --ctrs-per-vm <>
-```
 
 #### Granny
 
