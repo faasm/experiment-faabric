@@ -319,7 +319,7 @@ def do_plot(plot_name, results, ax):
             label="batch",
             color="blue",
         )
-        ax.set_xlim(left=0, right=450)
+        ax.set_xlim(left=0, right=400)
         ax.set_ylabel("% of idle vCPUs")
         ax.legend()
 
