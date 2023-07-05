@@ -2,6 +2,7 @@ from glob import glob
 from invoke import task
 from os import makedirs
 from os.path import join
+from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import get_trace_from_parameters
 from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
 
@@ -158,7 +159,193 @@ def _read_results():
                     ] += int(slots)
                     i += 2
 
+        # -----
+        # Results to visualise the % of idle vCPUs over time
+        # -----
+
+        task_trace = load_task_trace_from_file("mpi", 100, 8)
+
+        # First, set each timestamp to the total available vCPUs
+        total_available_vcpus = 32 * 8
+        result_dict[baseline]["ts_vcpus"] = {}
+        for ts in result_dict[baseline]["tasks_per_ts"]:
+            result_dict[baseline]["ts_vcpus"][ts] = total_available_vcpus
+
+        # Second, for each ts subtract the size of each task in-flight
+        for ts in result_dict[baseline]["tasks_per_ts"]:
+            for t in result_dict[baseline]["tasks_per_ts"][ts]:
+                result_dict[baseline]["ts_vcpus"][ts] -= task_trace[
+                    int(t)
+                ].size
+
+        # Third, express the results as percentages
+        for ts in result_dict[baseline]["ts_vcpus"]:
+            result_dict[baseline]["ts_vcpus"][ts] = (
+                result_dict[baseline]["ts_vcpus"][ts] / total_available_vcpus
+            ) * 100
+
+        # -----
+        # Results to visualise the # of cross-vm links
+        # -----
+
+        result_dict[baseline]["ts_xvm_links"] = {}
+        for ts in result_dict[baseline]["tasks_per_ts"]:
+            result_dict[baseline]["ts_xvm_links"][ts] = 0
+
+        for ts in result_dict[baseline]["tasks_per_ts"]:
+            for t in result_dict[baseline]["tasks_per_ts"][ts]:
+                if baseline == "slurm":
+                    sched = result_dict[baseline]["task_scheduling"][
+                        str(int(t))
+                    ]
+
+                    # If only scheduled to one VM, no cross-VM links
+                    if len(sched) <= 1:
+                        continue
+
+                    # Otherwise, make the product
+                    acc = 1
+                    for vm in sched:
+                        acc = acc * sched[vm]
+
+                    # Add the accumulated to the total tally
+                    result_dict[baseline]["ts_xvm_links"][ts] += acc
+                elif baseline == "batch":
+                    # Batch baseline is optimal in terms of cross-vm links
+                    task_size = task_trace[int(t)].size
+                    if task_size > 8:
+                        num_links = 8 * (task_size - 8)
+                        result_dict[baseline]["ts_xvm_links"][ts] += num_links
+
     return result_dict
+
+
+def do_plot(plot_name, results, ax):
+    """
+    This method keeps track of all the different alternative plots we have
+    explored for the motivation figure.
+    """
+
+    if plot_name == "exec_vs_tiq":
+        """
+        This plot compares the execution time and the time in queue for all
+        jobs in a trace. In the X axis we have the job number, and on the Y
+        axis both the executin time and the time in queue.
+        """
+        num_jobs = len(results["slurm"]["exec-time"])
+        x1 = range(num_jobs)
+
+        ax.plot(
+            x1, results["slurm"]["exec-time"], label="slurm", color="orange"
+        )
+        ax.plot(x1, results["batch"]["exec-time"], label="batch", color="blue")
+        ax.plot(
+            x1,
+            results["slurm"]["queue-time"],
+            color="orange",
+            linestyle="dashed",
+        )
+        ax.plot(
+            x1,
+            results["batch"]["queue-time"],
+            color="blue",
+            linestyle="dashed",
+        )
+        ax.legend()
+
+    elif plot_name == "job_churn":
+        """
+        This plot presents a heatmap of the job churn for one execution of the
+        trace. On the X axis we have time in seconds, and on the Y axis we have
+        all vCPUs in the cluster (32 * 8). There are 100 different colors in
+        the plot, one for each job. Coordinate [x, y] is of color C_j if Job
+        `j` is using vCPU `y` at time `x`
+        """
+        # Fix one baseline (should we?)
+        baseline = "slurm"
+        # On the X axis, we have each job as a bar
+        num_ts = len(results[baseline]["tasks_per_ts"])
+        ncols = num_ts
+        num_vms = 32
+        num_cpus_per_vm = 8
+        nrows = num_vms * num_cpus_per_vm
+
+        # Data shape is (nrows, ncols). We have as many columns as tasks, and as
+        # many rows as the total number of CPUs.
+        # data[m, n] = task_id if cpu m is being used by task_id at timestamp n
+        # (where  m is the row and n the column)
+        data = [[-1 for _ in range(ncols)] for _ in range(nrows)]
+
+        for ts in results[baseline]["tasks_per_ts"]:
+            # This dictionary contains the in-flight tasks per timestamp (where
+            # the timestamp has already been de-duplicated)
+            tasks_in_flight = results[baseline]["tasks_per_ts"][ts]
+            vm_cpu_offset = {}
+            for i in range(num_vms):
+                vm_cpu_offset[i] = 0
+            for t in tasks_in_flight:
+                t_id = int(t)
+                sched_decision = results[baseline]["task_scheduling"][
+                    str(t_id)
+                ]
+                # Work out which rows (i.e. CPU cores) to paint
+                for vm in sched_decision:
+                    cpus_in_vm = sched_decision[vm]
+                    cpu_offset = vm_cpu_offset[vm]
+                    vm_offset = vm * num_cpus_per_vm
+                    this_offset = vm_offset + cpu_offset
+                    for j in range(this_offset, this_offset + cpus_in_vm):
+                        data[j][ts] = t_id
+                    vm_cpu_offset[vm] += cpus_in_vm
+
+        ax.imshow(data, origin="lower")
+
+    elif plot_name == "ts_vcpus":
+        """
+        This plot presents a timeseries of the % of idle vCPUs over time
+        """
+        xs_slurm = range(len(results["slurm"]["ts_vcpus"]))
+        xs_batch = range(len(results["batch"]["ts_vcpus"]))
+
+        ax.plot(
+            xs_slurm,
+            [results["slurm"]["ts_vcpus"][x] for x in xs_slurm],
+            label="slurm",
+            color="orange",
+        )
+        ax.plot(
+            xs_batch,
+            [results["batch"]["ts_vcpus"][x] for x in xs_batch],
+            label="batch",
+            color="blue",
+        )
+        ax.set_xlim(left=0, right=450)
+        ax.set_ylabel("% of idle vCPUs")
+        ax.legend()
+
+    elif plot_name == "ts_xvm_links":
+        """
+        This plot presents a timeseries of the # of cross-VM links over time
+        """
+        xs_slurm = range(len(results["slurm"]["ts_xvm_links"]))
+        xs_batch = range(len(results["batch"]["ts_xvm_links"]))
+
+        ax.plot(
+            xs_slurm,
+            [results["slurm"]["ts_xvm_links"][x] for x in xs_slurm],
+            label="slurm",
+            color="orange",
+        )
+        ax.plot(
+            xs_batch,
+            [results["batch"]["ts_xvm_links"][x] for x in xs_batch],
+            label="batch",
+            color="blue",
+        )
+        ax.set_xlim(left=0, right=450)
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("# of cross-VM links")
+        ax.legend()
 
 
 @task(default=True)
@@ -166,8 +353,8 @@ def plot(ctx):
     """
     Motivation plot:
     - Baselines: `slurm` and `batch`
-    - LHS: per-job comparison of the time in queue and execution time
-    - RHS: tbd
+    - TOP: timeseries of % of idle vCPUs over time
+    - RHS: timeseries of # of cross-VM links over time
     """
     plots_dir = join(PLOTS_ROOT, "motivation")
     makedirs(plots_dir, exist_ok=True)
@@ -178,64 +365,16 @@ def plot(ctx):
     # TODO: check result integrity
 
     # ----------
-    # Plot 1: Comparison of execution time/time-in-queue trade-off
+    # Plot 1: TODO
     # ----------
 
-    num_jobs = len(results["slurm"]["exec-time"])
-    x1 = range(num_jobs)
-    ax1.plot(x1, results["slurm"]["exec-time"], label="slurm", color="orange")
-    ax1.plot(x1, results["batch"]["exec-time"], label="batch", color="blue")
-    ax1.plot(
-        x1, results["slurm"]["queue-time"], color="orange", linestyle="dashed"
-    )
-    ax1.plot(
-        x1, results["batch"]["queue-time"], color="blue", linestyle="dashed"
-    )
-    ax1.legend()
-
-    out_file = join(plots_dir, "motivation.{}".format(PLOTS_FORMAT))
-    plt.savefig(out_file, format=PLOTS_FORMAT, bbox_inches="tight")
+    do_plot("ts_vcpus", results, ax1)
 
     # ----------
     # Plot 2: Job Churn
     # ----------
 
-    # Fix one baseline (should we?)
-    baseline = "slurm"
-    # On the X axis, we have each job as a bar
-    num_ts = len(results[baseline]["tasks_per_ts"])
-    ncols = num_ts
-    num_vms = 32
-    num_cpus_per_vm = 8
-    nrows = num_vms * num_cpus_per_vm
-
-    # Data shape is (nrows, ncols). We have as many columns as tasks, and as
-    # many rows as the total number of CPUs.
-    # data[m, n] = task_id if cpu m is being used by task_id at timestamp n
-    # (where  m is the row and n the column)
-    data = [[-1 for _ in range(ncols)] for _ in range(nrows)]
-
-    for ts in results[baseline]["tasks_per_ts"]:
-        # This dictionary contains the in-flight tasks per timestamp (where
-        # the timestamp has already been de-duplicated)
-        tasks_in_flight = results[baseline]["tasks_per_ts"][ts]
-        vm_cpu_offset = {}
-        for i in range(num_vms):
-            vm_cpu_offset[i] = 0
-        for t in tasks_in_flight:
-            t_id = int(t)
-            sched_decision = results[baseline]["task_scheduling"][str(t_id)]
-            # Work out which rows (i.e. CPU cores) to paint
-            for vm in sched_decision:
-                cpus_in_vm = sched_decision[vm]
-                cpu_offset = vm_cpu_offset[vm]
-                vm_offset = vm * num_cpus_per_vm
-                this_offset = vm_offset + cpu_offset
-                for j in range(this_offset, this_offset + cpus_in_vm):
-                    data[j][ts] = t_id
-                vm_cpu_offset[vm] += cpus_in_vm
-
-    ax2.imshow(data, origin="lower")
+    do_plot("ts_xvm_links", results, ax2)
 
     # ----------
     # Save figure

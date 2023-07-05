@@ -111,7 +111,7 @@ def thread_pool_thread(
         work_item = dequeue_with_timeout(work_queue, "work queue", silent=True)
 
         # IP for the master VM
-        master_vm_ip = work_item.allocated_vms[0]
+        master_vm_ip = work_item.sched_decision[0][0]
         # Check for shutdown message
         if master_vm_ip == QUEUE_SHUTDOWN:
             break
@@ -142,15 +142,19 @@ def thread_pool_thread(
                     lammps_dir, data_file
                 )
                 world_size = work_item.task.size
-                allocated_pod_ips = [
-                    "{}:{}".format(pn, num_cpus_per_vm)
-                    for pn in work_item.allocated_vms
-                ]
+                allocated_pod_ips = []
+                for tup in work_item.sched_decision:
+                    allocated_pod_ips += [tup[0]] * tup[1]
+
                 mpirun_cmd = [
                     "mpirun",
                     "-np {}".format(world_size),
                     # To improve OpenMPI performance, we tell it exactly where
-                    # to run each rank
+                    # to run each rank. According to the MPI manual, to specify
+                    # multiple slots for the same host, we must repeat the host
+                    # name. This way, the host string would end up looking like
+                    # mpirun -np 5 hostA,hostA,hostA,hostB,hostB ...
+                    # https://docs.oracle.com/cd/E19923-01/820-6793-10/ExecutingPrograms.html#50524166_76503
                     "-host {}".format(",".join(allocated_pod_ips)),
                     binary,
                     native_cmdline,
@@ -165,7 +169,7 @@ def thread_pool_thread(
                 ]
                 exec_cmd = " ".join(exec_cmd)
             elif work_item.task.app == "omp":
-                # TODO: should we set the parallelism level to be
+                # TODO(omp): should we set the parallelism level to be
                 # min(work_item.task.size, num_slots_per_vm) ? I.e. what will
                 # happen when we oversubscribe?
                 openmp_cmd = "bash -c '{} {}'".format(
@@ -567,7 +571,7 @@ class BatchScheduler:
 
     def shutdown(self):
         shutdown_msg = WorkQueueItem(
-            [QUEUE_SHUTDOWN], TaskObject(-1, "-1", -1, -1)
+            [(QUEUE_SHUTDOWN, -1)], TaskObject(-1, "-1", -1, -1)
         )
         for _ in range(self.num_threads_in_pool):
             self.work_queue.put(shutdown_msg)
@@ -759,8 +763,7 @@ class BatchScheduler:
             )
 
             # Lastly, put the scheduled task in the work queue
-            vms = [it[0] for it in scheduling_decision]
-            self.work_queue.put(WorkQueueItem(vms, t))
+            self.work_queue.put(WorkQueueItem(scheduling_decision, t))
 
         # Once we are done scheduling tasks, drain the result queue
         while self.state.executed_task_count < len(tasks):

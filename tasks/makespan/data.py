@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 """
 This file stores the definitions of the different data structures used in the
@@ -60,5 +60,5 @@ class WorkQueueItem:
     """
 
     # List of VM IPs allocated for this task
-    allocated_vms: List[str]
+    sched_decision: List[Tuple[str, int]]
     task: TaskObject
