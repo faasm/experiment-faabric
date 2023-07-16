@@ -86,7 +86,7 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
-        num_threads = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
+        num_threads = [1, 2, 3, 4, 5, 6, 7, 8]  # , 10, 12, 14, 16]
 
     all_workloads = ["dgemm"]
     if workload not in OPENMP_KERNELS:
@@ -154,7 +154,7 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
         workload = [workload]
 
     # Pick one VM in the cluster at random to run native OpenMP in
-    vm_names, vm_ips = get_native_mpi_pods("makespan")
+    vm_names, vm_ips = get_native_mpi_pods("openmp")
     master_vm = vm_names[0]
 
     for wload in workload:
@@ -181,7 +181,7 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
                 exec_cmd = " ".join(exec_cmd)
 
                 start_ts = time()
-                run_kubectl_cmd("makespan", exec_cmd)
+                run_kubectl_cmd("openmp", exec_cmd)
                 actual_time = int(time() - start_ts)
                 _write_csv_line(csv_name, nthread, r, actual_time)
                 print("Actual time: {}".format(actual_time))
