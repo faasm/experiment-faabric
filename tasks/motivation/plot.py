@@ -320,6 +320,7 @@ def do_plot(plot_name, results, ax):
             color="blue",
         )
         ax.set_xlim(left=0, right=400)
+        ax.set_ylim(bottom=0, top=100)
         ax.set_ylabel("% of idle vCPUs")
         ax.legend()
 
@@ -343,6 +344,7 @@ def do_plot(plot_name, results, ax):
             color="blue",
         )
         ax.set_xlim(left=0, right=450)
+        ax.set_ylim(bottom=0)
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("# of cross-VM links")
         ax.legend()
