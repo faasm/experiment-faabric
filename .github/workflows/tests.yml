@@ -14,11 +14,6 @@ jobs:
     steps:
       - name: "Checkout code (as submodule from experiments/base)"
         uses: actions/checkout@v3
-        with:
-          repository: "faasm/experiment-base"
-      - name: "Update this submodule"
-        run: git submodule update --init experiments/mpi
       # Formatting checks
       - name: "Code formatting check"
         run: ./bin/inv_wrapper.sh format-code
-        working-directory: ${{ github.workspace }}/experiments/mpi
