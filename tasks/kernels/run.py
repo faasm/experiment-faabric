@@ -1,19 +1,15 @@
-import json
 import math
-import requests
 import time
-
-from os import makedirs
 from invoke import task
+from os import makedirs
 from os.path import join
-from pprint import pprint
 
 from tasks.util.env import (
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
+    post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -22,7 +18,6 @@ from tasks.util.openmpi import (
 )
 from tasks.kernels.env import KERNELS_FAASM_USER
 
-MESSAGE_TYPE_FLUSH = 3
 NUM_PROCS = [2, 4, 8, 16]
 
 SPARSE_GRID_SIZE_2LOG = 10
@@ -102,7 +97,7 @@ def log_2(x):
 
 
 def _process_kernels_result(
-    result_txt, result_file, kernel, np, run_num, measured_time=None
+    result_file, kernel, np, run_num, actual_time, kernels_out
 ):
     stats = PRK_STATS.get(kernel)
 
@@ -110,19 +105,8 @@ def _process_kernels_result(
         print("No stats for {}".format(kernel))
         return
 
-    # Prepare response output and elapsed time
-    if "wasm" in result_file:
-        result_json = json.loads(result_txt, strict=False)
-        kernels_out = result_json["output_data"]
-        real_time = get_faasm_exec_time_from_json(result_json)
-    else:
-        kernels_out = result_txt
-        if measured_time is None:
-            raise RuntimeError("Empty measured time for non-WASM execution")
-        real_time = measured_time
-
     # First, get real executed time from response text
-    print("Actual time: {}".format(real_time))
+    print("Actual time: {}".format(actual_time))
 
     # Then, process the output text
     for stat in stats:
@@ -145,7 +129,7 @@ def _process_kernels_result(
         with open(result_file, "a") as out_file:
             out_file.write(
                 "{},{},{},{},{:.8f},{:.8f}\n".format(
-                    kernel, np, run_num, stat, stat_val, real_time
+                    kernel, np, run_num, stat, stat_val, actual_time
                 )
             )
 
@@ -166,7 +150,7 @@ def _validate_kernel(kernel, np):
 
 
 @task
-def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
+def granny(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
     """
     Run the kernels benchmark in faasm
     """
@@ -184,8 +168,6 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
     else:
         kernels = PRK_STATS.keys()
 
-    host, port = get_faasm_invoke_host_port()
-
     for kernel in kernels:
         result_file = _init_csv_file("kernels_wasm_{}.csv".format(kernel))
 
@@ -193,26 +175,6 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
             np = int(np)
             _validate_kernel(kernel, np)
             for run_num in range(repeats):
-                # Url and header for request
-                url = "http://{}:{}".format(host, port)
-
-                # First, flush the host state
-                print(
-                    "Flushing functions, state, and shared files from workers"
-                )
-                msg = {"type": MESSAGE_TYPE_FLUSH}
-                print("Posting to {} msg:".format(url))
-                pprint(msg)
-                response = requests.post(url, json=msg, timeout=None)
-                if response.status_code != 200:
-                    print(
-                        "Flush request failed: {}:\n{}".format(
-                            response.status_code, response.text
-                        )
-                    )
-                print("Waiting for flush to propagate...")
-                time.sleep(5)
-                print("Done waiting")
 
                 cmdline = PRK_CMDLINE[kernel]
                 msg = {
@@ -222,53 +184,16 @@ def faasm(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                     "mpi_world_size": np,
                     "async": True,
                 }
-                print("Posting to {} msg:".format(url))
-                pprint(msg)
 
-                # Post asynch request
-                response = requests.post(url, json=msg, timeout=None)
-                # Get the async message id
-                if response.status_code != 200:
-                    print(
-                        "Initial request failed: {}:\n{}".format(
-                            response.status_code, response.text
-                        )
-                    )
-                print("Response: {}".format(response.text))
-                msg_id = int(response.text.strip())
-
-                # Start polling for the result
-                print("Polling message {}".format(msg_id))
-                while True:
-                    interval = 2
-                    time.sleep(interval)
-
-                    status_msg = {
-                        "user": KERNELS_FAASM_USER,
-                        "function": kernel,
-                        "status": True,
-                        "id": msg_id,
-                    }
-                    response = requests.post(url, json=status_msg)
-
-                    if response.text.startswith("RUNNING"):
-                        print(response.text)
-                        continue
-                    elif response.text.startswith("FAILED"):
-                        raise RuntimeError("Call failed")
-                    elif not response.text:
-                        raise RuntimeError("Empty status response")
-                    else:
-                        # If we reach this point it means the call has
-                        # succeeded
-                        break
-
+                result_json = post_async_msg_and_get_result_json(msg)
+                actual_time = get_faasm_exec_time_from_json(result_json)
                 _process_kernels_result(
-                    response.text,
                     result_file,
                     kernel,
                     np,
                     run_num,
+                    actual_time,
+                    result_json["output_data"],
                 )
 
 
@@ -322,10 +247,10 @@ def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
                 print(exec_output)
 
                 _process_kernels_result(
-                    exec_output,
                     result_file,
                     kernel,
                     np,
                     run_num,
                     time.time() - start,
+                    exec_output,
                 )

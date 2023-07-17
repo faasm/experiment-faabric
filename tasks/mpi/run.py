@@ -1,17 +1,13 @@
+from faasmctl.util.flush import flush_workers
 from invoke import task
-from json import loads as json_loads
 from os import makedirs
 from os.path import basename, join
-from pprint import pprint
-from requests import post
-from time import sleep, time
 from tasks.util.env import (
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
-    flush_workers,
+    post_async_msg_and_get_result_json,
 )
 from tasks.util.env import (
     LAMMPS_DOCKER_BINARY,
@@ -19,6 +15,7 @@ from tasks.util.env import (
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_FUNC,
 )
+from time import time
 
 # TODO: move this elsewhere
 from tasks.lammps.env import get_faasm_benchmark
@@ -75,9 +72,6 @@ def granny(ctx, workload="compute", num_procs=None, repeats=5):
     # Flush the cluster first
     flush_workers()
 
-    host, port = get_faasm_invoke_host_port()
-    url = "http://{}:{}".format(host, port)
-
     for wload in workload:
         csv_name = "mpi_lammps_{}_granny.csv".format(wload)
         _init_csv_file(csv_name)
@@ -95,52 +89,9 @@ def granny(ctx, workload="compute", num_procs=None, repeats=5):
                     "mpi_world_size": nproc,
                     "async": True,
                 }
-                print("Posting to {} msg:".format(url))
-                pprint(msg)
-                # Post asynch request
-                response = post(url, json=msg, timeout=None)
-
-                # Get the async message id
-                if response.status_code != 200:
-                    print(
-                        "Initial request failed: {}:\n{}".format(
-                            response.status_code, response.text
-                        )
-                    )
-                print("Response: {}".format(response.text))
-                msg_id = int(response.text.strip())
-
-                # Start polling for the result
-                print("Polling message {}".format(msg_id))
-                while True:
-                    interval = 2
-                    sleep(interval)
-
-                    status_msg = {
-                        "user": user,
-                        "function": func,
-                        "status": True,
-                        "id": msg_id,
-                    }
-                    response = post(url, json=status_msg)
-
-                    if not response.text or response.text.startswith("FAILED"):
-                        raise RuntimeError("Error running task!")
-                    elif response.text.startswith("RUNNING"):
-                        continue
-                    elif not response.text:
-                        raise RuntimeError("Empty status response")
-
-                    # If we reach this point it means the call has succeeded
-                    result_json = json_loads(response.text, strict=False)
-                    actual_time = int(
-                        get_faasm_exec_time_from_json(result_json)
-                    )
-                    _write_csv_line(csv_name, nproc, r, actual_time)
-                    break
-
-                print("Actual time for msg {}: {}".format(msg_id, actual_time))
-                sleep(1)
+                result_json = post_async_msg_and_get_result_json(msg)
+                actual_time = get_faasm_exec_time_from_json(result_json)
+                _write_csv_line(csv_name, nproc, r, actual_time)
 
 
 @task

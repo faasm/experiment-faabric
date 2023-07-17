@@ -1,3 +1,4 @@
+from faasmctl.util.flush import flush_workers
 from invoke import task
 from os import environ, makedirs
 from os.path import basename, join
@@ -8,9 +9,7 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_planner_host_port,
     get_faasm_worker_ips,
-    flush_workers as flush_planner_workers,
     post_async_msg_and_get_result_json,
     reset_planner,
     wait_for_workers as wait_for_planner_workers,
@@ -54,8 +53,6 @@ def granny(ctx, data="compute-xl", repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
-    host, port = get_faasm_planner_host_port()
-    url = "http://{}:{}".format(host, port)
     num_workers = len(get_faasm_worker_ips())
 
     wasm_vm = "wavm"
@@ -80,7 +77,7 @@ def granny(ctx, data="compute-xl", repeats=1):
         for nrep in range(repeats):
             # First, flush the host state
             print("Flushing functions, state, and shared files from workers")
-            flush_planner_workers()
+            flush_workers()
 
             # Run LAMMPS
             cmdline = "-in faasm://lammps-data/{}".format(data_file)
@@ -90,7 +87,7 @@ def granny(ctx, data="compute-xl", repeats=1):
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
             }
-            result_json = post_async_msg_and_get_result_json(msg, url)
+            result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)
             _write_csv_line(csv_name, nproc, nrep, actual_time)
 

@@ -12,16 +12,23 @@ inv cluster.credentials
 
 ## Granny
 
-Deploy the cluster:
+Deploy the cluster, and point an env. var to the cluster deployment file:
 
 ```bash
-WASM_VM=wamr inv k8s.deploy --workers=2
+faasmctl deploy.k8s --workers=2
+export FAASM_INI_FILE=./faasm.ini
 ```
 
 Upload the WASM file:
 
 ```bash
 inv lammps.wasm.upload
+```
+
+To remove the cluster, run:
+
+```bash
+faasmctl delete
 ```
 
 ## Native

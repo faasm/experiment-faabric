@@ -1,3 +1,4 @@
+from faasmctl.util.flush import flush_workers
 from logging import (
     getLogger,
     INFO as log_level_INFO,
@@ -50,7 +51,6 @@ from tasks.util.faasm import (
     get_faasm_worker_ips,
     get_faasm_worker_pods,
     get_faasm_planner_host_port,
-    flush_workers as flush_faasm_workers,
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
@@ -687,7 +687,7 @@ class BatchScheduler:
         """
         # If running a WASM workload, flush the hosts first
         if self.state.baseline in GRANNY_BASELINES:
-            flush_faasm_workers()
+            flush_workers()
 
         # Mark the initial timestamp
         self.start_ts = time()

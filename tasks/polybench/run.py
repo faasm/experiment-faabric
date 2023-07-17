@@ -1,3 +1,5 @@
+from faasmctl.util.flush import flush_workers
+from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import join
@@ -9,13 +11,10 @@ from tasks.polybench.util import (
 from tasks.util.env import RESULTS_DIR
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
     # TODO(planner)
     # get_faasm_planner_host_port,
-    flush_workers,
     post_async_msg_and_get_result_json,
     # TODO(planner)
-    # reset_planner,
     # wait_for_workers as wait_for_planner_workers,
 )
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
@@ -67,17 +66,11 @@ def granny(ctx, bench=None, repeats=3):
     """
     Run the PolyBench/C microbenchmark with Granny (i.e. WASM)
     """
+    reset_planner()
     # TODO(planner): uncomment when planner is upstreamed
-    # reset_planner()
     # wait_for_planner_workers(num_workers)
 
     poly_benchmarks = _get_poly_benchmarks(bench)
-
-    # Url and headers for requests
-    # TODO(planner):
-    # host, port = get_faasm_planner_host_port()
-    host, port = get_faasm_invoke_host_port()
-    url = "http://{}:{}".format(host, port)
 
     for poly_bench in poly_benchmarks:
         csv_name = _get_csv_name("granny", poly_bench)
@@ -93,7 +86,7 @@ def granny(ctx, bench=None, repeats=3):
                 "function": poly_bench,
                 "async": True,
             }
-            result_json = post_async_msg_and_get_result_json(msg, url)
+            result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)
             if run_num >= NUM_WARMUP_RUNS:
                 _write_csv_line(

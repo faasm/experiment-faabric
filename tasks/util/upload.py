@@ -1,4 +1,4 @@
-from requests import put
+from faasmctl.util.upload import upload_wasm as faasmctl_upload_wasm
 from subprocess import CalledProcessError, run
 from tasks.util.env import (
     ACR_NAME,
@@ -6,16 +6,16 @@ from tasks.util.env import (
     PROJ_ROOT,
     get_version,
 )
-from tasks.util.faasm import get_faasm_upload_host_port
 
 
 def upload_wasm(wasm_file_details):
     """
-    Upload WASM files to a Granny deployment given a dictionary with the
-    files to upload, and the number of copies. This method copies the .wasm
-    files from the `experiment-makespan` docker image
+    Upload WASM files to a Granny deployment
+
+    Given a dictionary with the files to upload, and the number of copies. This
+    method copies the .wasm files from the `experiment-makespan` docker image
     """
-    # TODO: remove duplication with makespan experiment!
+
     def start_container(image_name):
         """
         Start build container in the background
@@ -61,18 +61,12 @@ def upload_wasm(wasm_file_details):
 
         wasm_file = tmp_host_wasm
         user = file_details["wasm_user"]
-        host, port = get_faasm_upload_host_port()
         for i in range(file_details["copies"]):
             if file_details["copies"] > 1:
                 func = "{}_{}".format(file_details["wasm_function"], i)
             else:
                 func = file_details["wasm_function"]
-            url = "http://{}:{}/f/{}/{}".format(host, port, user, func)
-            print("Putting function {}/{} to {}".format(user, func, url))
-            response = put(url, data=open(wasm_file, "rb"))
-            print(
-                "Response {}: {}".format(response.status_code, response.text)
-            )
+            response = faasmctl_upload_wasm(user, func, wasm_file)
             if response.status_code != 200:
                 print("Error! Upload failed, check the upload pod logs")
                 stop_container(tmp_image_name)

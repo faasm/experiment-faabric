@@ -1,3 +1,4 @@
+from faasmctl.util.flush import flush_workers
 from invoke import task
 from math import ceil, floor, log10
 from os import makedirs
@@ -10,8 +11,6 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
-    flush_workers,
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import (
@@ -121,9 +120,6 @@ def granny(ctx, repeats=1, num_procs=None, kernel=None):
     else:
         kernels = KERNELS_FAASM_FUNCS
 
-    host, port = get_faasm_invoke_host_port()
-    url = "http://{}:{}".format(host, port)
-
     for kernel in kernels:
         csv_name = "kernels_granny_{}.csv".format(kernel)
         _init_csv_file(csv_name)
@@ -150,7 +146,7 @@ def granny(ctx, repeats=1, num_procs=None, kernel=None):
                     "mpi_world_size": np,
                     "async": True,
                 }
-                result_json = post_async_msg_and_get_result_json(msg, url)
+                result_json = post_async_msg_and_get_result_json(msg)
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 _write_csv_line(csv_name, np, run_num, actual_time)
                 print("Actual time: {}".format(actual_time))

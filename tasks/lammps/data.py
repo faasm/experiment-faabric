@@ -1,13 +1,11 @@
+from faasmctl.util.upload import upload_file as faasmctl_upload_file
 from invoke import task
 from os.path import exists, join
-import requests
-
 from tasks.lammps.env import (
     LAMMPS_DIR,
     LAMMPS_FAASM_DATA_PREFIX,
     get_faasm_benchmark,
 )
-from tasks.util.faasm import get_faasm_upload_host_port
 
 
 @task(default=True, iterable=["bench"])
@@ -17,9 +15,6 @@ def upload(ctx, bench):
     """
     for b in bench:
         _bench = get_faasm_benchmark(b)
-
-        host, port = get_faasm_upload_host_port()
-        url = "http://{}:{}/file".format(host, port)
 
         # Upload all data corresponding to the benchmark
         for data in _bench["data"]:
@@ -31,20 +26,7 @@ def upload(ctx, bench):
                 print("Did not find data at {}".format(host_path))
                 raise RuntimeError("Did not find LAMMPS data!")
 
-            print(
-                "Uploading LAMMPS data ({}) to {} ({})".format(
-                    host_path, url, faasm_path
-                )
-            )
-            response = requests.put(
-                url,
-                data=open(host_path, "rb"),
-                headers={"FilePath": faasm_path},
-            )
-
-            print(
-                "Response {}: {}".format(response.status_code, response.text)
-            )
+            response = faasmctl_upload_file(host_path, faasm_path)
 
             if response.status_code != 200:
                 raise RuntimeError("Error uploading LAMMPS data!")

@@ -1,3 +1,4 @@
+from faasmctl.util.flush import flush_workers
 from invoke import task
 from logging import getLogger, WARNING as log_level_WARNING
 from os.path import join
@@ -24,15 +25,14 @@ from typing import Dict
 
 # imports to delete after test runs
 from os.path import basename
-from pprint import pprint
-from requests import post
-from tasks.util.faasm import (
-    get_faasm_invoke_host_port,
-    # TODO(planner):
-    # reset_planner,
-    # wait_for_workers as wait_for_planner_workers,
-)
+
+# TODO(planner):
+# from tasks.util.faasm import (
+#   reset_planner,
+#   wait_for_workers as wait_for_planner_workers,
+# )
 from tasks.lammps.env import get_faasm_benchmark
+from tasks.util.faasm import post_async_msg_and_get_result_json
 
 # Configure the logging settings globally
 getLogger("requests").setLevel(log_level_WARNING)
@@ -265,28 +265,13 @@ def idle_cores_from_exec_task(
 
 @task()
 def migration_test(ctx):
-    host, port = get_faasm_invoke_host_port()
-    url = "http://{}:{}".format(host, port)
     user = "lammps"
     func = "migration"
     data_file = get_faasm_benchmark("compute")["data"][0]
     cmdline = "-in faasm://lammps-data/{}".format(basename(data_file))
 
     # First, flush the host state
-    print("Flushing functions, state, and shared files from workers")
-    msg = {"type": 3}
-    print("Posting to {} msg:".format(url))
-    pprint(msg)
-    response = post(url, json=msg, timeout=None)
-    if response.status_code != 200:
-        print(
-            "Flush request failed: {}:\n{}".format(
-                response.status_code, response.text
-            )
-        )
-    print("Waiting for flush to propagate...")
-    sleep(5)
-    print("Done waiting")
+    flush_workers()
 
     msg = {
         "user": user,
@@ -298,43 +283,4 @@ def migration_test(ctx):
         "cmdline": cmdline,
         "topology_hint": "UNDERFULL",
     }
-    print("Posting to {} msg:".format(url))
-    pprint(msg)
-
-    # Post asynch request
-    response = post(url, json=msg, timeout=None)
-    # Get the async message id
-    if response.status_code != 200:
-        print(
-            "Initial request failed: {}:\n{}".format(
-                response.status_code, response.text
-            )
-        )
-    print("Response: {}".format(response.text))
-    msg_id = int(response.text.strip())
-
-    # Start polling for the result
-    print("Polling message {}".format(msg_id))
-    while True:
-        interval = 2
-        sleep(interval)
-
-        status_msg = {
-            "user": user,
-            "function": func,
-            "status": True,
-            "id": msg_id,
-        }
-        response = post(url, json=status_msg)
-
-        if response.text.startswith("RUNNING"):
-            continue
-        elif response.text.startswith("FAILED"):
-            raise RuntimeError("Call failed")
-        elif not response.text:
-            raise RuntimeError("Empty status response")
-        else:
-            # If we reach this point it means the call has succeeded
-            break
-
-        print("Success!")
+    post_async_msg_and_get_result_json(msg)

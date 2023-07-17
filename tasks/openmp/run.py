@@ -1,3 +1,4 @@
+from faasmctl.util.flush import flush_workers
 from invoke import task
 from os import makedirs
 from os.path import join
@@ -12,8 +13,6 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_invoke_host_port,
-    flush_workers,
     post_async_msg_and_get_result_json,
 )
 from time import time
@@ -100,9 +99,6 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
     else:
         workload = [workload]
 
-    host, port = get_faasm_invoke_host_port()
-    url = "http://{}:{}".format(host, port)
-
     for wload in workload:
         csv_name = "openmp_{}_granny.csv".format(wload)
         _init_csv_file(csv_name)
@@ -128,7 +124,7 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
                 if wload == "lulesh":
                     msg["input_data"] = str(nthread)
 
-                result_json = post_async_msg_and_get_result_json(msg, url)
+                result_json = post_async_msg_and_get_result_json(msg)
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 _write_csv_line(csv_name, nthread, r, actual_time)
                 print("Actual time: {}".format(actual_time))
