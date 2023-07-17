@@ -43,9 +43,12 @@ def get_faasm_exec_time_from_json(result_json):
 
 
 def post_async_msg_and_get_result_json(msg):
-    result = faasmctl_invoke_wasm(msg)
+    result = faasmctl_invoke_wasm(msg, dict_out=True)
+    print(result)
+    print(result["messageResults"])
+    print(result["messageResults"][0])
 
-    return result.messages[0]
+    return result["messageResults"][0]
 
 
 def wait_for_workers(expected_num_workers):

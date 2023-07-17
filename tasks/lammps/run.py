@@ -9,10 +9,10 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_worker_ips,
     post_async_msg_and_get_result_json,
-    reset_planner,
-    wait_for_workers as wait_for_planner_workers,
+    # TODO(planner-worker):
+    # reset_planner,
+    # wait_for_workers as wait_for_planner_workers,
 )
 from tasks.util.openmpi import (
     NATIVE_HOSTFILE,
@@ -53,17 +53,17 @@ def granny(ctx, data="compute-xl", repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
-    num_workers = len(get_faasm_worker_ips())
-
-    wasm_vm = "wavm"
+    wasm_vm = "wamr"
     if "WASM_VM" in environ:
         wasm_vm = environ["WASM_VM"]
     csv_name = "lammps_{}.csv".format(wasm_vm)
     _init_csv_file(csv_name)
 
     # Reset the planner and wait for the workers to register with it
-    reset_planner()
-    wait_for_planner_workers(num_workers)
+    # TODO(planner): wait for workers
+    # num_workers = len(get_faasm_worker_ips())
+    # reset_planner()
+    # wait_for_planner_workers(num_workers)
 
     # Run multiple benchmarks if desired for convenience
     data_file = basename(get_faasm_benchmark(data)["data"][0])
@@ -74,10 +74,11 @@ def granny(ctx, data="compute-xl", repeats=1):
             )
         )
 
+        # First, flush the host state
+        print("Flushing functions, state, and shared files from workers")
+        flush_workers()
+
         for nrep in range(repeats):
-            # First, flush the host state
-            print("Flushing functions, state, and shared files from workers")
-            flush_workers()
 
             # Run LAMMPS
             cmdline = "-in faasm://lammps-data/{}".format(data_file)

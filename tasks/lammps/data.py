@@ -26,7 +26,4 @@ def upload(ctx, bench):
                 print("Did not find data at {}".format(host_path))
                 raise RuntimeError("Did not find LAMMPS data!")
 
-            response = faasmctl_upload_file(host_path, faasm_path)
-
-            if response.status_code != 200:
-                raise RuntimeError("Error uploading LAMMPS data!")
+            faasmctl_upload_file(host_path, faasm_path)

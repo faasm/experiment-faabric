@@ -66,10 +66,7 @@ def upload_wasm(wasm_file_details):
                 func = "{}_{}".format(file_details["wasm_function"], i)
             else:
                 func = file_details["wasm_function"]
-            response = faasmctl_upload_wasm(user, func, wasm_file)
-            if response.status_code != 200:
-                print("Error! Upload failed, check the upload pod logs")
-                stop_container(tmp_image_name)
+            faasmctl_upload_wasm(user, func, wasm_file)
 
     # Lastly, remove the container
     stop_container(tmp_image_name)

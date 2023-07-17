@@ -9,36 +9,11 @@ in the [`experiment-base` repo](https://github.com/faasm/experiment-base).
 To check things are working:
 
 ```bash
+# Activate virtual environment
 source ../../bin/workon.sh
 
 inv -l
 ```
 
-## Experiment status
-
-| Experiment Name | Native | Granny | Plots |
-|---|---|---|---|
-| Array:MPI:Saturated |  |  | |
-| Array:MPI:Unsaturated |  |  | |
-| Array:OMP:Saturated |  |  | |
-| Array:OMP:Unsaturated |  |  | |
-| Other:Scale |  |  | |
-| [Benefits:MPI:Consolidation](./tasks/migration) |  |  | |
-| Benefits:OMP:Elasticity |  |  | |
-| FT:Granule |  |  | |
-| FT:Node |  |  | |
-| FT:Deployment |  |  | |
-
-EM Experiments (in order of priority):
-1. Array:MPI:Saturated
-2. Array:OMP:Saturated
-3. Array:MPI:Unsaturated
-4. Array:OMP:Unsaturated
-5. Other:Scale
-
-CS Experiments (in order of priority):
-1. Benefits:MPI:Consolidation
-2. Benefits:OMP:Elasticity
-3. FT:Granule
-4. FT:Node
-5. FT:Deployment
+When following any instructions in this repository, it is assumed that you have
+a working virtual environment activated as indicated above.
