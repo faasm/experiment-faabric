@@ -1,10 +1,12 @@
-import math
-import time
+from faasmctl.util.flush import flush_workers
 from invoke import task
+from math import ceil, floor, log10
 from os import makedirs
 from os.path import join
-
 from tasks.util.env import (
+    KERNELS_FAASM_FUNCS,
+    KERNELS_FAASM_USER,
+    KERNELS_NATIVE_DIR,
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
@@ -12,245 +14,213 @@ from tasks.util.faasm import (
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import (
-    NATIVE_HOSTFILE,
     run_kubectl_cmd,
     get_native_mpi_pods,
 )
-from tasks.kernels.env import KERNELS_FAASM_USER
-
-NUM_PROCS = [2, 4, 8, 16]
-
-SPARSE_GRID_SIZE_2LOG = 10
-SPARSE_GRID_SIZE = pow(2, SPARSE_GRID_SIZE_2LOG)
-
-PRK_CMDLINE = {
-    "dgemm": "1000 500 32 1",
-    # dgemm: iterations, matrix order, outer block size
-    "nstream": "2000000 200000 0",
-    # nstream: iterations, vector length, offset
-    "random": "16 16",  # update ratio, table size
-    "reduce": "40000 20000",
-    # reduce: iterations, vector length
-    "sparse": "400 10 4",
-    # sparse: iterations, log2 grid size, stencil radius
-    "stencil": "20000 1000",
-    # stencil: iterations, array dimension
-    "global": "1000 10000",
-    # global: iterations, scramble string length
-    "p2p": "10000 10000 1000",
-    # p2p: iterations, 1st array dimension, 2nd array dimension
-    "transpose": "500 2000 64",  # if iterations > 500, result overflows
-    # transpose: iterations, matrix order, tile size
-}
-
-PRK_NATIVE_BUILD = "/code/experiment-mpi/third-party/kernels-native"
-
-PRK_NATIVE_EXECUTABLES = {
-    "dgemm": join(PRK_NATIVE_BUILD, "MPI1", "DGEMM", "dgemm"),
-    "nstream": join(PRK_NATIVE_BUILD, "MPI1", "Nstream", "nstream"),
-    "random": join(PRK_NATIVE_BUILD, "MPI1", "Random", "random"),
-    "reduce": join(PRK_NATIVE_BUILD, "MPI1", "Reduce", "reduce"),
-    "sparse": join(PRK_NATIVE_BUILD, "MPI1", "Sparse", "sparse"),
-    "stencil": join(PRK_NATIVE_BUILD, "MPI1", "Stencil", "stencil"),
-    "global": join(PRK_NATIVE_BUILD, "MPI1", "Synch_global", "global"),
-    "p2p": join(PRK_NATIVE_BUILD, "MPI1", "Synch_p2p", "p2p"),
-    "transpose": join(PRK_NATIVE_BUILD, "MPI1", "Transpose", "transpose"),
-}
-
-PRK_STATS = {
-    # "dgemm": ("Avg time (s)", "Rate (MFlops/s)"), uses MPI_Group_incl
-    # "nstream": ("Avg time (s)", "Rate (MB/s)"),
-    # "random": ("Rate (GUPS/s)", "Time (s)"), uses MPI_Alltoallv
-    "reduce": ("Rate (MFlops/s)", "Avg time (s)"),
-    "sparse": ("Rate (MFlops/s)", "Avg time (s)"),
-    # "stencil": ("Rate (MFlops/s)", "Avg time (s)"),
-    # "global": ("Rate (synch/s)", "time (s)"), uses MPI_Type_commit
-    "p2p": ("Rate (MFlops/s)", "Avg time (s)"),
-    "transpose": ("Rate (MB/s)", "Avg time (s)"),
-}
-
-MPI_RUN = "mpirun"
-HOSTFILE = "/home/mpirun/hostfile"
-
-
-def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "kernels")
-    makedirs(result_dir, exist_ok=True)
-
-    result_file = join(result_dir, csv_name)
-    makedirs(RESULTS_DIR, exist_ok=True)
-    with open(result_file, "w") as out_file:
-        out_file.write("Kernel,WorldSize,Run,StatName,StatValue,ActualTime\n")
-
-    return result_file
+from time import time
 
 
 def is_power_of_two(n):
-    return math.ceil(log_2(n)) == math.floor(log_2(n))
+    return ceil(log_2(n)) == floor(log_2(n))
 
 
 def log_2(x):
     if x == 0:
         return False
 
-    return math.log10(x) / math.log10(2)
+    return log10(x) / log10(2)
 
 
-def _process_kernels_result(
-    result_file, kernel, np, run_num, actual_time, kernels_out
-):
-    stats = PRK_STATS.get(kernel)
-
-    if not stats:
-        print("No stats for {}".format(kernel))
-        return
-
-    # First, get real executed time from response text
-    print("Actual time: {}".format(actual_time))
-
-    # Then, process the output text
-    for stat in stats:
-        stat_parts = kernels_out.split(stat)
-        stat_parts = [s for s in stat_parts if s.strip()]
-        if len(stat_parts) < 2:
-            print(
-                "Could not find stat {} for kernel {} in output".format(
-                    stat, kernel
-                )
+def get_kernels_cmdline(kernel_name, np):
+    if kernel_name not in KERNELS_FAASM_FUNCS:
+        raise RuntimeError(
+            "Kernel {} not supported. Available: {}".format(
+                kernel_name, KERNELS_FAASM_FUNCS
             )
-            return
+        )
 
-        stat_val = stat_parts[-1].replace(":", "")
-        stat_val = [s.strip() for s in stat_val.split(" ") if s.strip()]
-        stat_val = stat_val[0]
-        print("Got {} = {} for {}".format(stat, stat_val, kernel))
+    transpose_matrix_order = 2 * 4 * 5 * 6 * 7
+    sparse_grid_size_log2 = 10
+    sparse_grid_size = pow(2, sparse_grid_size_log2)
 
-        stat_val = float(stat_val)
-        with open(result_file, "a") as out_file:
-            out_file.write(
-                "{},{},{},{},{:.8f},{:.8f}\n".format(
-                    kernel, np, run_num, stat, stat_val, actual_time
-                )
-            )
-
-
-def _validate_kernel(kernel, np):
-    if kernel not in PRK_CMDLINE:
-        print("Invalid PRK function {}".format(kernel))
-        exit(1)
-
-    if kernel == "random" and not is_power_of_two(np):
-        print("Must have a power of two number of processes for random")
-        exit(1)
-
-    elif kernel == "sparse" and not (SPARSE_GRID_SIZE % np == 0):
+    if kernel_name == "random" and not is_power_of_two(np):
+        raise RuntimeError(
+            "Must have a power of two number of processes for random"
+        )
+    elif kernel_name == "sparse" and not (sparse_grid_size % np == 0):
         print("To run sparse, grid size must be a multiple of --np")
-        print("Currently grid_size={} and np={})".format(SPARSE_GRID_SIZE, np))
-        exit(1)
+        print("Currently grid_size={} and np={})".format(sparse_grid_size, np))
+        raise RuntimeError("Incorrect command line parameters for 'sparse'")
+    elif kernel_name == "transpose" and not (transpose_matrix_order % np == 0):
+        raise RuntimeError(
+            "# proc must divide transpose matrix order ({})".format(
+                transpose_matrix_order
+            )
+        )
+
+    prk_cmdline = {
+        "dgemm": "1000 500 32 1",
+        # dgemm: iterations, matrix order, outer block size
+        "nstream": "2000000 200000 0",
+        # nstream: iterations, vector length, offset
+        "random": "16 16",  # update ratio, table size
+        "reduce": "40000 20000",
+        # reduce: iterations, vector length
+        "sparse": "400 {} 4".format(sparse_grid_size_log2),
+        # sparse: iterations, log2 grid size, stencil radius
+        "stencil": "20000 1000",
+        # stencil: iterations, array dimension
+        "global": "1000 10000",
+        # global: iterations, scramble string length
+        "p2p": "10000 10000 1000",
+        # p2p: iterations, 1st array dimension, 2nd array dimension
+        "transpose": "500 {} 64".format(transpose_matrix_order),
+        # transpose: iterations, matrix order, tile size
+        # notes:
+        # - matrix order must be a multiple of # procs
+        # - if iterations > 500, result overflows
+    }
+
+    return prk_cmdline[kernel_name]
+
+
+def _init_csv_file(csv_name):
+    result_dir = join(RESULTS_DIR, "mpi")
+    makedirs(result_dir, exist_ok=True)
+
+    result_file = join(result_dir, csv_name)
+    makedirs(RESULTS_DIR, exist_ok=True)
+    with open(result_file, "w") as out_file:
+        out_file.write("WorldSize,Run,ActualTime\n")
+
+
+def _write_csv_line(csv_name, num_procs, run, exec_time):
+    result_dir = join(RESULTS_DIR, "mpi")
+    result_file = join(result_dir, csv_name)
+    with open(result_file, "a") as out_file:
+        out_file.write("{},{},{}\n".format(num_procs, run, exec_time))
 
 
 @task
-def granny(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
+def granny(ctx, repeats=1, num_procs=None, kernel=None):
     """
     Run the kernels benchmark in faasm
     """
-
     # First, work out the number of processes to run with
-    if nprocs:
-        num_procs = [nprocs]
-    elif procrange:
-        num_procs = range(1, int(procrange) + 1)
+    if num_procs is not None:
+        num_procs = [int(num_procs)]
     else:
-        num_procs = NUM_PROCS
+        num_procs = [2, 4, 6, 8, 10, 12, 14, 16]
 
     if kernel:
-        kernels = [kernel]
+        if kernel == "all":
+            kernels = KERNELS_FAASM_FUNCS
+        else:
+            kernels = [kernel]
     else:
-        kernels = PRK_STATS.keys()
+        kernels = KERNELS_FAASM_FUNCS
 
     for kernel in kernels:
-        result_file = _init_csv_file("kernels_wasm_{}.csv".format(kernel))
+        csv_name = "kernels_granny_{}.csv".format(kernel)
+        _init_csv_file(csv_name)
 
-        for np in num_procs:
-            np = int(np)
-            _validate_kernel(kernel, np)
-            for run_num in range(repeats):
+        for run_num in range(repeats):
+            for np in num_procs:
+                # Flush the cluster fist
+                flush_workers()
 
-                cmdline = PRK_CMDLINE[kernel]
+                try:
+                    cmdline = get_kernels_cmdline(kernel, np)
+                except RuntimeError as e:
+                    if kernel == "sparse":
+                        print("Skipping sparse kernel for np: {}".format(np))
+                        continue
+                    raise e
+                user = KERNELS_FAASM_USER
+                func = kernel
                 msg = {
-                    "user": KERNELS_FAASM_USER,
-                    "function": kernel,
+                    "user": user,
+                    "function": func,
                     "cmdline": cmdline,
+                    "mpi": True,
                     "mpi_world_size": np,
                     "async": True,
                 }
-
                 result_json = post_async_msg_and_get_result_json(msg)
-                actual_time = get_faasm_exec_time_from_json(result_json)
-                _process_kernels_result(
-                    result_file,
-                    kernel,
-                    np,
-                    run_num,
-                    actual_time,
-                    result_json["output_data"],
-                )
+                actual_time = int(get_faasm_exec_time_from_json(result_json))
+                _write_csv_line(csv_name, np, run_num, actual_time)
+                print("Actual time: {}".format(actual_time))
 
 
 @task
-def native(ctx, repeats=1, nprocs=None, kernel=None, procrange=None):
+def native(ctx, repeats=1, num_procs=None, kernel=None):
     """
     Run Kernels benchmark natively
     """
-    if nprocs:
-        num_procs = [nprocs]
-    elif procrange:
-        num_procs = range(1, int(procrange) + 1)
+    # First, work out the number of processes to run with
+    if num_procs is not None:
+        num_procs = [int(num_procs)]
     else:
-        num_procs = NUM_PROCS
-
-    pod_names, pod_ips = get_native_mpi_pods("kernels")
-    master_pod = pod_names[0]
+        num_procs = [2, 4, 6, 8, 10, 12, 14, 16]
 
     if kernel:
-        kernels = [kernel]
+        if kernel == "all":
+            kernels = KERNELS_FAASM_FUNCS
+        else:
+            kernels = [kernel]
     else:
-        kernels = PRK_STATS.keys()
+        kernels = KERNELS_FAASM_FUNCS
+
+    # Pick one VM in the cluster at random to run native OpenMP in
+    vm_names, vm_ips = get_native_mpi_pods("makespan")
+    master_vm = vm_names[0]
+    master_ip = vm_ips[0]
+    worker_ip = vm_ips[1]
 
     for kernel in kernels:
-        result_file = _init_csv_file("kernels_native_{}.csv".format(kernel))
+        csv_name = "kernels_native_{}.csv".format(kernel)
+        _init_csv_file(csv_name)
+        binary = join(KERNELS_NATIVE_DIR, "mpi_{}.o".format(kernel))
 
-        for np in num_procs:
-            for run_num in range(repeats):
-                np = int(np)
-                _validate_kernel(kernel, np)
+        for run_num in range(repeats):
+            for np in num_procs:
+                try:
+                    cmdline = get_kernels_cmdline(kernel, np)
+                except RuntimeError as e:
+                    if kernel == "sparse":
+                        print("Skipping sparse kernel for np: {}".format(np))
+                        continue
+                    raise e
 
-                start = time.time()
-                cmdline = PRK_CMDLINE[kernel]
-                executable = PRK_NATIVE_EXECUTABLES[kernel]
+                # Work out an allocation list to avoid having to copy hostfiles
+                num_cores_per_ctr = 8
+                allocated_pod_ips = []
+                if np > num_cores_per_ctr:
+                    allocated_pod_ips = [
+                        "{}:{}".format(master_ip, num_cores_per_ctr),
+                        "{}:{}".format(worker_ip, np - num_cores_per_ctr),
+                    ]
+                else:
+                    allocated_pod_ips = ["{}:{}".format(master_ip, np)]
                 mpirun_cmd = [
                     "mpirun",
                     "-np {}".format(np),
-                    "-hostfile {}".format(NATIVE_HOSTFILE),
-                    executable,
+                    "-host {}".format(",".join(allocated_pod_ips)),
+                    binary,
                     cmdline,
                 ]
                 mpirun_cmd = " ".join(mpirun_cmd)
 
                 exec_cmd = [
                     "exec",
-                    master_pod,
+                    master_vm,
                     "--",
                     "su mpirun -c '{}'".format(mpirun_cmd),
                 ]
-                exec_output = run_kubectl_cmd("kernels", " ".join(exec_cmd))
-                print(exec_output)
+                exec_cmd = " ".join(exec_cmd)
 
-                _process_kernels_result(
-                    result_file,
-                    kernel,
-                    np,
-                    run_num,
-                    time.time() - start,
-                    exec_output,
-                )
+                start_ts = time()
+                run_kubectl_cmd("makespan", exec_cmd)
+                actual_time = int(time() - start_ts)
+                _write_csv_line(csv_name, np, run_num, actual_time)
+                print("Actual time: {}".format(actual_time))

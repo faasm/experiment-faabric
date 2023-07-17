@@ -1,37 +1,28 @@
 from invoke import task
 from os.path import join
-from tasks.util.upload import upload_wasm
-from tasks.kernels.env import (
-    KERNELS_WASM_DIR,
+from tasks.util.env import (
+    KERNELS_FAASM_FUNCS,
     KERNELS_FAASM_USER,
+    KERNELS_WASM_DIR,
 )
-
-MAKE_TARGETS = [
-    ("MPI1/Synch_global", "global"),
-    ("MPI1/Synch_p2p", "p2p"),
-    ("MPI1/Sparse", "sparse"),
-    ("MPI1/Transpose", "transpose"),
-    ("MPI1/Stencil", "stencil"),
-    ("MPI1/DGEMM", "dgemm"),
-    ("MPI1/Nstream", "nstream"),
-    ("MPI1/Reduce", "reduce"),
-    ("MPI1/Random", "random"),
-]
+from tasks.util.upload import upload_wasm
 
 
-@task
+@task()
 def upload(ctx):
     """
-    Upload the MPI Kernes to Faasm
+    Upload the MPI functions to Granny
     """
     wasm_file_details = []
-    for target in [t[1] for t in MAKE_TARGETS]:
-        wasm_file = join(KERNELS_WASM_DIR, "wasm", "{}.wasm".format(target))
+
+    for kernel in KERNELS_FAASM_FUNCS:
         wasm_file_details.append(
             {
-                "wasm_file": wasm_file,
+                "wasm_file": join(
+                    KERNELS_WASM_DIR, "mpi_{}.wasm".format(kernel)
+                ),
                 "wasm_user": KERNELS_FAASM_USER,
-                "wasm_function": target,
+                "wasm_function": kernel,
                 "copies": 1,
             }
         )
