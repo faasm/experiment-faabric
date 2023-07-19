@@ -66,7 +66,10 @@ def upload_wasm(wasm_file_details):
                 func = "{}_{}".format(file_details["wasm_function"], i)
             else:
                 func = file_details["wasm_function"]
-            faasmctl_upload_wasm(user, func, wasm_file)
+            try:
+                faasmctl_upload_wasm(user, func, wasm_file)
+            except Exception:
+                stop_container(tmp_image_name)
 
     # Lastly, remove the container
     stop_container(tmp_image_name)

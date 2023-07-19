@@ -1,4 +1,5 @@
 from faasmctl.util.config import (
+    get_faasm_ini_file,
     get_faasm_ini_value,
     get_faasm_planner_host_port,
 )
@@ -15,7 +16,7 @@ from time import sleep
 
 
 def get_faasm_worker_ips():
-    ips = get_faasm_ini_value("Faasm", "worker_ips")
+    ips = get_faasm_ini_value(get_faasm_ini_file(), "Faasm", "worker_ips")
     ips = [p.strip() for p in ips.split(",") if p.strip()]
 
     print("Using faasm worker IPs: {}".format(ips))
@@ -23,7 +24,7 @@ def get_faasm_worker_ips():
 
 
 def get_faasm_worker_pods():
-    pods = get_faasm_ini_value("Faasm", "worker_names")
+    pods = get_faasm_ini_value(get_faasm_ini_file(), "Faasm", "worker_names")
     pods = [p.strip() for p in pods.split(",") if p.strip()]
 
     print("Using faasm worker pods: {}".format(pods))
@@ -44,9 +45,6 @@ def get_faasm_exec_time_from_json(result_json):
 
 def post_async_msg_and_get_result_json(msg):
     result = faasmctl_invoke_wasm(msg, dict_out=True)
-    print(result)
-    print(result["messageResults"])
-    print(result["messageResults"][0])
 
     return result["messageResults"][0]
 

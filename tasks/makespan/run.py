@@ -63,7 +63,7 @@ def _get_workload_from_cmdline(workload):
 @task()
 def granny(
     ctx,
-    workload="all",
+    workload="mpi",
     backend="k8s",
     num_vms=32,
     num_cpus_per_vm=8,
@@ -75,7 +75,7 @@ def granny(
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(backend=backend, num_vms=num_vms, granny=True, trace=trace)
+        _do_run(backend, "granny", num_vms, trace)
         sleep(5)
 
 

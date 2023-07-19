@@ -50,7 +50,6 @@ from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_worker_ips,
     get_faasm_worker_pods,
-    get_faasm_planner_host_port,
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
@@ -193,10 +192,6 @@ def thread_pool_thread(
             actual_time = int(time() - start_ts)
             thread_print("Actual time: {}".format(actual_time))
         else:
-            # WASM specific data
-            host, port = get_faasm_planner_host_port()
-            url = "http://{}:{}".format(host, port)
-
             # Prepare Faasm request
             if (
                 work_item.task.app == "mpi"
@@ -242,7 +237,7 @@ def thread_pool_thread(
             start_ts = time()
             # Post asynch request and wait for JSON result
             try:
-                result_json = post_async_msg_and_get_result_json(msg, url)
+                result_json = post_async_msg_and_get_result_json(msg)
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 thread_print(
                     "Finished executiong app {} (time: {})".format(
