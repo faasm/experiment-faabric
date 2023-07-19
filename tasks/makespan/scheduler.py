@@ -1,3 +1,7 @@
+from faasmctl.util.config import (
+    get_faasm_worker_ips,
+    get_faasm_worker_names,
+)
 from faasmctl.util.flush import flush_workers
 from logging import (
     getLogger,
@@ -27,7 +31,6 @@ from tasks.makespan.env import (
     DGEMM_DOCKER_BINARY,
     DGEMM_FAASM_FUNC,
     DGEMM_FAASM_USER,
-    MAKESPAN_DIR,
     get_dgemm_cmdline,
 )
 from tasks.makespan.util import (
@@ -40,16 +43,8 @@ from tasks.makespan.util import (
     get_workload_from_trace,
     write_line_to_csv,
 )
-from tasks.util.compose import (
-    get_container_names_from_compose,
-    get_container_ips_from_compose,
-    run_compose_cmd,
-)
-from tasks.util.env import FAASM_ROOT
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_worker_ips,
-    get_faasm_worker_pods,
     post_async_msg_and_get_result_json,
 )
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
@@ -188,7 +183,8 @@ def thread_pool_thread(
             if backend == "k8s":
                 run_kubectl_cmd("makespan", exec_cmd)
             elif backend == "compose":
-                run_compose_cmd(thread_idx, MAKESPAN_DIR, exec_cmd)
+                # run_compose_cmd(thread_idx, MAKESPAN_DIR, exec_cmd)
+                raise RuntimeError("Native compose does not work!")
             actual_time = int(time() - start_ts)
             thread_print("Actual time: {}".format(actual_time))
         else:
@@ -328,23 +324,10 @@ class SchedulerState:
         Initialise pod names and pod map depending on the backend and
         workload
         """
-        vm_ips = []
-        vm_names = []
-        if backend == "compose":
-            if self.baseline in NATIVE_BASELINES:
-                compose_dir = MAKESPAN_DIR
-            else:
-                compose_dir = FAASM_ROOT
-            vm_names = get_container_names_from_compose(compose_dir)
-            vm_ips = get_container_ips_from_compose(compose_dir)
-        elif backend == "k8s":
-            if self.baseline in NATIVE_BASELINES:
-                vm_names, vm_ips = get_native_mpi_pods("makespan")
-            else:
-                vm_names = get_faasm_worker_pods()
-                vm_ips = get_faasm_worker_ips()
-        else:
-            raise RuntimeError("Unrecognised backend: {}".format(backend))
+        vm_names = get_faasm_worker_names()
+        vm_ips = get_faasm_worker_ips()
+        if self.baseline in NATIVE_BASELINES and backend == "k8s":
+            vm_names, vm_ips = get_native_mpi_pods("makespan")
 
         # Sanity-check the VM names and IPs we got
         if len(vm_names) != self.num_vms:

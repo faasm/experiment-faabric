@@ -1,8 +1,4 @@
-from faasmctl.util.config import (
-    get_faasm_ini_file,
-    get_faasm_ini_value,
-    get_faasm_planner_host_port,
-)
+from faasmctl.util.config import get_faasm_planner_host_port
 from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
 from faasmctl.util.planner import reset as faasmctl_reset_planner
 
@@ -13,22 +9,6 @@ from tasks.util.planner import (
     get_registered_workers as get_planner_registerd_workers,
 )
 from time import sleep
-
-
-def get_faasm_worker_ips():
-    ips = get_faasm_ini_value(get_faasm_ini_file(), "Faasm", "worker_ips")
-    ips = [p.strip() for p in ips.split(",") if p.strip()]
-
-    print("Using faasm worker IPs: {}".format(ips))
-    return ips
-
-
-def get_faasm_worker_pods():
-    pods = get_faasm_ini_value(get_faasm_ini_file(), "Faasm", "worker_names")
-    pods = [p.strip() for p in pods.split(",") if p.strip()]
-
-    print("Using faasm worker pods: {}".format(pods))
-    return pods
 
 
 def get_faasm_exec_time_from_json(result_json):
