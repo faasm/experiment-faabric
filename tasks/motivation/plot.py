@@ -270,8 +270,8 @@ def do_plot(plot_name, results, ax):
         num_cpus_per_vm = 8
         nrows = num_vms * num_cpus_per_vm
 
-        # Data shape is (nrows, ncols). We have as many columns as tasks, and as
-        # many rows as the total number of CPUs.
+        # Data shape is (nrows, ncols). We have as many columns as tasks, and
+        # as many rows as the total number of CPUs.
         # data[m, n] = task_id if cpu m is being used by task_id at timestamp n
         # (where  m is the row and n the column)
         data = [[-1 for _ in range(ncols)] for _ in range(nrows)]
