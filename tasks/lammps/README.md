@@ -5,6 +5,8 @@ as part of the array experiment.
 
 ## Start AKS cluster
 
+In the `experiment-base` terminal, run:
+
 ```bash
 inv cluster.provision --vm Standard_D8_v5 --nodes 2
 inv cluster.credentials
@@ -51,7 +53,7 @@ TODO:
 
 ## Clean-Up
 
-Remember to delete the cluster:
+Remember to delete the cluster. From the experiment base terminal:
 
 ```bash
 inv cluster.delete
