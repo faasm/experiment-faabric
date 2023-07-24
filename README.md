@@ -6,9 +6,11 @@ https://arxiv.org/abs/2302.11358).
 When following any instructions in this repository, it is recommended to
 have two open terminals:
 * One on the [`experiment-base`](https://github.com/faasm/experiment-base) repo
-  with the virtual environment activated (`source ./bin/workon.sh`).
+  with the virtual environment activated (`source ./bin/workon.sh`). From now
+  onward, we will refer to this shell by its venv name: `faasm-exp-base`.
 * One with this repo and the virtual environment activated
-  (`source ./bin/workon.sh`).
+  (`source ./bin/workon.sh`). From now onward, we will refer to this shell by
+  its venv name: `faasm-exp-faabric`.
 
 The former is used to provision/deprovision K8s clusters on Azure (with AKS),
 and also to access low-level monitoring tools (we recommend `k9s`).
