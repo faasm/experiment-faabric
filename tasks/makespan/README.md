@@ -1,6 +1,6 @@
 # Makespan Experiment
 
-First, from the `experiment-base` shell, deploy the VM cluster:
+First, from the `faasm-exp-base` shell, deploy the VM cluster:
 
 ```bash
 inv cluster.provision --vm Standard_D8_v5 --nodes 32
@@ -33,6 +33,21 @@ First, deploy the k8s cluster:
 
 ```bash
 faasmctl deploy.k8s --workers=32
+```
+
+Second, upload the corresponding WASM files:
+
+```bash
+# TODO: do we want to keep uploading the OMP files?
+# inv makespan.wasm.upload
+# In the meantime, upload just LAMMPS + data
+inv lammps.wasm.upload
+```
+
+Third, run the experiment:
+
+```bash
+inv makespan.run.granny --workload mpi
 ```
 
 ## Syntax

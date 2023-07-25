@@ -49,20 +49,22 @@ def init_csv_file(baseline, backend, num_vms, trace_str):
             "TaskId,TimeExecuting,TimeInQueue,StartTimeStamp,EndTimeStamp\n"
         )
 
-    # Schedulign info file
-    csv_name = "makespan_{}_{}_{}_{}_{}".format(
-        SCHEDULINNG_INFO_FILE_PREFIX,
-        baseline,
-        backend,
-        num_vms,
-        get_trace_ending(trace_str),
-    )
-    csv_file = join(result_dir, csv_name)
-    with open(csv_file, "w") as out_file:
-        out_file.write("TaskId,SchedulingDecision\n")
-        ips, vms = get_native_mpi_pods_ip_to_vm("makespan")
-        ip_to_vm = ["{},{}".format(ip, vm) for ip, vm in zip(ips, vms)]
-        out_file.write(",".join(ip_to_vm) + "\n")
+    # Schedulign info file (this file is only used for the motivation plot with
+    # native baselines)
+    if baseline in NATIVE_BASELINES and backend == "k8s":
+        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+            SCHEDULINNG_INFO_FILE_PREFIX,
+            baseline,
+            backend,
+            num_vms,
+            get_trace_ending(trace_str),
+        )
+        csv_file = join(result_dir, csv_name)
+        with open(csv_file, "w") as out_file:
+            out_file.write("TaskId,SchedulingDecision\n")
+            ips, vms = get_native_mpi_pods_ip_to_vm("makespan")
+            ip_to_vm = ["{},{}".format(ip, vm) for ip, vm in zip(ips, vms)]
+            out_file.write(",".join(ip_to_vm) + "\n")
 
 
 def write_line_to_csv(baseline, backend, exp_key, num_vms, trace_str, *args):
