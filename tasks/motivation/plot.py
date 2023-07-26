@@ -93,71 +93,72 @@ def _read_results():
         # Results to visualise scheduling info per task
         # -----
 
-        result_dict[baseline]["task_scheduling"] = {}
+        if baseline != "granny":
+            result_dict[baseline]["task_scheduling"] = {}
 
-        # We identify VMs by numbers, not IPs
-        ip_to_vm = {}
-        vm_to_id = {}
-        sched_info_csv = "makespan_sched-info_{}_{}_{}_{}".format(
-            csv.split("_")[2], "k8s", "32", trace_ending
-        )
-        with open(join(RESULTS_DIR, sched_info_csv), "r") as sched_fd:
-            # Process the file line by line, as each line will be different in
-            # length
-            for num, line in enumerate(sched_fd):
-                # Skip the header
-                if num == 0:
-                    continue
+            # We identify VMs by numbers, not IPs
+            ip_to_vm = {}
+            vm_to_id = {}
+            sched_info_csv = "makespan_sched-info_{}_{}_{}_{}".format(
+                csv.split("_")[2], "k8s", "32", trace_ending
+            )
+            with open(join(RESULTS_DIR, sched_info_csv), "r") as sched_fd:
+                # Process the file line by line, as each line will be different in
+                # length
+                for num, line in enumerate(sched_fd):
+                    # Skip the header
+                    if num == 0:
+                        continue
 
-                line = line.strip()
+                    line = line.strip()
 
-                # In line 1 we include the IP to node conversion as one
-                # comma-separated line, so we parse it here
-                if num == 1:
-                    ip_to_vm_line = line.split(",")
-                    assert len(ip_to_vm_line) % 2 == 0
+                    # In line 1 we include the IP to node conversion as one
+                    # comma-separated line, so we parse it here
+                    if num == 1:
+                        ip_to_vm_line = line.split(",")
+                        assert len(ip_to_vm_line) % 2 == 0
+
+                        i = 0
+                        while i < len(ip_to_vm_line):
+                            ip = ip_to_vm_line[i]
+                            vm = ip_to_vm_line[i + 1]
+                            ip_to_vm[ip] = vm
+                            i += 2
+
+                        continue
+
+                    # Get the task id and the scheduling decision from the line
+                    task_id = line.split(",")[0]
+                    result_dict[baseline]["task_scheduling"][task_id] = {}
+                    sched_info = line.split(",")[1:]
+                    # The scheduling decision must be even, as it contains pairs
+                    # of ip + slots
+                    assert len(sched_info) % 2 == 0
 
                     i = 0
-                    while i < len(ip_to_vm_line):
-                        ip = ip_to_vm_line[i]
-                        vm = ip_to_vm_line[i + 1]
-                        ip_to_vm[ip] = vm
-                        i += 2
+                    while i < len(sched_info):
+                        vm = ip_to_vm[sched_info[i]]
+                        slots = sched_info[i + 1]
 
-                    continue
+                        if vm not in vm_to_id:
+                            len_map = len(vm_to_id)
+                            vm_to_id[vm] = len_map
 
-                # Get the task id and the scheduling decision from the line
-                task_id = line.split(",")[0]
-                result_dict[baseline]["task_scheduling"][task_id] = {}
-                sched_info = line.split(",")[1:]
-                # The scheduling decision must be even, as it contains pairs
-                # of ip + slots
-                assert len(sched_info) % 2 == 0
+                        vm_id = vm_to_id[vm]
+                        if (
+                            vm_id
+                            not in result_dict[baseline]["task_scheduling"][
+                                task_id
+                            ]
+                        ):
+                            result_dict[baseline]["task_scheduling"][task_id][
+                                vm_id
+                            ] = 0
 
-                i = 0
-                while i < len(sched_info):
-                    vm = ip_to_vm[sched_info[i]]
-                    slots = sched_info[i + 1]
-
-                    if vm not in vm_to_id:
-                        len_map = len(vm_to_id)
-                        vm_to_id[vm] = len_map
-
-                    vm_id = vm_to_id[vm]
-                    if (
-                        vm_id
-                        not in result_dict[baseline]["task_scheduling"][
-                            task_id
-                        ]
-                    ):
                         result_dict[baseline]["task_scheduling"][task_id][
                             vm_id
-                        ] = 0
-
-                    result_dict[baseline]["task_scheduling"][task_id][
-                        vm_id
-                    ] += int(slots)
-                    i += 2
+                        ] += int(slots)
+                        i += 2
 
         # -----
         # Results to visualise the % of idle vCPUs over time
@@ -188,34 +189,35 @@ def _read_results():
         # Results to visualise the # of cross-vm links
         # -----
 
-        result_dict[baseline]["ts_xvm_links"] = {}
-        for ts in result_dict[baseline]["tasks_per_ts"]:
-            result_dict[baseline]["ts_xvm_links"][ts] = 0
+        if baseline != "granny":
+            result_dict[baseline]["ts_xvm_links"] = {}
+            for ts in result_dict[baseline]["tasks_per_ts"]:
+                result_dict[baseline]["ts_xvm_links"][ts] = 0
 
-        for ts in result_dict[baseline]["tasks_per_ts"]:
-            for t in result_dict[baseline]["tasks_per_ts"][ts]:
-                if baseline == "slurm":
-                    sched = result_dict[baseline]["task_scheduling"][
-                        str(int(t))
-                    ]
+            for ts in result_dict[baseline]["tasks_per_ts"]:
+                for t in result_dict[baseline]["tasks_per_ts"][ts]:
+                    if baseline == "slurm":
+                        sched = result_dict[baseline]["task_scheduling"][
+                            str(int(t))
+                        ]
 
-                    # If only scheduled to one VM, no cross-VM links
-                    if len(sched) <= 1:
-                        continue
+                        # If only scheduled to one VM, no cross-VM links
+                        if len(sched) <= 1:
+                            continue
 
-                    # Otherwise, make the product
-                    acc = 1
-                    for vm in sched:
-                        acc = acc * sched[vm]
+                        # Otherwise, make the product
+                        acc = 1
+                        for vm in sched:
+                            acc = acc * sched[vm]
 
-                    # Add the accumulated to the total tally
-                    result_dict[baseline]["ts_xvm_links"][ts] += acc
-                elif baseline == "batch":
-                    # Batch baseline is optimal in terms of cross-vm links
-                    task_size = task_trace[int(t)].size
-                    if task_size > 8:
-                        num_links = 8 * (task_size - 8)
-                        result_dict[baseline]["ts_xvm_links"][ts] += num_links
+                        # Add the accumulated to the total tally
+                        result_dict[baseline]["ts_xvm_links"][ts] += acc
+                    elif baseline == "batch":
+                        # Batch baseline is optimal in terms of cross-vm links
+                        task_size = task_trace[int(t)].size
+                        if task_size > 8:
+                            num_links = 8 * (task_size - 8)
+                            result_dict[baseline]["ts_xvm_links"][ts] += num_links
 
     return result_dict
 
@@ -306,6 +308,7 @@ def do_plot(plot_name, results, ax):
         """
         xs_slurm = range(len(results["slurm"]["ts_vcpus"]))
         xs_batch = range(len(results["batch"]["ts_vcpus"]))
+        xs_granny = range(len(results["granny"]["ts_vcpus"]))
 
         ax.plot(
             xs_slurm,
@@ -318,6 +321,12 @@ def do_plot(plot_name, results, ax):
             [results["batch"]["ts_vcpus"][x] for x in xs_batch],
             label="batch",
             color="blue",
+        )
+        ax.plot(
+            xs_granny,
+            [results["granny"]["ts_vcpus"][x] for x in xs_granny],
+            label="granny",
+            color="red",
         )
         ax.set_xlim(left=0, right=400)
         ax.set_ylim(bottom=0, top=100)
@@ -343,7 +352,7 @@ def do_plot(plot_name, results, ax):
             label="batch",
             color="blue",
         )
-        ax.set_xlim(left=0, right=450)
+        ax.set_xlim(left=0, right=400)
         ax.set_ylim(bottom=0)
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("# of cross-VM links")
