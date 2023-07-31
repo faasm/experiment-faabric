@@ -1,4 +1,5 @@
 from faasmctl.util.flush import flush_workers
+from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from logging import getLogger, WARNING as log_level_WARNING
 from os.path import join
@@ -10,6 +11,7 @@ from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
+    GRANNY_BASELINES,
     IDLE_CORES_FILE_PREFIX,
     init_csv_file,
     get_idle_core_count_from_task_info,
@@ -143,10 +145,8 @@ def _do_run(backend, baseline, num_vms, trace):
         )
 
     # Reset the planner and wait for the workers to register with it
-    # TODO(planenr):
-    #     if granny:
-    #         reset_planner()
-    #         wait_for_planner_workers(num_vms)
+    if baseline in GRANNY_BASELINES:
+        reset_planner(num_vms)
 
     scheduler = BatchScheduler(
         backend,
