@@ -36,3 +36,32 @@ inv motivation.plot
 ```
 
 this will generate a PDF plot in [`./plots/motivation/motivation.pdf`](./plots/motivation/motivation.pdf).
+
+# Times for the ideal simulation
+
+First, from the `exp-base` shell, deploy the VM cluster:
+
+```bash
+inv cluster.provision --vm Standard_D8_v5 --nodes 16
+inv cluster.credentials
+```
+
+## Run baselines
+
+Now, back to the experiments shell, provision the native K8s cluster:
+
+```bash
+inv lammps.native.deploy --num-vms 16
+```
+
+Then, you can run both baselines:
+
+```bash
+inv motivation.ideal.run
+```
+
+Lastly, you may combine all the results in one single CSV file by running:
+
+```bash
+inv motivation.ideal.combine-csv
+```

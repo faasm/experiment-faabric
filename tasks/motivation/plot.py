@@ -330,8 +330,8 @@ def do_plot(plot_name, results, ax):
         )
         ax.set_xlim(left=0, right=400)
         ax.set_ylim(bottom=0, top=100)
-        ax.set_ylabel("% of idle vCPUs")
-        ax.legend()
+        ax.set_ylabel("% idle vCPUs")
+        ax.legend(ncol=3)
 
     elif plot_name == "ts_xvm_links":
         """
@@ -355,8 +355,8 @@ def do_plot(plot_name, results, ax):
         ax.set_xlim(left=0, right=400)
         ax.set_ylim(bottom=0)
         ax.set_xlabel("Time [s]")
-        ax.set_ylabel("# of cross-VM links")
-        ax.legend()
+        ax.set_ylabel("# cross-VM links")
+        # ax.legend()
 
 
 @task(default=True)
@@ -371,7 +371,8 @@ def plot(ctx):
     makedirs(plots_dir, exist_ok=True)
 
     results = _read_results()
-    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(6, 3))
+    fig.subplots_adjust(hspace=0)
 
     # TODO: check result integrity
 
