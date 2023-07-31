@@ -41,10 +41,10 @@ def partition(number):
     the ways an application can be deployed)
     """
     answer = set()
-    answer.add((number, ))
+    answer.add((number,))
     for x in range(1, number):
         for y in partition(number - x):
-            to_add = tuple(sorted((x, ) + y))
+            to_add = tuple(sorted((x,) + y))
             if max(to_add) > 8:
                 continue
             answer.add(to_add)
@@ -85,7 +85,9 @@ def do_single_run(vm_names, vm_ips, size, partition):
 
     # Prepare LAMMPS command line
     data_file = get_faasm_benchmark("compute-xl")["data"][0]
-    lammps_cmdline = "-in {}/{}.faasm.native".format(LAMMPS_DOCKER_DIR, data_file)
+    lammps_cmdline = "-in {}/{}.faasm.native".format(
+        LAMMPS_DOCKER_DIR, data_file
+    )
 
     # Prepare mpirun command
     mpirun_cmd = [
@@ -132,7 +134,12 @@ def run(ctx, size=None):
         size_permutations = partition(sz)
         for size_permutation in size_permutations:
             exec_time = do_single_run(vm_names, vm_ips, sz, size_permutation)
-            _write_csv_line(csv_name, sz, vm_links_from_partition(size_permutation), exec_time)
+            _write_csv_line(
+                csv_name,
+                sz,
+                vm_links_from_partition(size_permutation),
+                exec_time,
+            )
 
 
 @task
@@ -170,7 +177,7 @@ def plot_correlation(ctx):
     # Generate random colors
     colors = []
     for i in range(16):
-        colors.append('#%06X' % randint(0, 0xFFFFFF))
+        colors.append("#%06X" % randint(0, 0xFFFFFF))
 
     # Assign each point a color depending on the world size
     point_col = [colors[i] for i in pd["Size"]]

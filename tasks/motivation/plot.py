@@ -217,7 +217,9 @@ def _read_results():
                         task_size = task_trace[int(t)].size
                         if task_size > 8:
                             num_links = 8 * (task_size - 8)
-                            result_dict[baseline]["ts_xvm_links"][ts] += num_links
+                            result_dict[baseline]["ts_xvm_links"][
+                                ts
+                            ] += num_links
 
     return result_dict
 
@@ -371,7 +373,9 @@ def plot(ctx):
     makedirs(plots_dir, exist_ok=True)
 
     results = _read_results()
-    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(6, 3))
+    fig, (ax1, ax2) = plt.subplots(
+        nrows=2, ncols=1, sharex=True, figsize=(6, 3)
+    )
     fig.subplots_adjust(hspace=0)
 
     # TODO: check result integrity
