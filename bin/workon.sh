@@ -12,6 +12,7 @@ if [ ! -d "venv" ]; then
 fi
 
 source venv/bin/activate
+source ./env.sh
 
 # Invoke tab-completion
 _complete_invoke() {
