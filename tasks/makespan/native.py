@@ -12,7 +12,7 @@ from tasks.util.openmpi import (
 @task
 def deploy(ctx, backend="k8s", num_vms=32, num_cpus_per_vm=8):
     """
-    Run: `inv makespan.native.deploy --backend --num-vms --ctrs-per-vm`
+    Run: `inv makespan.native.deploy --backend --num-vms --num-cpus-per-vm`
     """
     if backend == "k8s":
         deploy_native_mpi("makespan", FAABRIC_EXP_IMAGE_NAME, num_vms)
