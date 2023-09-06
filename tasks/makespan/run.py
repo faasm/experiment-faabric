@@ -25,14 +25,8 @@ from tasks.util.env import RESULTS_DIR
 from time import sleep
 from typing import Dict
 
-# imports to delete after test runs
+# imports to delete after migration test runs
 from os.path import basename
-
-# TODO(planner):
-# from tasks.util.faasm import (
-#   reset_planner,
-#   wait_for_workers as wait_for_planner_workers,
-# )
 from tasks.lammps.env import get_faasm_benchmark
 from tasks.util.faasm import post_async_msg_and_get_result_json
 
@@ -278,9 +272,6 @@ def migration_test(ctx):
         "function": func,
         "mpi": True,
         "mpi_world_size": 4,
-        "async": True,
-        "migration_check_period": 5,
         "cmdline": cmdline,
-        "topology_hint": "UNDERFULL",
     }
     post_async_msg_and_get_result_json(msg)

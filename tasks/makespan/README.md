@@ -32,22 +32,32 @@ inv makespan.native.delete
 First, deploy the k8s cluster:
 
 ```bash
+# Optioanlly set the following env. variables
+export FAASM_VERSION=<FAASM_VERSION>
+export WASM_VM=wamr
 faasmctl deploy.k8s --workers=32
 ```
 
 Second, upload the corresponding WASM files:
 
 ```bash
-# TODO: do we want to keep uploading the OMP files?
-# inv makespan.wasm.upload
-# In the meantime, upload just LAMMPS + data
-inv lammps.wasm.upload
+inv makespan.wasm.upload
 ```
 
 Third, run the experiment:
 
 ```bash
 inv makespan.run.granny --workload mpi
+inv makespan.run.granny --workload mpi-migrate
+```
+
+## Plot the results
+
+To plot the results, just run:
+
+```bash
+# TODO: this does not work atm
+inv makespan.plot
 ```
 
 ## Syntax

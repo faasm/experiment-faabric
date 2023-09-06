@@ -1,3 +1,4 @@
+from base64 import b64encode
 from faasmctl.util.config import (
     get_faasm_worker_ips,
     get_faasm_worker_names,
@@ -206,11 +207,13 @@ def thread_pool_thread(
                     "mpi": True,
                     "mpi_world_size": work_item.task.size,
                 }
-                # If attempting to migrate, add a check period
+                # If attempting to migrate, add migration parameters
                 if work_item.task.app == "mpi-migrate":
-                    msg["migration_check_period"] = 5
                     # Do 2 loops, check at the end of loop 1
-                    msg["input_data"] = "1 2"
+                    input_data = "1 2"
+                    msg["input_data"] = b64encode(
+                        input_data.encode("utf-8")
+                    ).decode("utf-8")
             elif work_item.task.app == "omp":
                 if work_item.task.size > num_cpus_per_vm:
                     print(
@@ -420,7 +423,7 @@ class SchedulerState:
             )
         )
         print(
-            "Total cluster occupation: {}/{} ({} %)".format(
+            "Total cluster occupation: {}/{} ({:.2f} %)".format(
                 self.total_slots - self.total_available_slots,
                 self.total_slots,
                 (self.total_slots - self.total_available_slots)

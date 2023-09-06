@@ -2,15 +2,9 @@ from invoke import task
 from tasks.lammps.env import LAMMPS_FAASM_USER, LAMMPS_FAASM_FUNC
 from tasks.lammps.data import upload as lammps_data_upload
 from tasks.makespan.env import (
-    DGEMM_DOCKER_WASM,
-    DGEMM_FAASM_USER,
-    DGEMM_FAASM_FUNC,
     LAMMPS_DOCKER_WASM,
     LAMMPS_MIGRATION_DOCKER_WASM,
     LAMMPS_FAASM_MIGRATION_FUNC,
-    LULESH_DOCKER_WASM,
-    LULESH_FAASM_USER,
-    LULESH_FAASM_FUNC,
 )
 from tasks.util.upload import upload_wasm
 
@@ -26,18 +20,6 @@ def upload(ctx):
             "wasm_user": LAMMPS_FAASM_USER,
             "wasm_function": LAMMPS_FAASM_FUNC,
             "copies": 1,
-        },
-        {
-            "wasm_file": LULESH_DOCKER_WASM,
-            "wasm_user": LULESH_FAASM_USER,
-            "wasm_function": LULESH_FAASM_FUNC,
-            "copies": 1,
-        },
-        {
-            "wasm_file": DGEMM_DOCKER_WASM,
-            "wasm_user": DGEMM_FAASM_USER,
-            "wasm_function": DGEMM_FAASM_FUNC,
-            "copies": 100,
         },
         {
             "wasm_file": LAMMPS_MIGRATION_DOCKER_WASM,
