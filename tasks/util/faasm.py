@@ -1,14 +1,8 @@
-from faasmctl.util.config import get_faasm_planner_host_port
-from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
-from faasmctl.util.planner import reset as faasmctl_reset_planner
-
-# TODO(planner):
-from tasks.util.planner import (
-    # TODO(planner):
-    # get_app_result,
-    get_registered_workers as get_planner_registerd_workers,
+from faasmctl.util.config import (
+    get_faasm_ini_file,
+    get_faasm_planner_host_port as faasmctl_get_planner_host_port,
 )
-from time import sleep
+from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
 
 
 def get_faasm_exec_time_from_json(result_json):
@@ -23,38 +17,11 @@ def get_faasm_exec_time_from_json(result_json):
     return actual_time
 
 
+def get_faasm_planner_host_port():
+    return faasmctl_get_planner_host_port(get_faasm_ini_file())
+
+
 def post_async_msg_and_get_result_json(msg):
     result = faasmctl_invoke_wasm(msg, dict_out=True)
 
     return result["messageResults"][0]
-
-
-def wait_for_workers(expected_num_workers):
-    """
-    Wait for the workers to have reigstered with the planner
-    """
-    host, port = get_faasm_planner_host_port()
-
-    def get_num_registered_workers():
-        registred_workers = get_planner_registerd_workers(host, port)
-        return len(registred_workers) if registred_workers else 0
-
-    num_registered = get_num_registered_workers()
-    while num_registered != expected_num_workers:
-        print(
-            "The # of workers registered with the planner differs from the"
-            " expected number ({} != {})".format(
-                num_registered, expected_num_workers
-            )
-        )
-        sleep(2)
-        num_registered = get_num_registered_workers()
-
-    print("The # of workers registered with the planner is the expected one!")
-
-
-def reset_planner():
-    """
-    Reset the planner
-    """
-    faasmctl_reset_planner()

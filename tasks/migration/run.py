@@ -16,7 +16,6 @@ from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     get_faasm_planner_host_port,
     post_async_msg_and_get_result_json,
-    wait_for_workers as wait_for_planner_workers,
 )
 
 
@@ -47,8 +46,7 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
     Run migration experiment
     """
     num_workers = len(get_faasm_worker_ips())
-    reset_planner()
-    wait_for_planner_workers(num_workers)
+    reset_planner(num_workers)
 
     all_workloads = ["all-to-all", "lammps", "all"]
     if workload == "all":

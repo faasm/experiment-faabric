@@ -60,9 +60,9 @@ def granny(ctx, data="compute-xl", repeats=1):
     _init_csv_file(csv_name)
 
     # Reset the planner and wait for the workers to register with it
-    # TODO(planner): wait for workers
     # num_workers = len(get_faasm_worker_ips())
-    # reset_planner()
+    # reset_planner(num_workers)
+    # TODO(planner): wait for workers
     # wait_for_planner_workers(num_workers)
 
     # Run multiple benchmarks if desired for convenience
