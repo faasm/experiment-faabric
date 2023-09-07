@@ -51,6 +51,12 @@ inv makespan.run.granny --workload mpi
 inv makespan.run.granny --workload mpi-migrate
 ```
 
+During an experiment, you may monitor the state of the cluster by using:
+
+```bash
+faasmctl monitor.planner
+```
+
 ## Plot the results
 
 To plot the results, just run:
