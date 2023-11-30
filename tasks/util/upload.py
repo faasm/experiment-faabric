@@ -50,6 +50,7 @@ def upload_wasm(wasm_file_details):
                 shell=True,
                 check=True,
             )
+            print("Success:", file_details["wasm_file"])
         except CalledProcessError as e:
             print(
                 "Caught error copying WASM file from docker image: {}".format(
@@ -68,7 +69,8 @@ def upload_wasm(wasm_file_details):
                 func = file_details["wasm_function"]
             try:
                 faasmctl_upload_wasm(user, func, wasm_file)
-            except Exception:
+            except Exception as e:
+                print(e)
                 stop_container(tmp_image_name)
 
     # Lastly, remove the container

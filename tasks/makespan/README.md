@@ -3,8 +3,8 @@
 First, from the `faasm-exp-base` shell, deploy the VM cluster:
 
 ```bash
-inv cluster.provision --vm Standard_D8_v5 --nodes 32
-inv cluster.credentials
+(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 32
+(faasm-exp-base) inv cluster.credentials
 ```
 
 ## Native
@@ -41,7 +41,7 @@ faasmctl deploy.k8s --workers=32
 Second, upload the corresponding WASM files:
 
 ```bash
-inv makespan.wasm.upload
+(faasm-exp-faabric) inv makespan.wasm.upload
 ```
 
 Third, run the experiment:
@@ -55,6 +55,14 @@ During an experiment, you may monitor the state of the cluster by using:
 
 ```bash
 faasmctl monitor.planner
+```
+
+## Granny (MPI) - Compose Experimental Support
+
+To deploy the cluster locally, run:
+
+```bash
+faasmctl deploy.compose --mount-source . --workers=2
 ```
 
 ## Plot the results

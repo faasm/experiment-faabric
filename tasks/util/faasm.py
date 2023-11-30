@@ -21,7 +21,7 @@ def get_faasm_planner_host_port():
     return faasmctl_get_planner_host_port(get_faasm_ini_file())
 
 
-def post_async_msg_and_get_result_json(msg):
-    result = faasmctl_invoke_wasm(msg, dict_out=True)
+def post_async_msg_and_get_result_json(msg, host_list=None):
+    result = faasmctl_invoke_wasm(msg, dict_out=True, host_list=host_list)
 
     return result["messageResults"][0]

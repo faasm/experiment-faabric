@@ -1,6 +1,7 @@
+from base64 import b64encode
 from faasmctl.util.config import get_faasm_worker_ips
 from faasmctl.util.flush import flush_workers
-from faasmctl.util.planner import reset as reset_planner
+from faasmctl.util.planner import get_available_hosts, reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
@@ -14,9 +15,9 @@ from tasks.util.env import (
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
-    get_faasm_planner_host_port,
     post_async_msg_and_get_result_json,
 )
+from time import sleep
 
 
 def _init_csv_file(csv_name):
@@ -38,6 +39,31 @@ def _write_csv_line(csv_name, nprocs, check, run_num, actual_time):
         out_file.write(
             "{},{},{},{:.2f}\n".format(nprocs, check, run_num, actual_time)
         )
+
+
+def generate_halved_host_list(num_on_each_host):
+    """
+    Generate the expected host-list to preload a scheduling decision and force
+    a migration opportunity to appear.
+    """
+    avail_hosts = get_available_hosts()
+    host_list = []
+
+    # Sanity check the host list. First, for this experiment we should only
+    # have two regsitered workers
+    assert (
+        len(avail_hosts.hosts) == 2
+    ), "Unexptected number of registered hosts!"
+    for host in avail_hosts.hosts:
+        # Second, each host should have no other running messages
+        assert host.usedSlots == 0, "Not enough free slots on host!"
+        # Third, each host should have enough slots to run the requested number
+        # of messages
+        assert host.slots >= num_on_each_host, "Not enough slots on host!"
+
+        host_list = host_list + int(num_on_each_host) * [host.ip]
+
+    return host_list
 
 
 @task(default=True)
@@ -66,8 +92,6 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
         check_array = [int(check_in)]
 
     # Url and headers for requests
-    host, port = get_faasm_planner_host_port()
-    url = "http://{}:{}".format(host, port)
     num_cores_per_vm = 8
 
     for wload in workload:
@@ -78,6 +102,15 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
             for run_num in range(repeats):
                 # First, flush the host state
                 flush_workers()
+                sleep(2)
+
+                # Print progress
+                print(
+                    "Running migration micro-benchmark (wload:"
+                    + "{} - check-at: {} - repeat: {}/{})".format(
+                        wload, check, run_num + 1, repeats
+                    )
+                )
 
                 if wload == "all-to-all":
                     num_loops = 100000
@@ -96,30 +129,35 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
                     num_loops = 5
                     check_at_loop = check / 2
                     input_data = "{} {}".format(check_at_loop, num_loops)
-                # Setting a check fraction of 0 means we don't under-schedule
-                # as a baseline
+
                 if check == 0:
-                    migration_check_period = 0
-                    topology_hint = "NONE"
+                    # Setting a check fraction of 0 means we don't
+                    # under-schedule. We use it as a baseline
+                    host_list = None
                 else:
-                    migration_check_period = 2
-                    topology_hint = "UNDERFULL"
+                    # Setting a check period different than 0 means that we
+                    # want to under-schedule and create a migration opportunity
+                    # We do so by pre-loading a scheduling decision to the
+                    # planner
+                    host_list = generate_halved_host_list(num_cores_per_vm / 2)
 
                 msg = {
                     "user": user,
                     "function": func,
                     "mpi": True,
                     "mpi_world_size": int(num_cores_per_vm),
-                    "migration_check_period": migration_check_period,
                     "cmdline": cmdline,
-                    "topology_hint": "{}".format(topology_hint),
                 }
                 if wload == "lammps":
-                    msg["input_data"] = input_data
-                result_json = post_async_msg_and_get_result_json(msg, url)
+                    msg["input_data"] = b64encode(
+                        input_data.encode("utf-8")
+                    ).decode("utf-8")
+
+                # Invoke with or without pre-loading
+                result_json = post_async_msg_and_get_result_json(
+                    msg, host_list=host_list
+                )
                 actual_time = get_faasm_exec_time_from_json(result_json)
                 _write_csv_line(
                     csv_name, num_cores_per_vm, check, run_num, actual_time
                 )
-
-                print("Actual time: {}".format(actual_time))

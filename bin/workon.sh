@@ -30,8 +30,12 @@ complete -F _complete_invoke -o default invoke inv
 
 # Pick up project-specific binaries
 export PATH=${PROJ_ROOT}/bin:${PATH}
-
 export PS1="(faasm-exp-faabric) $PS1"
+
+# Experiment-specific variables
+export FAASM_INI_FILE=${PROJ_ROOT}/faasm.ini
+export WASM_VM=wamr
+export FAASM_VERSION=0.15.0
 
 popd >> /dev/null
 
