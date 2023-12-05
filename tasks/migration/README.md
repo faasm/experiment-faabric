@@ -29,7 +29,6 @@ inv migration.wasm.upload
 Third, run the experiments:
 
 ```bash
-# TODO: make `--workload=all` the default option if it works
 inv migration.run
 ```
 

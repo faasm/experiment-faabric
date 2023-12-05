@@ -67,7 +67,7 @@ def generate_halved_host_list(num_on_each_host):
 
 
 @task(default=True)
-def run(ctx, workload="all-to-all", check_in=None, repeats=1):
+def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
     """
     Run migration experiment
     """
@@ -90,9 +90,6 @@ def run(ctx, workload="all-to-all", check_in=None, repeats=1):
         check_array = [0, 2, 4, 6, 8, 10]
     else:
         check_array = [int(check_in)]
-
-    # Url and headers for requests
-    num_cores_per_vm = 8
 
     for wload in workload:
         csv_name = "migration_{}.csv".format(wload)
