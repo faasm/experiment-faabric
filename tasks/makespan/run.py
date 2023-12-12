@@ -63,7 +63,7 @@ def granny(
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
-    migrate=False
+    migrate=False,
 ):
     """
     Run: `inv makespan.run.granny --workload [mpi,mpi-migrate,mpi-no-migrate]
