@@ -6,6 +6,7 @@ from tasks.util.env import (
 )
 from tasks.util.openmpi import get_native_mpi_pods_ip_to_vm
 
+# Result files
 IDLE_CORES_FILE_PREFIX = "idle-cores"
 EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 SCHEDULINNG_INFO_FILE_PREFIX = "sched-info"
@@ -18,16 +19,25 @@ NATIVE_BASELINES = ["batch", "slurm"]
 GRANNY_BASELINES = ["granny"]
 ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
+# Workload/Migration related constants
+MPI_MIGRATE_WORKLOADS = ["mpi-migrate", "mpi-no-migrate"]
+MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
 
-def init_csv_file(baseline, backend, num_vms, trace_str):
+# These variables influence the duration of the MPI workloads
+NUM_MPI_MIGRATION_LOOPS = 3
+# Change to "compute" for shorter, compute-bound, simulations. Change to
+# "network" for shorter, network-bound, simulations
+MPI_LAMMPS_BENCHMARK = "compute-xl"
+
+
+def init_csv_file(baseline, num_vms, trace_str):
     result_dir = join(RESULTS_DIR, "makespan")
     makedirs(result_dir, exist_ok=True)
 
     # Idle Cores file
-    csv_name_ic = "makespan_{}_{}_{}_{}_{}".format(
+    csv_name_ic = "makespan_{}_{}_{}_{}".format(
         IDLE_CORES_FILE_PREFIX,
         baseline,
-        backend,
         num_vms,
         get_trace_ending(trace_str),
     )
@@ -36,10 +46,9 @@ def init_csv_file(baseline, backend, num_vms, trace_str):
         out_file.write("TimeStampSecs,NumIdleCores\n")
 
     # Executed task info file
-    csv_name = "makespan_{}_{}_{}_{}_{}".format(
+    csv_name = "makespan_{}_{}_{}_{}".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         baseline,
-        backend,
         num_vms,
         get_trace_ending(trace_str),
     )
@@ -49,13 +58,12 @@ def init_csv_file(baseline, backend, num_vms, trace_str):
             "TaskId,TimeExecuting,TimeInQueue,StartTimeStamp,EndTimeStamp\n"
         )
 
-    # Schedulign info file (this file is only used for the motivation plot with
+    # Scheduling info file (this file is only used for the motivation plot with
     # native baselines)
-    if baseline in NATIVE_BASELINES and backend == "k8s":
-        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+    if baseline in NATIVE_BASELINES:
+        csv_name = "makespan_{}_{}_{}_{}".format(
             SCHEDULINNG_INFO_FILE_PREFIX,
             baseline,
-            backend,
             num_vms,
             get_trace_ending(trace_str),
         )
@@ -67,13 +75,12 @@ def init_csv_file(baseline, backend, num_vms, trace_str):
             out_file.write(",".join(ip_to_vm) + "\n")
 
 
-def write_line_to_csv(baseline, backend, exp_key, num_vms, trace_str, *args):
+def write_line_to_csv(baseline, exp_key, num_vms, trace_str, *args):
     result_dir = join(RESULTS_DIR, "makespan")
     if exp_key == IDLE_CORES_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+        csv_name = "makespan_{}_{}_{}_{}".format(
             IDLE_CORES_FILE_PREFIX,
             baseline,
-            backend,
             num_vms,
             get_trace_ending(trace_str),
         )
@@ -81,10 +88,9 @@ def write_line_to_csv(baseline, backend, exp_key, num_vms, trace_str, *args):
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{}\n".format(*args))
     elif exp_key == EXEC_TASK_INFO_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+        csv_name = "makespan_{}_{}_{}_{}".format(
             EXEC_TASK_INFO_FILE_PREFIX,
             baseline,
-            backend,
             num_vms,
             get_trace_ending(trace_str),
         )
@@ -92,10 +98,9 @@ def write_line_to_csv(baseline, backend, exp_key, num_vms, trace_str, *args):
         with open(makespan_file, "a") as out_file:
             out_file.write("{},{},{},{},{}\n".format(*args))
     elif exp_key == SCHEDULINNG_INFO_FILE_PREFIX:
-        csv_name = "makespan_{}_{}_{}_{}_{}".format(
+        csv_name = "makespan_{}_{}_{}_{}".format(
             SCHEDULINNG_INFO_FILE_PREFIX,
             baseline,
-            backend,
             num_vms,
             get_trace_ending(trace_str),
         )

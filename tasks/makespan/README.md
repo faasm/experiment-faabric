@@ -12,13 +12,14 @@ First, from the `faasm-exp-base` shell, deploy the VM cluster:
 First, deploy the native `k8s` cluster:
 
 ```bash
-inv makespan.native.deploy
+(faasm-exp-base) inv makespan.native.deploy
 ```
 
 Now, you can run the different baselines:
 
 ```bash
-inv makespan.run.native-batch --workload [mpi,omp]
+(faasm-exp-base) inv makespan.run.native-batch --workload mpi
+(faasm-exp-base) inv makespan.run.native-batch --workload mpi-migrate
 ```
 
 Lastly, remove the native `k8s` cluster:
@@ -47,14 +48,15 @@ Second, upload the corresponding WASM files:
 Third, run the experiment:
 
 ```bash
-inv makespan.run.granny --workload mpi
-inv makespan.run.granny --workload mpi-migrate
+(faasm-exp-faabric) inv makespan.run.granny --workload mpi
+(faasm-exp-faabric) inv makespan.run.granny --workload mpi-migrate
 ```
 
-During an experiment, you may monitor the state of the cluster by using:
+During an experiment, you may monitor the state of the cluster (in a separete
+shell) by using:
 
 ```bash
-faasmctl monitor.planner
+(faasm-exp-faabric) faasmctl monitor.planner
 ```
 
 ## Granny (MPI) - Compose Experimental Support

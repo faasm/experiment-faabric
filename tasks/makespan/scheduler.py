@@ -38,10 +38,13 @@ from tasks.makespan.util import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
+    MPI_LAMMPS_BENCHMARK,
+    MPI_MIGRATE_WORKLOADS,
+    MPI_WORKLOADS,
     NATIVE_BASELINES,
+    NUM_MPI_MIGRATION_LOOPS,
     SCHEDULINNG_INFO_FILE_PREFIX,
     get_num_cpus_per_vm_from_trace,
-    get_workload_from_trace,
     write_line_to_csv,
 )
 from tasks.util.faasm import (
@@ -86,7 +89,6 @@ def thread_pool_thread(
     work_queue: Queue,
     result_queue: Queue,
     thread_idx: int,
-    backend: str,
     baseline: str,
     vm_ip_to_name: Dict[str, str],
     num_cpus_per_vm: int,
@@ -114,21 +116,18 @@ def thread_pool_thread(
         master_vm = vm_ip_to_name[master_vm_ip]
 
         # Choose the right data file if running a LAMMPS simulation
-        if work_item.task.app == "mpi" or work_item.task.app == "mpi-migrate":
+        if work_item.task.app in MPI_WORKLOADS:
             # We always use the same LAMMPS benchmark ("compute-xl")
-            data_file = get_faasm_benchmark("compute-xl")["data"][0]
+            data_file = get_faasm_benchmark(MPI_LAMMPS_BENCHMARK)["data"][0]
 
         # Record the start timestamp
         start_ts = 0
         if baseline in NATIVE_BASELINES:
-            if (
-                work_item.task.app == "mpi"
-                or work_item.task.app == "mpi-migrate"
-            ):
+            if work_item.task.app in MPI_WORKLOADS:
                 if work_item.task.app == "mpi":
                     binary = LAMMPS_DOCKER_BINARY
                     lammps_dir = LAMMPS_DOCKER_DIR
-                elif work_item.task.app == "mpi-migrate":
+                elif work_item.task.app in MPI_MIGRATE_WORKLOADS:
                     binary = LAMMPS_MIGRATION_DOCKER_BINARY
                     lammps_dir = LAMMPS_MIGRATION_DOCKER_DIR
                 native_cmdline = "-in {}/{}.faasm.native".format(
@@ -157,7 +156,7 @@ def thread_pool_thread(
                 exec_cmd = [
                     "exec",
                     master_vm,
-                    "--" if backend == "k8s" else "",
+                    "--",
                     "su mpirun -c '{}'".format(mpirun_cmd),
                 ]
                 exec_cmd = " ".join(exec_cmd)
@@ -173,25 +172,18 @@ def thread_pool_thread(
                 exec_cmd = [
                     "exec",
                     master_vm,
-                    "--" if backend == "k8s" else "",
+                    "--",
                     openmp_cmd,
                 ]
                 exec_cmd = " ".join(exec_cmd)
 
             start_ts = time()
-            if backend == "k8s":
-                run_kubectl_cmd("makespan", exec_cmd)
-            elif backend == "compose":
-                # run_compose_cmd(thread_idx, MAKESPAN_DIR, exec_cmd)
-                raise RuntimeError("Native compose does not work!")
+            run_kubectl_cmd("makespan", exec_cmd)
             actual_time = int(time() - start_ts)
             thread_print("Actual time: {}".format(actual_time))
         else:
             # Prepare Faasm request
-            if (
-                work_item.task.app == "mpi"
-                or work_item.task.app == "mpi-migrate"
-            ):
+            if work_item.task.app in MPI_WORKLOADS:
                 user = LAMMPS_FAASM_USER
                 func = (
                     LAMMPS_FAASM_FUNC
@@ -208,9 +200,16 @@ def thread_pool_thread(
                     "mpi_world_size": work_item.task.size,
                 }
                 # If attempting to migrate, add migration parameters
-                if work_item.task.app == "mpi-migrate":
-                    # Do 2 loops, check at the end of loop 1
-                    input_data = "1 2"
+                if work_item.task.app in MPI_MIGRATE_WORKLOADS:
+                    check_every = (
+                        1
+                        if work_item.task.app == "mpi-migrate"
+                        else NUM_MPI_MIGRATION_LOOPS
+                    )
+                    # MIGRATION: Do 5 loops, check at every loop
+                    input_data = "{} {}".format(
+                        check_every, NUM_MPI_MIGRATION_LOOPS
+                    )
                     msg["input_data"] = b64encode(
                         input_data.encode("utf-8")
                     ).decode("utf-8")
@@ -261,9 +260,6 @@ def thread_pool_thread(
 
 
 class SchedulerState:
-    # The backend indicates where are we running the experiment. It can either
-    # be `k8s` or `compose`
-    backend: str
     # The baseline indicate what system are we running. It can be either:
     # `granny`, `batch`, or `slurm`
     baseline: str = ""
@@ -300,13 +296,11 @@ class SchedulerState:
 
     def __init__(
         self,
-        backend: str,
         baseline: str,
         num_tasks: int,
         num_vms: int,
         trace_str: str,
     ):
-        self.backend = backend
         self.baseline = baseline
         self.num_tasks = num_tasks
         self.num_vms = num_vms
@@ -318,16 +312,15 @@ class SchedulerState:
         self.total_available_slots = self.total_slots
 
         # Initialise the pod list depending on the workload
-        self.init_vm_list(backend)
+        self.init_vm_list()
 
-    def init_vm_list(self, backend):
+    def init_vm_list(self):
         """
-        Initialise pod names and pod map depending on the backend and
-        workload
+        Initialise pod names and pod map depending on the baseline
         """
         vm_names = get_faasm_worker_names()
         vm_ips = get_faasm_worker_ips()
-        if self.baseline in NATIVE_BASELINES and backend == "k8s":
+        if self.baseline in NATIVE_BASELINES:
             vm_names, vm_ips = get_native_mpi_pods("makespan")
 
         # Sanity-check the VM names and IPs we got
@@ -407,19 +400,9 @@ class SchedulerState:
 
         print(header)
         # Print some information on the experiment
-        if len(self.backend) <= 3:
-            print(
-                "Backend: {}\t\tWorkload: {}".format(
-                    self.backend, self.baseline
-                )
-            )
-        else:
-            print(
-                "Backend: {}\tWorkload: {}".format(self.backend, self.baseline)
-            )
         print(
-            "Num VMs: {}\t\tCores/VM: {}".format(
-                len(self.vm_map), self.num_cpus_per_vm
+            "Wload: {}\tNum VMs: {}\tCores/VM: {}".format(
+                self.baseline, len(self.vm_map), self.num_cpus_per_vm
             )
         )
         print(
@@ -476,7 +459,6 @@ class SchedulerState:
         # number of VMs and the number of cores per VM
         write_line_to_csv(
             self.baseline,
-            self.backend,
             EXEC_TASK_INFO_FILE_PREFIX,
             self.num_vms,
             self.trace_str,
@@ -500,14 +482,12 @@ class BatchScheduler:
 
     def __init__(
         self,
-        backend: str,
         baseline: str,
         num_tasks: int,
         num_vms: int,
         trace_str: str,
     ):
         self.state = SchedulerState(
-            backend,
             baseline,
             num_tasks,
             num_vms,
@@ -515,7 +495,6 @@ class BatchScheduler:
         )
 
         print("Initialised batch scheduler with the following parameters:")
-        print("\t- Backend: {}".format(backend))
         print("\t- Baseline: {}".format(baseline))
         print("\t- Number of VMs: {}".format(self.state.num_vms))
         print("\t- Cores per VM: {}".format(self.state.num_cpus_per_vm))
@@ -531,7 +510,6 @@ class BatchScheduler:
                     self.work_queue,
                     self.result_queue,
                     i,
-                    backend,
                     baseline,
                     self.state.vm_ip_to_name,
                     self.state.num_cpus_per_vm,
@@ -588,7 +566,7 @@ class BatchScheduler:
             self.state.vm_map.items(), key=lambda item: item[1], reverse=True
         )
         # TODO(omp): why should it be any different with OpenMP?
-        if task.app == "mpi" or task.app == "mpi-migrate":
+        if task.app in MPI_WORKLOADS:
             for vm, num_slots in sorted_vms:
                 # Work out how many slots can we take up in this pod
                 if self.state.baseline == "batch":
@@ -672,26 +650,11 @@ class BatchScheduler:
         self.start_ts = time()
 
         for t in tasks:
-            # For the `mpi-migrate` experiment, we don't want the cluster to
-            # operate at saturation. As a consequence, we simulate experiment
-            # arrivals as a Poisson distribution, and sleep the corresponding
-            # inter-arrival time between tasks. For the `mpi` and `omp`
-            # experiments, we want the cluster to be saturated, so we ignore
-            # the inter-arrival times
-            if get_workload_from_trace(self.state.trace_str) == "mpi-migrate":
-                sch_logger.debug(
-                    "Sleeping {} sec to simulate inter-arrival time...".format(
-                        t.inter_arrival_time
-                    )
-                )
-                sleep(t.inter_arrival_time)
-                sch_logger.debug("Done sleeping!")
-            else:
-                sch_logger.debug(
-                    "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
-                )
-                sleep(INTERTASK_SLEEP)
-                sch_logger.debug("Done sleeping")
+            sch_logger.debug(
+                "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
+            )
+            sleep(INTERTASK_SLEEP)
+            sch_logger.debug("Done sleeping")
 
             # Try to schedule the task with the current available
             # resources
@@ -730,10 +693,8 @@ class BatchScheduler:
                 )
             )
             # Log the scheduling decision to a file
-            # TODO: finsih
             write_line_to_csv(
                 self.state.baseline,
-                self.state.backend,
                 SCHEDULINNG_INFO_FILE_PREFIX,
                 self.state.num_vms,
                 self.state.trace_str,
@@ -754,12 +715,11 @@ class BatchScheduler:
         return self.state.executed_task_info
 
     def run(
-        self, backend: str, baseline: str, tasks: List[TaskObject]
+        self, baseline: str, tasks: List[TaskObject]
     ) -> Dict[int, ExecutedTaskInfo]:
         """
         Main entrypoint to run a number of tasks scheduled by our batch
         scheduler. The required parameters are:
-            - backend: "compose", or "k8s"
             - baseline: "batch", "slurm" or "granny"
             - tasks: a list of TaskObject's
         The method returns a dictionary with timing information to be plotted
@@ -767,10 +727,10 @@ class BatchScheduler:
         if baseline in ALLOWED_BASELINES:
             print(
                 "Batch scheduler received request to execute "
-                "{} {} tasks on {}".format(len(tasks), baseline, backend)
+                "{} {} tasks".format(len(tasks), baseline)
             )
             # Initialise the scheduler state and pod list
-            self.state.init_vm_list(backend)
+            self.state.init_vm_list()
             self.num_tasks = len(tasks)
         else:
             print("Unrecognised baseline: {}".format(baseline))

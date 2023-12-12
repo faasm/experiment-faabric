@@ -38,7 +38,7 @@ getLogger("urllib3").setLevel(log_level_WARNING)
 def _get_workload_from_cmdline(workload):
     base_workloads = ["mpi", "omp", "mix"]
     exp_workloads = ["mpi-migrate"]
-    all_workloads = ["mix", "mpi", "mpi-migrate", "omp"]
+    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-no-migrate", "omp"]
     if workload == "all":
         workload = all_workloads
     elif workload == "base":
@@ -60,18 +60,17 @@ def _get_workload_from_cmdline(workload):
 def granny(
     ctx,
     workload="mpi",
-    backend="k8s",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
 ):
     """
-    Run: `inv makespan.run.granny --workload [omp,mpi,mix,mpi-migrate,all]
+    Run: `inv makespan.run.granny --workload [mpi,mpi-migrate,mpi-no-migrate]
     """
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(backend, "granny", num_vms, trace)
+        _do_run("granny", num_vms, trace)
         sleep(5)
 
 
@@ -79,7 +78,6 @@ def granny(
 def native_slurm(
     ctx,
     workload="all",
-    backend="k8s",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -92,7 +90,6 @@ def native_slurm(
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(
-            backend,
             "slurm",
             num_vms,
             trace,
@@ -104,7 +101,6 @@ def native_slurm(
 def native_batch(
     ctx,
     workload="all",
-    backend="k8s",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -117,7 +113,6 @@ def native_batch(
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(
-            backend,
             "batch",
             num_vms,
             trace,
@@ -125,7 +120,7 @@ def native_batch(
         sleep(5)
 
 
-def _do_run(backend, baseline, num_vms, trace):
+def _do_run(baseline, num_vms, trace):
     num_vms = int(num_vms)
     job_workload = get_workload_from_trace(trace)
     num_tasks = get_num_tasks_from_trace(trace)
@@ -143,7 +138,6 @@ def _do_run(backend, baseline, num_vms, trace):
         reset_planner(num_vms)
 
     scheduler = BatchScheduler(
-        backend,
         baseline,
         num_tasks,
         num_vms,
@@ -152,7 +146,6 @@ def _do_run(backend, baseline, num_vms, trace):
 
     init_csv_file(
         baseline,
-        backend,
         num_vms,
         trace,
     )
@@ -161,7 +154,7 @@ def _do_run(backend, baseline, num_vms, trace):
         job_workload, num_tasks, num_cpus_per_vm
     )
 
-    executed_task_info = scheduler.run(backend, baseline, task_trace)
+    executed_task_info = scheduler.run(baseline, task_trace)
 
     num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
         baseline,
@@ -173,7 +166,6 @@ def _do_run(backend, baseline, num_vms, trace):
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
             baseline,
-            backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
             trace,
@@ -190,7 +182,6 @@ def idle_cores_from_exec_task(
     ctx,
     baseline,
     workload,
-    backend="k8s",
     num_vms=32,
     num_tasks=100,
     num_cpus_per_vm=8,
@@ -207,10 +198,9 @@ def idle_cores_from_exec_task(
     num_cpus_per_vm = int(get_num_cpus_per_vm_from_trace(trace))
 
     # Get executed task info from file
-    csv_name = "makespan_{}_{}_{}_{}_{}_{}_{}.csv".format(
+    csv_name = "makespan_{}_{}_{}_{}_{}_{}.csv".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         baseline,
-        backend,
         num_vms,
         workload,
         num_tasks,
@@ -248,7 +238,6 @@ def idle_cores_from_exec_task(
     for time_step in num_idle_cores_per_time_step:
         write_line_to_csv(
             baseline,
-            backend,
             IDLE_CORES_FILE_PREFIX,
             num_vms,
             trace,

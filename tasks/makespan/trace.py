@@ -5,6 +5,7 @@ from os import makedirs
 from os.path import join
 from random import uniform
 from tasks.makespan.data import TaskObject
+from tasks.makespan.util import MPI_WORKLOADS
 from tasks.util.env import PROJ_ROOT
 from typing import List
 
@@ -98,6 +99,8 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
         possible_workloads = ["mpi"]
     elif workload == "mpi-migrate":
         possible_workloads = ["mpi-migrate"]
+    elif workload == "mpi-no-migrate":
+        possible_workloads = ["mpi-no-migrate"]
     elif workload == "omp":
         possible_workloads = ["omp"]
     elif workload == "mix":
@@ -110,10 +113,7 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     num_pos_wl = len(possible_workloads)
     for idx in range(num_tasks):
         wl_idx = int(uniform(0, num_pos_wl))
-        if (
-            possible_workloads[wl_idx] == "mpi"
-            or possible_workloads[wl_idx] == "mpi-migrate"
-        ):
+        if possible_workloads[wl_idx] in MPI_WORKLOADS:
             possible_sizes = possible_mpi_sizes
         elif possible_workloads[wl_idx] == "omp":
             possible_sizes = possible_omp_sizes
