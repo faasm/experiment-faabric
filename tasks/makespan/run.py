@@ -59,18 +59,20 @@ def _get_workload_from_cmdline(workload):
 @task()
 def granny(
     ctx,
-    workload="mpi",
+    workload="mpi-migrate",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
+    migrate=False
 ):
     """
     Run: `inv makespan.run.granny --workload [mpi,mpi-migrate,mpi-no-migrate]
     """
     workload = _get_workload_from_cmdline(workload)
+    baseline = "granny-migrate" if migrate else "granny"
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run("granny", num_vms, trace)
+        _do_run(baseline, num_vms, trace)
         sleep(5)
 
 

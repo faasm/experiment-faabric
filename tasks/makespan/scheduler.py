@@ -203,7 +203,7 @@ def thread_pool_thread(
                 if work_item.task.app in MPI_MIGRATE_WORKLOADS:
                     check_every = (
                         1
-                        if work_item.task.app == "mpi-migrate"
+                        if baseline == "granny-migrate"
                         else NUM_MPI_MIGRATION_LOOPS
                     )
                     # MIGRATION: Do 5 loops, check at every loop

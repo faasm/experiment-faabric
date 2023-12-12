@@ -79,7 +79,7 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
 
     # Work out the possible number of cores per VM
     possible_mpi_sizes = arange(
-        int(num_cores_per_vm * 0.5), int(num_cores_per_vm * 2)
+        2, int(num_cores_per_vm * 2)
     )
     possible_omp_sizes = arange(1, num_cores_per_vm)
 

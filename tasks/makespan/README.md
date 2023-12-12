@@ -18,6 +18,7 @@ First, deploy the native `k8s` cluster:
 Now, you can run the different baselines:
 
 ```bash
+# TODO: will probably ditch --workload=mpi
 (faasm-exp-base) inv makespan.run.native-batch --workload mpi
 (faasm-exp-base) inv makespan.run.native-batch --workload mpi-migrate
 ```
@@ -48,8 +49,10 @@ Second, upload the corresponding WASM files:
 Third, run the experiment:
 
 ```bash
+# TODO: will probably ditch --workload=mpi
 (faasm-exp-faabric) inv makespan.run.granny --workload mpi
-(faasm-exp-faabric) inv makespan.run.granny --workload mpi-migrate
+# Set the --migrate flag to enable migrating Granules at runtime
+(faasm-exp-faabric) inv makespan.run.granny --workload mpi-migrate [--migrate]
 ```
 
 During an experiment, you may monitor the state of the cluster (in a separete

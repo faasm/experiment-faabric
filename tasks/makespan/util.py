@@ -16,11 +16,11 @@ SCHEDULINNG_INFO_FILE_PREFIX = "sched-info"
 # - Batch: native OpenMPI where we schedule jobs at VM granularity
 # - Slurm: native OpenMPI where we schedule jobs at process granularity
 NATIVE_BASELINES = ["batch", "slurm"]
-GRANNY_BASELINES = ["granny"]
+GRANNY_BASELINES = ["granny", "granny-migrate"]
 ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
 # Workload/Migration related constants
-MPI_MIGRATE_WORKLOADS = ["mpi-migrate", "mpi-no-migrate"]
+MPI_MIGRATE_WORKLOADS = ["mpi-migrate"]
 MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
 
 # These variables influence the duration of the MPI workloads
