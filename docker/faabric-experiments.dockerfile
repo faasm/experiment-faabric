@@ -1,5 +1,5 @@
 # Build the experiments' code
-FROM faasm.azurecr.io/examples-build:0.2.7_0.2.5 as build
+FROM faasm.azurecr.io/examples-build:0.3.1_0.3.1 as build
 
 RUN rm -rf /code \
     && mkdir -p /code \
