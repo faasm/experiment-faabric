@@ -414,7 +414,7 @@ class SchedulerState:
                 * 100,
             )
         )
-        if self.next_task_in_queue:
+        if self.next_task_in_queue is not None:
             print(
                 "Next task in queue: {} (size: {})".format(
                     self.next_task_in_queue.task_id,
@@ -551,7 +551,6 @@ class BatchScheduler:
                     int(self.state.total_available_slots),
                 )
             )
-            self.state.next_task_in_queue = task
             return NOT_ENOUGH_SLOTS
 
         # A scheduling decision is a list of (ip, slots) pairs inidicating
@@ -649,7 +648,7 @@ class BatchScheduler:
         # Mark the initial timestamp
         self.start_ts = time()
 
-        for t in tasks:
+        for t_num, t in enumerate(tasks):
             sch_logger.debug(
                 "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
             )
@@ -682,6 +681,11 @@ class BatchScheduler:
             self.state.executed_task_info[t.task_id] = ExecutedTaskInfo(
                 t.task_id, 0, time_in_queue, 0, 0
             )
+
+            # Before printing the executed task info, update the next task
+            # (so that it is not anymore the current one)
+            if t_num < len(tasks) - 1:
+                self.state.next_task_in_queue = tasks[t_num + 1]
             self.state.print_executed_task_info()
 
             # Log the scheduling decision
@@ -705,7 +709,9 @@ class BatchScheduler:
             # Lastly, put the scheduled task in the work queue
             self.work_queue.put(WorkQueueItem(scheduling_decision, t))
 
-        # Once we are done scheduling tasks, drain the result queue
+        # Once we are done scheduling tasks, drain the result queue (no more
+        # tasks are next in queue)
+        self.state.next_task_in_queue = None
         while self.state.executed_task_count < len(tasks):
             result = dequeue_with_timeout(self.result_queue, "result queue")
 
