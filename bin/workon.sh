@@ -34,8 +34,8 @@ export PS1="(faasm-exp-faabric) $PS1"
 
 # Experiment-specific variables
 export FAASM_INI_FILE=${PROJ_ROOT}/faasm.ini
-export WASM_VM=wamr
-export FAASM_VERSION=0.15.0
+export FAASM_WASM_VM=wamr
+export FAASM_VERSION=0.17.0
 
 popd >> /dev/null
 

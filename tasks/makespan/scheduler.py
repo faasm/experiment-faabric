@@ -318,10 +318,11 @@ class SchedulerState:
         """
         Initialise pod names and pod map depending on the baseline
         """
-        vm_names = get_faasm_worker_names()
-        vm_ips = get_faasm_worker_ips()
         if self.baseline in NATIVE_BASELINES:
             vm_names, vm_ips = get_native_mpi_pods("makespan")
+        else:
+            vm_names = get_faasm_worker_names()
+            vm_ips = get_faasm_worker_ips()
 
         # Sanity-check the VM names and IPs we got
         if len(vm_names) != self.num_vms:

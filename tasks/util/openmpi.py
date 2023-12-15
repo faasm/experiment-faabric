@@ -70,7 +70,6 @@ def _template_k8s_files(experiment_name, image_name, num_vms=32):
 def run_kubectl_cmd(experiment_name, cmd, capture_stderr=False):
     namespace = get_native_mpi_namespace(experiment_name)
     kubecmd = "kubectl -n {} {}".format(namespace, cmd)
-    print(kubecmd)
     res = run(
         kubecmd,
         stdout=PIPE,

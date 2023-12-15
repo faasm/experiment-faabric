@@ -3,8 +3,9 @@ from invoke import task
 from os import makedirs
 from os.path import join
 from tasks.makespan.trace import load_task_trace_from_file
-from tasks.makespan.util import get_trace_from_parameters
+from tasks.makespan.util import GRANNY_BASELINES
 from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.plot import PLOT_COLORS
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -19,20 +20,19 @@ WORKLOAD_TO_LABEL = {
 }
 
 
-def _read_results():
+def _read_results(num_vms, num_tasks, num_cpus_per_vm):
     # TODO: decide
-    # workload = "mpi-migrate"
-    workload = "mpi"
+    workload = "mpi-migrate"
+    # workload = "mpi"
 
     # Load results
     result_dict = {}
-    trace = get_trace_from_parameters(workload, 100, 8)
-    trace_ending = trace[6:]
-    glob_str = "makespan_exec-task-info_*_{}_{}_{}".format(
-        "k8s", 32, trace_ending
+    glob_str = "makespan_exec-task-info_*_{}_{}_{}_{}.csv".format(
+        num_vms, workload, num_tasks, num_cpus_per_vm
     )
     for csv in glob(join(RESULTS_DIR, glob_str)):
         baseline = csv.split("_")[2]
+        workload = csv.split("_")[4]
 
         # -----
         # Results to visualise differences between execution time and time
@@ -59,6 +59,10 @@ def _read_results():
         start_ts = results.min()["StartTimeStamp"]
         end_ts = results.max()["EndTimeStamp"]
         time_elapsed_secs = int(end_ts - start_ts)
+        result_dict[baseline]["makespan"] = time_elapsed_secs
+        print(
+            "Baseline: {} - Makespan: {}s".format(baseline, time_elapsed_secs)
+        )
         if time_elapsed_secs > 1e5:
             raise RuntimeError(
                 "Measured total time elapsed is too long: {}".format(
@@ -93,14 +97,14 @@ def _read_results():
         # Results to visualise scheduling info per task
         # -----
 
-        if baseline != "granny":
+        if baseline not in GRANNY_BASELINES:
             result_dict[baseline]["task_scheduling"] = {}
 
             # We identify VMs by numbers, not IPs
             ip_to_vm = {}
             vm_to_id = {}
-            sched_info_csv = "makespan_sched-info_{}_{}_{}_{}".format(
-                csv.split("_")[2], "k8s", "32", trace_ending
+            sched_info_csv = "makespan_sched-info_{}_{}_{}_{}_{}.csv".format(
+                baseline, num_vms, workload, num_tasks, num_cpus_per_vm
             )
             with open(join(RESULTS_DIR, sched_info_csv), "r") as sched_fd:
                 # Process the file line by line, as each line will be different in
@@ -164,10 +168,12 @@ def _read_results():
         # Results to visualise the % of idle vCPUs over time
         # -----
 
-        task_trace = load_task_trace_from_file("mpi", 100, 8)
+        task_trace = load_task_trace_from_file(
+            workload, num_tasks, num_cpus_per_vm
+        )
 
         # First, set each timestamp to the total available vCPUs
-        total_available_vcpus = 32 * 8
+        total_available_vcpus = num_vms * num_cpus_per_vm
         result_dict[baseline]["ts_vcpus"] = {}
         for ts in result_dict[baseline]["tasks_per_ts"]:
             result_dict[baseline]["ts_vcpus"][ts] = total_available_vcpus
@@ -255,7 +261,21 @@ def do_plot(plot_name, results, ax):
             color="blue",
             linestyle="dashed",
         )
-        ax.legend()
+        ax.legend(bbox_to_anchor=(0.5, 1))
+
+    elif plot_name == "makespan":
+        labels = list(results.keys())
+        xs = [x for x in range(len(labels))]
+        ys = [results[la]["makespan"] for la in labels]
+        bars = ax.bar(xs, ys)
+        for bar, key in zip(bars, labels):
+            bar.set_color(PLOT_COLORS[key])
+            # bar.set_hatch(PLOT_PATTERNS[labels.index(key)])
+            bar.set_edgecolor("black")
+        ax.set_ylim(bottom=0)
+        ax.set_ylabel("Makespan [s]")
+        ax.set_xticks(xs)
+        ax.set_xticklabels([_l for _l in labels], rotation=25, ha="right")
 
     elif plot_name == "job_churn":
         """
@@ -311,29 +331,40 @@ def do_plot(plot_name, results, ax):
         xs_slurm = range(len(results["slurm"]["ts_vcpus"]))
         xs_batch = range(len(results["batch"]["ts_vcpus"]))
         xs_granny = range(len(results["granny"]["ts_vcpus"]))
+        xs_granny_migrate = range(len(results["granny-migrate"]["ts_vcpus"]))
 
         ax.plot(
             xs_slurm,
             [results["slurm"]["ts_vcpus"][x] for x in xs_slurm],
             label="slurm",
-            color="orange",
+            color=PLOT_COLORS["slurm"],
         )
         ax.plot(
             xs_batch,
             [results["batch"]["ts_vcpus"][x] for x in xs_batch],
             label="batch",
-            color="blue",
+            color=PLOT_COLORS["batch"],
         )
         ax.plot(
             xs_granny,
             [results["granny"]["ts_vcpus"][x] for x in xs_granny],
             label="granny",
-            color="red",
+            color=PLOT_COLORS["granny"],
         )
-        ax.set_xlim(left=0, right=400)
+        ax.plot(
+            xs_granny_migrate,
+            [
+                results["granny-migrate"]["ts_vcpus"][x]
+                for x in xs_granny_migrate
+            ],
+            label="granny-migrate",
+            color=PLOT_COLORS["granny-migrate"],
+        )
+        ax.set_xlim(left=0)  # , right=400)
         ax.set_ylim(bottom=0, top=100)
         ax.set_ylabel("% idle vCPUs")
-        ax.legend(ncol=3)
+        ax.set_xlabel("Time [s]")
+        # ax.legend(ncol=4, bbox_to_anchor=(0.95, 1.25))
 
     elif plot_name == "ts_xvm_links":
         """
@@ -362,21 +393,19 @@ def do_plot(plot_name, results, ax):
 
 
 @task(default=True)
-def plot(ctx):
+def plot(ctx, num_vms=32, num_tasks=100, num_cpus_per_vm=8):
     """
     Motivation plot:
     - Baselines: `slurm` and `batch`
     - TOP: timeseries of % of idle vCPUs over time
-    - RHS: timeseries of # of cross-VM links over time
+    - BOTTOM: timeseries of # of cross-VM links over time
     """
     plots_dir = join(PLOTS_ROOT, "motivation")
     makedirs(plots_dir, exist_ok=True)
 
-    results = _read_results()
-    fig, (ax1, ax2) = plt.subplots(
-        nrows=2, ncols=1, sharex=True, figsize=(6, 3)
-    )
-    fig.subplots_adjust(hspace=0)
+    results = _read_results(num_vms, num_tasks, num_cpus_per_vm)
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
+    fig.subplots_adjust(wspace=0.35)
 
     # TODO: check result integrity
 
@@ -390,7 +419,7 @@ def plot(ctx):
     # Plot 2: Job Churn
     # ----------
 
-    do_plot("ts_xvm_links", results, ax2)
+    do_plot("makespan", results, ax2)
 
     # ----------
     # Save figure

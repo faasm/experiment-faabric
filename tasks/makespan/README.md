@@ -21,6 +21,10 @@ Now, you can run the different baselines:
 # TODO: will probably ditch --workload=mpi
 (faasm-exp-base) inv makespan.run.native-batch --workload mpi
 (faasm-exp-base) inv makespan.run.native-batch --workload mpi-migrate
+
+# Similarly for slurm
+(faasm-exp-base) inv makespan.run.native-slurm --workload mpi
+(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-migrate
 ```
 
 Lastly, remove the native `k8s` cluster:
