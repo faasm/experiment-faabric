@@ -43,7 +43,7 @@ def plot(ctx):
     result_dict = _read_results()
     makedirs(PLOTS_DIR, exist_ok=True)
     fig, ax = plt.subplots(figsize=(6, 2))
-    xs = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16]
+    xs = [1, 2, 3, 4, 5, 6, 7, 8]  # , 10, 12, 14, 16]
     xticks = arange(1, len(xs) + 1)
     num_ctrs_per_vm = 8
     allowed_workloads = ["dgemm", "reduce"]
@@ -71,7 +71,7 @@ def plot(ctx):
                         "num-threads"
                     ].index(x)
                 yval = float(
-                    result_dict["native-1"][workload]["mean"][idx_native]
+                    result_dict["native"][workload]["mean"][idx_native]
                     / result_dict["granny"][workload]["mean"][idx_granny]
                 )
                 ys.append(yval)

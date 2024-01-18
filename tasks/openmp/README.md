@@ -28,8 +28,8 @@ inv openmp.native.delete
 First, deploy the cluster:
 
 ```bash
-cd ${FAASM_SRC}
-inv k8s.deploy --workers=1
+export FAASM_WASM_VM=wavm
+faasmctl deploy.k8s --workers=1
 ```
 
 Second, upload the WASM files:

@@ -1,7 +1,9 @@
 from faasmctl.util.flush import flush_workers
+from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
 from invoke import task
 from os import makedirs
 from os.path import join
+from subprocess import run
 from tasks.util.env import (
     DGEMM_DOCKER_BINARY,
     DGEMM_FAASM_USER,
@@ -11,20 +13,22 @@ from tasks.util.env import (
     OPENMP_KERNELS_FAASM_USER,
     RESULTS_DIR,
 )
-from tasks.util.faasm import (
-    get_faasm_exec_time_from_json,
-    post_async_msg_and_get_result_json,
-)
+from tasks.util.faasm import get_faasm_exec_time_from_json
 from time import time
 
 # TODO: move this to tasks.openmp.env
 from tasks.makespan.env import (
     get_dgemm_cmdline,
 )
+
+"""
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
+"""
+
+TOTAL_NUM_THREADS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def _init_csv_file(csv_name):
@@ -80,12 +84,26 @@ def get_kernel_binary(kernel):
     )
 
 
+def has_execution_failed(results_json):
+    for result in results_json:
+        if "returnValue" in result and result["returnValue"] != 0:
+            return True
+
+        if "output_data" in result:
+            if "ERROR" in result["output_data"]:
+                return True
+            if "Call failed" in result["output_data"]:
+                return True
+
+    return False
+
+
 @task
 def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
-        num_threads = [1, 2, 3, 4, 5, 6, 7, 8]  # , 10, 12, 14, 16]
+        num_threads = TOTAL_NUM_THREADS  # [1, 2, 3, 4, 5, 6, 7, 8]
 
     all_workloads = ["dgemm"]
     if workload not in OPENMP_KERNELS:
@@ -100,17 +118,17 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
         workload = [workload]
 
     for wload in workload:
-        csv_name = "openmp_{}_granny.csv".format(wload)
-        _init_csv_file(csv_name)
-        for r in range(int(repeats)):
-            for nthread in num_threads:
+        for nthread in num_threads:
+            for r in range(int(repeats)):
+                csv_name = "openmp_{}_granny_{}.csv".format(wload, num_threads)
+                _init_csv_file(csv_name)
 
                 flush_workers()
 
                 if wload == "dgemm":
                     user = DGEMM_FAASM_USER
                     func = DGEMM_FAASM_FUNC
-                    cmdline = get_dgemm_cmdline(nthread, iterations=20)
+                    cmdline = get_dgemm_cmdline(nthread, iterations=4)  # 20)
                 else:
                     user = OPENMP_KERNELS_FAASM_USER
                     func = wload
@@ -119,23 +137,45 @@ def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
                     "user": user,
                     "function": func,
                     "cmdline": cmdline,
-                    "async": True,
+                }
+                req = {
+                    "user": user,
+                    "function": func,
+                    "singleHost": True,
                 }
                 if wload == "lulesh":
                     msg["input_data"] = str(nthread)
 
-                result_json = post_async_msg_and_get_result_json(msg)
+                # result_json = post_async_msg_and_get_result_json(msg)
+                results_json = faasmctl_invoke_wasm(
+                    msg, req_dict=req, dict_out=True
+                )["messageResults"]
+                while has_execution_failed(results_json):
+                    print("Execution failed, trying again...")
+                    return
+                    # print(results_json)
+                    # print(result_json)
+                    results_json = faasmctl_invoke_wasm(
+                        msg, req_dict=req, dict_out=True
+                    )["messageResults"]
+
+                result_json = results_json[0]
+
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 _write_csv_line(csv_name, nthread, r, actual_time)
-                print("Actual time: {}".format(actual_time))
+                print(
+                    "Nthreads: {} - Actual time: {}".format(
+                        nthread, actual_time
+                    )
+                )
 
 
 @task
-def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
+def native(ctx, workload="dgemm", num_threads=None, repeats=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
-        num_threads = [1, 2, 3, 4, 5, 6, 7, 8]
+        num_threads = TOTAL_NUM_THREADS
 
     all_workloads = ["dgemm", "lulesh", "all"]
     if workload not in OPENMP_KERNELS:
@@ -150,11 +190,11 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
         workload = [workload]
 
     # Pick one VM in the cluster at random to run native OpenMP in
-    vm_names, vm_ips = get_native_mpi_pods("openmp")
-    master_vm = vm_names[0]
+    # vm_names, vm_ips = get_native_mpi_pods("openmp")
+    # master_vm = vm_names[0]
 
     for wload in workload:
-        csv_name = "openmp_{}_native-{}.csv".format(wload, ctrs_per_vm)
+        csv_name = "openmp_{}_native.csv".format(wload)
         _init_csv_file(csv_name)
         for r in range(int(repeats)):
             for nthread in num_threads:
@@ -168,6 +208,7 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
                     nthread, binary, cmdline
                 )
 
+                """
                 exec_cmd = [
                     "exec",
                     master_vm,
@@ -175,9 +216,17 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1, ctrs_per_vm=1):
                     openmp_cmd,
                 ]
                 exec_cmd = " ".join(exec_cmd)
+                """
+                docker_cmd = [
+                    "docker exec",
+                    "openmp-test",
+                    openmp_cmd,
+                ]
+                docker_cmd = " ".join(docker_cmd)
 
                 start_ts = time()
-                run_kubectl_cmd("openmp", exec_cmd)
+                # run_kubectl_cmd("openmp", exec_cmd)
+                run(docker_cmd, shell=True, check=True)
                 actual_time = int(time() - start_ts)
                 _write_csv_line(csv_name, nthread, r, actual_time)
                 print("Actual time: {}".format(actual_time))

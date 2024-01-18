@@ -32,7 +32,8 @@ DGEMM_FAASM_FUNC = "main"
 
 
 # If we set the input parameters to:
-# - (10, 2048, 32) it can take almost 5' for a two-threaded execution to finish
+# - (100, 2048, 32) it can take almost 5' for a two-threaded execution to finish
+# - (20, 2048, 32) what we are using for the experiments right now
 # - (2, 2048, 32) it takes about 1' for a two-threaded execution to finish
 def get_dgemm_cmdline(
     num_threads, iterations=100, matrix_order=2048, tile_size=32

@@ -54,7 +54,7 @@ Third, run the experiment:
 
 ```bash
 # TODO: will probably ditch --workload=mpi
-(faasm-exp-faabric) inv makespan.run.granny --workload mpi
+# (faasm-exp-faabric) inv makespan.run.granny --workload mpi
 # Set the --migrate flag to enable migrating Granules at runtime
 (faasm-exp-faabric) inv makespan.run.granny --workload mpi-migrate [--migrate]
 ```
