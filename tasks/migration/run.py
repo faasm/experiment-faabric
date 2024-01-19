@@ -124,7 +124,7 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     func = LAMMPS_MIGRATION_FAASM_FUNC
                     cmdline = "-in faasm://lammps-data/{}".format(file_name)
                     num_loops = 5
-                    check_at_loop = check / 2
+                    check_at_loop = num_loops if check == 0 else check / 2
                     input_data = "{} {}".format(check_at_loop, num_loops)
 
                 if check == 0:

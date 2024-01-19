@@ -6,6 +6,10 @@ RUN rm -rf /code \
     && cd /code \
     && git clone https://github.com/faasm/examples /code/faasm-examples \
     && cd /code/faasm-examples \
+    # Checkout to a specific commit, to make sure we do not forget to update it
+    # when changes occur upstream, and we do not accidentally cache old WASM
+    # versions
+    && git checkout 2ad15f2bc6eabb2ac1c9a2a8739bc132e123ee10 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \

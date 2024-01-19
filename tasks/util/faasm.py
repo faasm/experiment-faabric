@@ -5,14 +5,14 @@ from faasmctl.util.config import (
 from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
 
 
-def get_faasm_exec_time_from_json(result_json):
+def get_faasm_exec_time_from_json(results_json):
     """
     Return the execution time (included in Faasm's response JSON) in seconds
     """
-    actual_time = (
-        float(int(result_json["finish_ts"]) - int(result_json["start_ts"]))
-        / 1000
-    )
+    start_ts = min([result_json["start_ts"] for result_json in results_json])
+    finish_ts = max([result_json["finish_ts"] for result_json in results_json])
+
+    actual_time = float(int(finish_ts) - int(start_ts)) / 1000
 
     return actual_time
 
@@ -24,4 +24,4 @@ def get_faasm_planner_host_port():
 def post_async_msg_and_get_result_json(msg, host_list=None):
     result = faasmctl_invoke_wasm(msg, dict_out=True, host_list=host_list)
 
-    return result["messageResults"][0]
+    return result["messageResults"]

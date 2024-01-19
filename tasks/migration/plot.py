@@ -44,7 +44,6 @@ def plot(ctx):
     """
     migration_results = _read_results()
 
-    # First plot: all-to-all kernel
     do_plot("all-to-all", migration_results)
     do_plot("lammps", migration_results)
 
@@ -68,6 +67,7 @@ def do_plot(workload, migration_results):
                 / migration_results[workload]["mean"][idx_granny]
             )
         )
+
     ax.bar(
         xticks,
         ys,
@@ -77,6 +77,7 @@ def do_plot(workload, migration_results):
         hatch=PLOT_PATTERNS[ind],
         edgecolor="black",
     )
+
     # Aesthetics
     ax.set_ylabel("Speed-up \n [No mig. / mig.]")
     ax.set_xlabel("% of execution when to migrate")
@@ -85,7 +86,24 @@ def do_plot(workload, migration_results):
     xlim_left = 0.5
     xlim_right = 5.5
     ax.set_xlim(left=xlim_left, right=xlim_right)
-    ax.set_ylim(bottom=0)
+
+    if workload == "all-to-all":
+        ax.text(
+            xticks[0] - 0.1,
+            1.5,
+            "{:.1f}".format(ys[0]),
+            rotation="vertical",
+            fontsize=6,
+            bbox={
+                "boxstyle": "Square, pad=0.2",
+                "edgecolor": "black",
+                "facecolor": "white",
+            },
+        )
+        ax.set_ylim(bottom=0, top=6)
+    else:
+        ax.set_ylim(bottom=0)
+
     plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
     fig.tight_layout()
     plt.savefig(out_file, format="pdf")  # , bbox_inches="tight")

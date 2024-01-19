@@ -15,8 +15,6 @@ inv cluster.credentials --name ${CLUSTER_NAME}
 First, deploy the K8s cluster:
 
 ```bash
-cd ~/faasm
-source ./bin/workon.sh
 faasmctl deploy.k8s --workers 2
 ```
 
