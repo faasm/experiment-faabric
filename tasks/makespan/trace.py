@@ -52,11 +52,6 @@ def load_task_trace_from_file(workload, num_tasks, num_cores_per_vm):
                     int(tokens[3]),
                 )
             )
-    print(
-        "Loaded task trace with {} tasks from {}".format(
-            len(task_trace), task_file
-        )
-    )
     return task_trace
 
 
