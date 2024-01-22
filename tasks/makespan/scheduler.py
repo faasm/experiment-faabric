@@ -206,7 +206,7 @@ def thread_pool_thread(
                         if baseline == "granny-migrate"
                         else NUM_MPI_MIGRATION_LOOPS
                     )
-                    # MIGRATION: Do 5 loops, check at every loop
+                    # MIGRATION: Do 3 loops, check at every loop
                     input_data = "{} {}".format(
                         check_every, NUM_MPI_MIGRATION_LOOPS
                     )
@@ -237,7 +237,7 @@ def thread_pool_thread(
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
                 thread_print(
                     "Finished executiong app {} (time: {})".format(
-                        result_json["appId"], actual_time
+                        result_json[0]["appId"], actual_time
                     )
                 )
             except RuntimeError:
