@@ -1,11 +1,12 @@
 from base64 import b64encode
 from faasmctl.util.config import get_faasm_worker_ips
 from faasmctl.util.flush import flush_workers
-from faasmctl.util.planner import get_available_hosts, reset as reset_planner
+from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
 from tasks.lammps.env import get_faasm_benchmark
+from tasks.migration.util import generate_host_list
 from tasks.util.env import (
     MPI_MIGRATE_FAASM_USER,
     MPI_MIGRATE_FAASM_FUNC,
@@ -39,31 +40,6 @@ def _write_csv_line(csv_name, nprocs, check, run_num, actual_time):
         out_file.write(
             "{},{},{},{:.2f}\n".format(nprocs, check, run_num, actual_time)
         )
-
-
-def generate_halved_host_list(num_on_each_host):
-    """
-    Generate the expected host-list to preload a scheduling decision and force
-    a migration opportunity to appear.
-    """
-    avail_hosts = get_available_hosts()
-    host_list = []
-
-    # Sanity check the host list. First, for this experiment we should only
-    # have two regsitered workers
-    assert (
-        len(avail_hosts.hosts) == 2
-    ), "Unexptected number of registered hosts!"
-    for host in avail_hosts.hosts:
-        # Second, each host should have no other running messages
-        assert host.usedSlots == 0, "Not enough free slots on host!"
-        # Third, each host should have enough slots to run the requested number
-        # of messages
-        assert host.slots >= num_on_each_host, "Not enough slots on host!"
-
-        host_list = host_list + int(num_on_each_host) * [host.ip]
-
-    return host_list
 
 
 @task(default=True)
@@ -118,7 +94,8 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     )
                 else:
                     file_name = basename(
-                        get_faasm_benchmark("network")["data"][0]
+                        # get_faasm_benchmark("network")["data"][0]
+                        get_faasm_benchmark("compute-xl")["data"][0]
                     )
                     user = LAMMPS_MIGRATION_FAASM_USER
                     func = LAMMPS_MIGRATION_FAASM_FUNC
@@ -136,7 +113,7 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     # want to under-schedule and create a migration opportunity
                     # We do so by pre-loading a scheduling decision to the
                     # planner
-                    host_list = generate_halved_host_list(num_cores_per_vm / 2)
+                    host_list = generate_host_list([num_cores_per_vm / 2] * 2)
 
                 msg = {
                     "user": user,

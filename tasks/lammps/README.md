@@ -8,8 +8,8 @@ as part of the array experiment.
 In the `experiment-base` terminal, run:
 
 ```bash
-inv cluster.provision --vm Standard_D8_v5 --nodes 2
-inv cluster.credentials
+(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 2
+(faasm-exp-base) inv cluster.credentials
 ```
 
 ## Granny
@@ -17,20 +17,25 @@ inv cluster.credentials
 Deploy the cluster, and point an env. var to the cluster deployment file:
 
 ```bash
-faasmctl deploy.k8s --workers=2
-export FAASM_INI_FILE=./faasm.ini
+(faasm-exp-faabric) faasmctl deploy.k8s --workers=2
 ```
 
 Upload the WASM file:
 
 ```bash
-inv lammps.wasm.upload
+(faasm-exp-faabric) inv lammps.wasm.upload
+```
+
+and run the experiment with:
+
+```bash
+(faasm-exp-faabric) inv lammps.run.granny
 ```
 
 To remove the cluster, run:
 
 ```bash
-faasmctl delete
+(faasm-exp-mpi) faasmctl delete
 ```
 
 ## Native

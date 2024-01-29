@@ -1,13 +1,12 @@
 from glob import glob
 from invoke import task
+from matplotlib.pyplot import hlines, savefig, subplots
 from numpy import arange
 from os import makedirs
 from os.path import join
+from pandas import read_csv
 from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
 from tasks.util.plot import PLOT_COLORS, PLOT_PATTERNS
-
-import matplotlib.pyplot as plt
-import pandas as pd
 
 
 ALL_WORKLOADS = ["lammps", "all-to-all"]
@@ -22,7 +21,7 @@ def _read_results():
         if workload not in ["lammps", "all-to-all"]:
             continue
 
-        results = pd.read_csv(csv)
+        results = read_csv(csv)
         groupped_results = results.groupby("Check", as_index=False)
 
         if workload not in result_dict:
@@ -52,7 +51,7 @@ def do_plot(workload, migration_results):
     plots_dir = join(PLOTS_ROOT, "migration")
     makedirs(plots_dir, exist_ok=True)
     out_file = join(plots_dir, "migration_speedup_{}.pdf".format(workload))
-    fig, ax = plt.subplots(figsize=(3, 2))
+    fig, ax = subplots(figsize=(3, 2))
     xs = [0, 2, 4, 6, 8]
     xticks = arange(1, 6)
     width = 0.5
@@ -104,7 +103,7 @@ def do_plot(workload, migration_results):
     else:
         ax.set_ylim(bottom=0)
 
-    plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
+    hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
     fig.tight_layout()
-    plt.savefig(out_file, format="pdf")  # , bbox_inches="tight")
+    savefig(out_file, format="pdf")  # , bbox_inches="tight")
     print("Plot saved to: {}".format(out_file))

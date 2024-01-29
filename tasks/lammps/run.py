@@ -1,30 +1,28 @@
-from faasmctl.util.flush import flush_workers
+from base64 import b64encode
+from faasmctl.util.config import get_faasm_worker_ips
+from faasmctl.util.planner import reset as reset_planner
 from invoke import task
-from os import environ, makedirs
+from os import makedirs
 from os.path import basename, join
 from tasks.util.env import (
-    LAMMPS_DOCKER_BINARY,
-    LAMMPS_DOCKER_DATA_DIR,
+    LAMMPS_MIGRATION_FAASM_USER,
+    LAMMPS_MIGRATION_FAASM_FUNC,
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
-    # TODO(planner-worker):
-    # reset_planner,
-    # wait_for_workers as wait_for_planner_workers,
 )
 from tasks.util.openmpi import (
-    NATIVE_HOSTFILE,
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
-from tasks.lammps.env import (
-    LAMMPS_FAASM_USER,
-    LAMMPS_FAASM_FUNC,
-    get_faasm_benchmark,
+from tasks.lammps.env import get_faasm_benchmark
+from tasks.makespan.env import (
+    LAMMPS_MIGRATION_DOCKER_BINARY,
+    LAMMPS_MIGRATION_DOCKER_DIR,
 )
-from time import time
+from time import sleep, time
 
 NPROCS_EXPERIMENT = [2, 4, 8, 12, 16]
 
@@ -49,44 +47,38 @@ def _write_csv_line(csv_name, nprocs, run_num, actual_time):
 
 
 @task()
-def granny(ctx, data="compute-xl", repeats=1):
+def granny(ctx, workload="compute-xl", repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
-    wasm_vm = "wamr"
-    if "WASM_VM" in environ:
-        wasm_vm = environ["WASM_VM"]
-    csv_name = "lammps_{}.csv".format(wasm_vm)
+    csv_name = "lammps_granny_{}.csv".format(workload)
     _init_csv_file(csv_name)
-
-    # Reset the planner and wait for the workers to register with it
-    # num_workers = len(get_faasm_worker_ips())
-    # reset_planner(num_workers)
-    # TODO(planner): wait for workers
-    # wait_for_planner_workers(num_workers)
+    num_vms = len(get_faasm_worker_ips())
+    assert num_vms == 2, "Expected 2 VMs got: {}!".format(num_vms)
 
     # Run multiple benchmarks if desired for convenience
-    data_file = basename(get_faasm_benchmark(data)["data"][0])
+    data_file = basename(get_faasm_benchmark(workload)["data"][0])
     for nproc in NPROCS_EXPERIMENT:
-        print(
-            "Running LAMMPS on Granny with {} MPI processes (data: {})".format(
-                nproc, data
-            )
-        )
-
-        # First, flush the host state
-        print("Flushing functions, state, and shared files from workers")
-        flush_workers()
+        reset_planner(num_vms)
 
         for nrep in range(repeats):
+            print(
+                "Running LAMMPS on Granny with {} MPI processes"
+                " (workload: {}, run: {}/{})".format(
+                    nproc, workload, nrep + 1, repeats
+                )
+            )
 
             # Run LAMMPS
             cmdline = "-in faasm://lammps-data/{}".format(data_file)
             msg = {
-                "user": LAMMPS_FAASM_USER,
-                "function": LAMMPS_FAASM_FUNC,
+                "user": LAMMPS_MIGRATION_FAASM_USER,
+                "function": LAMMPS_MIGRATION_FAASM_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
+                # TODO: the native version of lammps-migrate does not accept a
+                # configurable number of loops
+                "input_data": b64encode("3 3".encode("utf-8")).decode("utf-8"),
             }
             result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)
@@ -94,34 +86,50 @@ def granny(ctx, data="compute-xl", repeats=1):
 
 
 @task
-def native(ctx, data="compute-xl", repeats=3):
+def native(ctx, workload="compute-xl", repeats=1):
     """
     Run LAMMPS experiment on OpenMPI
     """
-    pod_names, _ = get_native_mpi_pods("lammps")
+    num_cpus_per_vm = 8
+    num_vms = 2
+
+    pod_names, pod_ips = get_native_mpi_pods("lammps")
+    assert (
+        len(pod_names) == num_vms and len(pod_ips) == num_vms
+    ), "Not enough pods!"
+
     master_pod = pod_names[0]
 
-    csv_name = "lammps_native.csv"
+    csv_name = "lammps_native_{}.csv".format(workload)
     _init_csv_file(csv_name)
 
     native_cmdline = "-in {}/{}.faasm.native".format(
-        LAMMPS_DOCKER_DATA_DIR, basename(get_faasm_benchmark(data)["data"][0])
+        LAMMPS_MIGRATION_DOCKER_DIR, get_faasm_benchmark(workload)["data"][0]
     )
 
     for nproc in NPROCS_EXPERIMENT:
-        print(
-            "Running LAMMPS on native with {} MPI processes (data: {})".format(
-                nproc, data
-            )
-        )
-
         for nrep in range(repeats):
+            print(
+                "Running LAMMPS on native with {} MPI processes "
+                "(workload: {}) [{}/{}]".format(
+                    nproc, workload, nrep + 1, repeats
+                )
+            )
+
+            # Prepare host list (in terms of IPs)
+            if nproc > num_cpus_per_vm:
+                host_list = [pod_ips[0]] * num_cpus_per_vm + [pod_ips[1]] * (
+                    nproc - num_cpus_per_vm
+                )
+            else:
+                host_list = [pod_ips[0]] * nproc
+
             # Prepare execution commands
             mpirun_cmd = [
                 "mpirun",
                 "-np {}".format(nproc),
-                "-hostfile {}".format(NATIVE_HOSTFILE),
-                LAMMPS_DOCKER_BINARY,
+                "-host {}".format(",".join(host_list)),
+                LAMMPS_MIGRATION_DOCKER_BINARY,
                 native_cmdline,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
@@ -134,8 +142,10 @@ def native(ctx, data="compute-xl", repeats=3):
 
             # Run command
             start = time()
-            exec_output = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+            out = run_kubectl_cmd("lammps", " ".join(exec_cmd))
+            print(out)
             end = time()
-            print(exec_output)
             actual_time = end - start
             _write_csv_line(csv_name, nproc, nrep, actual_time)
+
+            sleep(2)
