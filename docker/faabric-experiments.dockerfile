@@ -15,6 +15,7 @@ RUN rm -rf /code \
     && git submodule update --init -f examples/Kernels \
     && git submodule update --init -f examples/lammps \
     && git submodule update --init -f examples/lammps-migration \
+    && git submodule update --init -f examples/lammps-migration-net \
     && git submodule update --init -f examples/polybench \
     && ./bin/create_venv.sh \
     && source ./venv/bin/activate \
@@ -25,6 +26,8 @@ RUN rm -rf /code \
         lammps \
         lammps --migration --native \
         lammps --migration \
+        lammps --migration-net --native \
+        lammps --migration-net \
         # lulesh --native \
         # lulesh \
         polybench \
@@ -37,8 +40,6 @@ RUN rm -rf /code \
 FROM faasm.azurecr.io/openmpi:0.3.0
 
 COPY --from=build --chown=mpirun:mpirun /code/faasm-examples /code/faasm-examples
-COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/main/function.wasm /code/faasm-examples/lammps.wasm
-COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/lammps/chain/function.wasm /code/faasm-examples/lammps_chain.wasm
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/mpi/migrate/function.wasm /code/faasm-examples/mpi_migrate.wasm
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/polybench/ /code/faasm-examples/polybench/
 
