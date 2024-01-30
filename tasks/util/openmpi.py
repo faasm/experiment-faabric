@@ -90,7 +90,6 @@ def get_native_mpi_pods(experiment_name):
     cmd_out = run_kubectl_cmd(
         experiment_name, "get pods -o wide -l run=faasm-openmpi"
     )
-    print(cmd_out)
 
     # Split output into list of strings
     lines = cmd_out.split("\n")[1:]
@@ -104,9 +103,6 @@ def get_native_mpi_pods(experiment_name):
 
         pod_names.append(line_parts[0])
         pod_ips.append(line_parts[5])
-
-    print("Got pods: {}".format(pod_names))
-    print("Got IPs: {}".format(pod_ips))
 
     return pod_names, pod_ips
 
