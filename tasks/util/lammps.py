@@ -1,10 +1,13 @@
+from base64 import b64encode
 from os.path import join
 from tasks.util.env import EXAMPLES_DOCKER_DIR
 from tasks.util.upload import upload_files
 
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
 LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
-LAMMPS_MIGRATION_NET_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration-net")
+LAMMPS_MIGRATION_NET_DOCKER_DIR = join(
+    EXAMPLES_DOCKER_DIR, "lammps-migration-net"
+)
 LAMMPS_DOCKER_DATA_DIR = join(LAMMPS_DOCKER_DIR, "bench")
 LAMMPS_FAASM_DATA_PREFIX = "/lammps-data"
 
@@ -20,16 +23,22 @@ LAMMPS_MIGRATION_NET_DOCKER_BINARY = join(
 # WASM binaries
 LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
 LAMMPS_MIGRATION_DOCKER_WASM = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
+    LAMMPS_MIGRATION_NET_DOCKER_DIR, "build", "wasm", "lmp"
 )
 LAMMPS_MIGRATION_NET_DOCKER_WASM = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
+    LAMMPS_MIGRATION_NET_DOCKER_DIR, "build", "wasm", "lmp"
 )
 
 # Faasm user/function pairs
 LAMMPS_FAASM_USER = "lammps"
 LAMMPS_FAASM_FUNC = "main"
+LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LAMMPS_FAASM_MIGRATION_NET_FUNC = "migration-net"
+
+# Intra-experiment configuration shared among experiments
+LAMMPS_SIM_NUM_ITERATIONS = 3
+LAMMPS_SIM_CHECK_AT = 3
+LAMMPS_SIM_NUM_NET_LOOPS = 1000
 
 # Different supported LAMMPS benchmarks
 BENCHMARKS = {
@@ -76,6 +85,22 @@ def get_faasm_benchmark(bench):
     return BENCHMARKS[bench]
 
 
+def get_lammps_migration_params(
+    check_every=LAMMPS_SIM_CHECK_AT,
+    num_loops=LAMMPS_SIM_NUM_ITERATIONS,
+    num_net_loops=LAMMPS_SIM_NUM_NET_LOOPS,
+    native=False,
+):
+    if native:
+        return "{}:{}".format(num_loops, num_net_loops)
+
+    return b64encode(
+        "{} {} {}".format(check_every, num_loops, num_net_loops).encode(
+            "utf-8"
+        )
+    ).decode("utf-8")
+
+
 def lammps_data_upload(ctx, bench):
     """
     Upload LAMMPS benchmark data to Faasm
@@ -91,6 +116,8 @@ def lammps_data_upload(ctx, bench):
             host_path = join(LAMMPS_DOCKER_DIR, data + ".faasm")
             faasm_path = join(LAMMPS_FAASM_DATA_PREFIX, file_name)
 
-            file_details.append({"host_path": host_path, "faasm_path": faasm_path})
+            file_details.append(
+                {"host_path": host_path, "faasm_path": faasm_path}
+            )
 
     upload_files(file_details)

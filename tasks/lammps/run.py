@@ -1,30 +1,35 @@
-from base64 import b64encode
 from faasmctl.util.config import get_faasm_worker_ips
 from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
-from tasks.util.env import (
-    LAMMPS_MIGRATION_FAASM_USER,
-    LAMMPS_MIGRATION_FAASM_FUNC,
-    RESULTS_DIR,
-)
+from tasks.util.env import RESULTS_DIR
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
+)
+from tasks.util.lammps import (
+    LAMMPS_FAASM_USER,
+    LAMMPS_MIGRATION_NET_DOCKER_BINARY,
+    LAMMPS_MIGRATION_NET_DOCKER_DIR,
+    LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    get_faasm_benchmark,
+    get_lammps_migration_params,
 )
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
-from tasks.lammps.env import get_faasm_benchmark
-from tasks.makespan.env import (
-    LAMMPS_MIGRATION_DOCKER_BINARY,
-    LAMMPS_MIGRATION_DOCKER_DIR,
-)
 from time import sleep, time
 
+# Parameters tuning the experiment runs
+LAMMPS_WORKLOAD = "network"
 NPROCS_EXPERIMENT = [2, 4, 8, 12, 16]
+
+# Parameters to tune the internal experiment behaviour
+CHECK_EVERY = 3
+NUM_EXP_LOOPS = 3
+NUM_NET_LOOPS = 1000
 
 
 def _init_csv_file(csv_name):
@@ -47,7 +52,7 @@ def _write_csv_line(csv_name, nprocs, run_num, actual_time):
 
 
 @task()
-def granny(ctx, workload="compute-xl", repeats=1):
+def granny(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
@@ -72,13 +77,15 @@ def granny(ctx, workload="compute-xl", repeats=1):
             # Run LAMMPS
             cmdline = "-in faasm://lammps-data/{}".format(data_file)
             msg = {
-                "user": LAMMPS_MIGRATION_FAASM_USER,
-                "function": LAMMPS_MIGRATION_FAASM_FUNC,
+                "user": LAMMPS_FAASM_USER,
+                "function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
                 # TODO: the native version of lammps-migrate does not accept a
                 # configurable number of loops
-                "input_data": b64encode("3 3".encode("utf-8")).decode("utf-8"),
+                "input_data": get_lammps_migration_params(
+                    CHECK_EVERY, NUM_EXP_LOOPS, NUM_NET_LOOPS
+                ),
             }
             result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)
@@ -86,7 +93,7 @@ def granny(ctx, workload="compute-xl", repeats=1):
 
 
 @task
-def native(ctx, workload="compute-xl", repeats=1):
+def native(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
     """
     Run LAMMPS experiment on OpenMPI
     """
@@ -104,7 +111,8 @@ def native(ctx, workload="compute-xl", repeats=1):
     _init_csv_file(csv_name)
 
     native_cmdline = "-in {}/{}.faasm.native".format(
-        LAMMPS_MIGRATION_DOCKER_DIR, get_faasm_benchmark(workload)["data"][0]
+        LAMMPS_MIGRATION_NET_DOCKER_DIR,
+        get_faasm_benchmark(workload)["data"][0],
     )
 
     for nproc in NPROCS_EXPERIMENT:
@@ -129,7 +137,7 @@ def native(ctx, workload="compute-xl", repeats=1):
                 "mpirun",
                 "-np {}".format(nproc),
                 "-host {}".format(",".join(host_list)),
-                LAMMPS_MIGRATION_DOCKER_BINARY,
+                LAMMPS_MIGRATION_NET_DOCKER_BINARY,
                 native_cmdline,
             ]
             mpirun_cmd = " ".join(mpirun_cmd)
