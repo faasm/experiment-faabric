@@ -36,9 +36,11 @@ LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LAMMPS_FAASM_MIGRATION_NET_FUNC = "migration-net"
 
 # Intra-experiment configuration shared among experiments
+LAMMPS_SIM_WORKLOAD = "compute-xl"
 LAMMPS_SIM_NUM_ITERATIONS = 3
 LAMMPS_SIM_CHECK_AT = 3
-LAMMPS_SIM_NUM_NET_LOOPS = 1000
+LAMMPS_SIM_NUM_NET_LOOPS = 1e4
+LAMMPS_SIM_CHUNK_SIZE = 2e4
 
 # Different supported LAMMPS benchmarks
 BENCHMARKS = {
@@ -89,13 +91,17 @@ def get_lammps_migration_params(
     check_every=LAMMPS_SIM_CHECK_AT,
     num_loops=LAMMPS_SIM_NUM_ITERATIONS,
     num_net_loops=LAMMPS_SIM_NUM_NET_LOOPS,
+    chunk_size=LAMMPS_SIM_CHUNK_SIZE,
     native=False,
 ):
     if native:
-        return "{}:{}".format(num_loops, num_net_loops)
+        return "-x FAASM_BENCH_PARAMS={}:{}:{}".format(int(num_loops), int(num_net_loops), int(chunk_size))
 
+    # We add an extra whitespace because there seems to be a strange bug when
+    # encoding/decoding input data with a 4-digit chunk size. Adding the
+    # whitespace works-around the issue
     return b64encode(
-        "{} {} {}".format(check_every, num_loops, num_net_loops).encode(
+        "{} {} {} {} ".format(int(check_every), int(num_loops), int(num_net_loops), int(chunk_size)).encode(
             "utf-8"
         )
     ).decode("utf-8")

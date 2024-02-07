@@ -13,6 +13,7 @@ from tasks.util.lammps import (
     LAMMPS_MIGRATION_NET_DOCKER_BINARY,
     LAMMPS_MIGRATION_NET_DOCKER_DIR,
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    LAMMPS_SIM_WORKLOAD,
     get_faasm_benchmark,
     get_lammps_migration_params,
 )
@@ -23,13 +24,7 @@ from tasks.util.openmpi import (
 from time import sleep, time
 
 # Parameters tuning the experiment runs
-LAMMPS_WORKLOAD = "network"
 NPROCS_EXPERIMENT = [2, 4, 8, 12, 16]
-
-# Parameters to tune the internal experiment behaviour
-CHECK_EVERY = 3
-NUM_EXP_LOOPS = 3
-NUM_NET_LOOPS = 1000
 
 
 def _init_csv_file(csv_name):
@@ -52,7 +47,7 @@ def _write_csv_line(csv_name, nprocs, run_num, actual_time):
 
 
 @task()
-def granny(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
+def granny(ctx, workload=LAMMPS_SIM_WORKLOAD, repeats=1):
     """
     Run LAMMPS simulation on Granny
     """
@@ -81,11 +76,7 @@ def granny(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
                 "function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
-                # TODO: the native version of lammps-migrate does not accept a
-                # configurable number of loops
-                "input_data": get_lammps_migration_params(
-                    CHECK_EVERY, NUM_EXP_LOOPS, NUM_NET_LOOPS
-                ),
+                "input_data": get_lammps_migration_params(num_net_loops=10000, chunk_size=20000),
             }
             result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)
@@ -93,7 +84,7 @@ def granny(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
 
 
 @task
-def native(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
+def native(ctx, workload=LAMMPS_SIM_WORKLOAD, repeats=1):
     """
     Run LAMMPS experiment on OpenMPI
     """
@@ -119,7 +110,7 @@ def native(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
         for nrep in range(repeats):
             print(
                 "Running LAMMPS on native with {} MPI processes "
-                "(workload: {}) [{}/{}]".format(
+                "(workload: {}, run: {}/{})".format(
                     nproc, workload, nrep + 1, repeats
                 )
             )
@@ -135,6 +126,7 @@ def native(ctx, workload=LAMMPS_WORKLOAD, repeats=1):
             # Prepare execution commands
             mpirun_cmd = [
                 "mpirun",
+                get_lammps_migration_params(native=True),
                 "-np {}".format(nproc),
                 "-host {}".format(",".join(host_list)),
                 LAMMPS_MIGRATION_NET_DOCKER_BINARY,

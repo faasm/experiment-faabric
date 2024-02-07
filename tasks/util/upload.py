@@ -105,7 +105,7 @@ def upload_files(file_details):
                 shell=True,
                 check=True,
             )
-            print("Success:", file_details["wasm_file"])
+            print("Uploaded {} to {}".format(file_details["host_path"], file_details["faasm_path"]))
         except CalledProcessError as e:
             print(
                 "Caught error copying WASM file from docker image: {}".format(
