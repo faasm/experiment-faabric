@@ -76,7 +76,9 @@ def granny(ctx, workload=LAMMPS_SIM_WORKLOAD, repeats=1):
                 "function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
                 "cmdline": cmdline,
                 "mpi_world_size": int(nproc),
-                "input_data": get_lammps_migration_params(num_net_loops=10000, chunk_size=20000),
+                "input_data": get_lammps_migration_params(
+                    num_net_loops=10000, chunk_size=20000
+                ),
             }
             result_json = post_async_msg_and_get_result_json(msg)
             actual_time = get_faasm_exec_time_from_json(result_json)

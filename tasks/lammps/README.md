@@ -14,7 +14,7 @@ In the `experiment-base` terminal, run:
 
 ## Granny
 
-Deploy the cluster, and point an env. var to the cluster deployment file:
+Deploy the cluster:
 
 ```bash
 (faasm-exp-faabric) faasmctl deploy.k8s --workers=2
