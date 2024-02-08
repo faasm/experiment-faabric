@@ -1,6 +1,6 @@
 from invoke import task
 from os.path import join
-from tasks.util.env import (
+from tasks.util.kernels import (
     KERNELS_FAASM_FUNCS,
     KERNELS_FAASM_USER,
     KERNELS_WASM_DIR,
@@ -11,7 +11,7 @@ from tasks.util.upload import upload_wasm
 @task()
 def upload(ctx):
     """
-    Upload the MPI functions to Granny
+    Upload the MPI Kernels to Granny
     """
     wasm_file_details = []
 

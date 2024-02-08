@@ -51,21 +51,6 @@ OPENMP_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
 OPENMP_KERNELS = ["global", "p2p", "nstream", "reduce", "dgemm"]
 OPENMP_KERNELS_FAASM_USER = "kernels-omp"
 
-# --- MPI Kernels ---
-
-KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
-KERNELS_WASM_DIR = join(KERNELS_DOCKER_DIR, "build", "wasm")
-KERNELS_NATIVE_DIR = join(KERNELS_DOCKER_DIR, "build", "native")
-KERNELS_FAASM_USER = "kernels-mpi"
-KERNELS_FAASM_FUNCS = [
-    "p2p",
-    "sparse",
-    "transpose",
-    "reduce",
-    "nstream",
-    "stencil",
-]
-
 # --- MPI Migration Microbenchmark
 
 MPI_MIGRATE_WASM_BINARY = join(EXAMPLES_BASE_DIR, "mpi_migrate.wasm")
