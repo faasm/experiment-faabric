@@ -11,9 +11,11 @@ def generate_host_list(num_on_each_host):
 
     # Sanity check the host list. First, for this experiment we should only
     # have two regsitered workers
-    assert (
-        len(avail_hosts.hosts) >= len(num_on_each_host)
-    ), "Not enough available hosts (have: {} - need: {})".format(len(avail_hosts.hosts), num_on_each_host)
+    assert len(avail_hosts.hosts) >= len(
+        num_on_each_host
+    ), "Not enough available hosts (have: {} - need: {})".format(
+        len(avail_hosts.hosts), num_on_each_host
+    )
     for ind, num_in_host in enumerate(num_on_each_host):
         host = avail_hosts.hosts[ind]
         # Second, each host should have no other running messages
@@ -25,5 +27,3 @@ def generate_host_list(num_on_each_host):
         host_list = host_list + int(num_in_host) * [host.ip]
 
     return host_list
-
-

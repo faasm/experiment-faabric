@@ -1,22 +1,24 @@
-from base64 import b64encode
 from faasmctl.util.config import get_faasm_worker_ips
 from faasmctl.util.flush import flush_workers
 from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
-from tasks.lammps.env import get_faasm_benchmark
 from tasks.migration.util import generate_host_list
 from tasks.util.env import (
     MPI_MIGRATE_FAASM_USER,
     MPI_MIGRATE_FAASM_FUNC,
-    LAMMPS_MIGRATION_FAASM_USER,
-    LAMMPS_MIGRATION_FAASM_FUNC,
     RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
+)
+from tasks.util.lammps import (
+    LAMMPS_FAASM_USER,
+    LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    get_faasm_benchmark,
+    get_lammps_migration_params,
 )
 from time import sleep
 
@@ -94,11 +96,10 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     )
                 else:
                     file_name = basename(
-                        # get_faasm_benchmark("network")["data"][0]
-                        get_faasm_benchmark("compute-xl")["data"][0]
+                        get_faasm_benchmark("network")["data"][0]
                     )
-                    user = LAMMPS_MIGRATION_FAASM_USER
-                    func = LAMMPS_MIGRATION_FAASM_FUNC
+                    user = LAMMPS_FAASM_USER
+                    func = LAMMPS_FAASM_MIGRATION_NET_FUNC
                     cmdline = "-in faasm://lammps-data/{}".format(file_name)
                     num_loops = 5
                     check_at_loop = num_loops if check == 0 else check / 2
@@ -123,9 +124,9 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     "cmdline": cmdline,
                 }
                 if wload == "lammps":
-                    msg["input_data"] = b64encode(
-                        input_data.encode("utf-8")
-                    ).decode("utf-8")
+                    msg["input_data"] = get_lammps_migration_params(
+                        check_at_loop, num_loops
+                    )
 
                 # Invoke with or without pre-loading
                 result_json = post_async_msg_and_get_result_json(
