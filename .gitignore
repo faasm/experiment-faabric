@@ -12,12 +12,24 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Plots and results (uncomment as we finish them)
+plots/lammps
+plots/makespan
+plots/migration
+plots/motivation
+plots/mpi
+plots/openmp
+plots/polybench
+results/lammps
+results/makespan
+results/migration
+results/motivation
+results/mpi
+results/openmp
+results/polybench
+
 # Kubernetes
 .kube/
-
-# Results and plots
-results
-plots
 
 # Faasm config files
 faasm.ini
