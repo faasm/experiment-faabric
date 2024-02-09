@@ -113,7 +113,8 @@ def run(ctx, nprocs=None):
                 continue
 
             print(
-                "Running oracle prediction for size {} {}/{} (workload: {}) with partition: {}".format(
+                "Running oracle prediction for size {} {}/{} "
+                "(workload: {}) with partition: {}".format(
                     n_proc,
                     ind + 1,
                     len(pruned_partitions),

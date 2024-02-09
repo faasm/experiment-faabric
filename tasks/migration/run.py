@@ -103,7 +103,6 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     cmdline = "-in faasm://lammps-data/{}".format(file_name)
                     num_loops = 5
                     check_at_loop = num_loops if check == 0 else check / 2
-                    input_data = "{} {}".format(check_at_loop, num_loops)
 
                 if check == 0:
                     # Setting a check fraction of 0 means we don't
