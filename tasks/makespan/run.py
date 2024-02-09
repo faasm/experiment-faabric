@@ -1,4 +1,3 @@
-from faasmctl.util.flush import flush_workers
 from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from logging import getLogger, WARNING as log_level_WARNING
@@ -24,11 +23,6 @@ from tasks.makespan.util import (
 from tasks.util.env import RESULTS_DIR
 from time import sleep
 from typing import Dict
-
-# imports to delete after migration test runs
-from os.path import basename
-from tasks.lammps.env import get_faasm_benchmark
-from tasks.util.faasm import post_async_msg_and_get_result_json
 
 # Configure the logging settings globally
 getLogger("requests").setLevel(log_level_WARNING)
@@ -246,23 +240,3 @@ def idle_cores_from_exec_task(
             time_step,
             num_idle_cores_per_time_step[time_step],
         )
-
-
-@task()
-def migration_test(ctx):
-    user = "lammps"
-    func = "migration"
-    data_file = get_faasm_benchmark("compute")["data"][0]
-    cmdline = "-in faasm://lammps-data/{}".format(basename(data_file))
-
-    # First, flush the host state
-    flush_workers()
-
-    msg = {
-        "user": user,
-        "function": func,
-        "mpi": True,
-        "mpi_world_size": 4,
-        "cmdline": cmdline,
-    }
-    post_async_msg_and_get_result_json(msg)

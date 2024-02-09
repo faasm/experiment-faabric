@@ -1,24 +1,11 @@
 from os.path import join
-from tasks.util.env import PROJ_ROOT
+from tasks.util.env import EXAMPLES_DOCKER_DIR, PROJ_ROOT
 
 MAKESPAN_DIR = join(PROJ_ROOT, "tasks", "makespan")
 MAKESPAN_NATIVE_COMPOSE_NAME = "makespan-native"
 MAKESPAN_NATIVE_DIR = join(MAKESPAN_DIR, "native")
 MAKESPAN_WASM_DIR = join(MAKESPAN_DIR, "wasm")
 
-EXAMPLES_BASE_DIR = join("/code", "faasm-examples")
-EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
-LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
-LAMMPS_DOCKER_BINARY = join(LAMMPS_DOCKER_DIR, "build", "native", "lmp")
-LAMMPS_DOCKER_WASM = join(LAMMPS_DOCKER_DIR, "build", "wasm", "lmp")
-LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
-LAMMPS_MIGRATION_DOCKER_BINARY = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "native", "lmp"
-)
-LAMMPS_MIGRATION_DOCKER_WASM = join(
-    LAMMPS_MIGRATION_DOCKER_DIR, "build", "wasm", "lmp"
-)
-LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LULESH_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "LULESH")
 LULESH_DOCKER_BINARY = join(LULESH_DOCKER_DIR, "build", "native", "lulesh2.0")
 LULESH_DOCKER_WASM = join(LULESH_DOCKER_DIR, "build", "wasm", "lulesh2.0")

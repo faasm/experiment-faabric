@@ -24,9 +24,13 @@ MPI_MIGRATE_WORKLOADS = ["mpi-migrate"]
 MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
 
 # These variables influence the duration of the MPI workloads
-NUM_MPI_MIGRATION_LOOPS = 3
+# VERSION 1: what we presented in CloudSkin
+# NUM_MPI_MIGRATION_LOOPS = 3
 # Change to "compute" for shorter, compute-bound, simulations. Change to
 # "network" for shorter, network-bound, simulations
+# MPI_LAMMPS_BENCHMARK = "compute-xl"
+
+# VERSION 2: exploring more migration opportunities
 MPI_LAMMPS_BENCHMARK = "compute-xl"
 
 

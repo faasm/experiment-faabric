@@ -1,4 +1,3 @@
-from base64 import b64encode
 from faasmctl.util.config import (
     get_faasm_worker_ips,
     get_faasm_worker_names,
@@ -12,10 +11,16 @@ from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
 from typing import Dict, List, Tuple, Union
-from tasks.lammps.env import (
+from tasks.util.lammps import (
     LAMMPS_FAASM_USER,
-    LAMMPS_FAASM_FUNC,
+    LAMMPS_DOCKER_BINARY,
+    LAMMPS_DOCKER_DIR,
+    LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    LAMMPS_MIGRATION_NET_DOCKER_BINARY,
+    LAMMPS_MIGRATION_NET_DOCKER_DIR,
+    LAMMPS_SIM_NUM_ITERATIONS,
     get_faasm_benchmark,
+    get_lammps_migration_params,
 )
 from tasks.makespan.data import (
     ExecutedTaskInfo,
@@ -24,11 +29,6 @@ from tasks.makespan.data import (
     WorkQueueItem,
 )
 from tasks.makespan.env import (
-    LAMMPS_DOCKER_BINARY,
-    LAMMPS_DOCKER_DIR,
-    LAMMPS_FAASM_MIGRATION_FUNC,
-    LAMMPS_MIGRATION_DOCKER_BINARY,
-    LAMMPS_MIGRATION_DOCKER_DIR,
     DGEMM_DOCKER_BINARY,
     DGEMM_FAASM_FUNC,
     DGEMM_FAASM_USER,
@@ -38,11 +38,11 @@ from tasks.makespan.util import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
+    # Important!
     MPI_LAMMPS_BENCHMARK,
     MPI_MIGRATE_WORKLOADS,
     MPI_WORKLOADS,
     NATIVE_BASELINES,
-    NUM_MPI_MIGRATION_LOOPS,
     SCHEDULINNG_INFO_FILE_PREFIX,
     get_num_cpus_per_vm_from_trace,
     write_line_to_csv,
@@ -128,8 +128,8 @@ def thread_pool_thread(
                     binary = LAMMPS_DOCKER_BINARY
                     lammps_dir = LAMMPS_DOCKER_DIR
                 elif work_item.task.app in MPI_MIGRATE_WORKLOADS:
-                    binary = LAMMPS_MIGRATION_DOCKER_BINARY
-                    lammps_dir = LAMMPS_MIGRATION_DOCKER_DIR
+                    binary = LAMMPS_MIGRATION_NET_DOCKER_BINARY
+                    lammps_dir = LAMMPS_MIGRATION_NET_DOCKER_DIR
                 native_cmdline = "-in {}/{}.faasm.native".format(
                     lammps_dir, data_file
                 )
@@ -140,6 +140,7 @@ def thread_pool_thread(
 
                 mpirun_cmd = [
                     "mpirun",
+                    get_lammps_migration_params(native=True),
                     "-np {}".format(world_size),
                     # To improve OpenMPI performance, we tell it exactly where
                     # to run each rank. According to the MPI manual, to specify
@@ -185,11 +186,7 @@ def thread_pool_thread(
             # Prepare Faasm request
             if work_item.task.app in MPI_WORKLOADS:
                 user = LAMMPS_FAASM_USER
-                func = (
-                    LAMMPS_FAASM_FUNC
-                    if work_item.task.app == "mpi"
-                    else LAMMPS_FAASM_MIGRATION_FUNC
-                )
+                func = LAMMPS_FAASM_MIGRATION_NET_FUNC
                 file_name = basename(data_file)
                 cmdline = "-in faasm://lammps-data/{}".format(file_name)
                 msg = {
@@ -204,15 +201,11 @@ def thread_pool_thread(
                     check_every = (
                         1
                         if baseline == "granny-migrate"
-                        else NUM_MPI_MIGRATION_LOOPS
+                        else LAMMPS_SIM_NUM_ITERATIONS
                     )
-                    # MIGRATION: Do 3 loops, check at every loop
-                    input_data = "{} {}".format(
-                        check_every, NUM_MPI_MIGRATION_LOOPS
+                    msg["input_data"] = get_lammps_migration_params(
+                        check_every=check_every
                     )
-                    msg["input_data"] = b64encode(
-                        input_data.encode("utf-8")
-                    ).decode("utf-8")
             elif work_item.task.app == "omp":
                 if work_item.task.size > num_cpus_per_vm:
                     print(
