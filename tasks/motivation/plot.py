@@ -1,7 +1,12 @@
 from glob import glob
 from invoke import task
+from matplotlib.patches import Patch, Polygon
+
+# from numpy import linspace
 from os import makedirs
 from os.path import join
+
+# from scipy.interpolate import splev, splrep
 from tasks.makespan.trace import load_task_trace_from_file
 from tasks.makespan.util import GRANNY_BASELINES
 from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
@@ -20,10 +25,16 @@ WORKLOAD_TO_LABEL = {
 }
 
 
-def _read_results(num_vms, num_tasks, num_cpus_per_vm):
-    # TODO: decide
+def fix_hist_step_vertical_line_at_end(ax):
+    axpolygons = [
+        poly for poly in ax.get_children() if isinstance(poly, Polygon)
+    ]
+    for poly in axpolygons:
+        poly.set_xy(poly.get_xy()[:-1])
+
+
+def do_read_results(num_vms, num_tasks, num_cpus_per_vm):
     workload = "mpi-migrate"
-    # workload = "mpi"
 
     # Load results
     result_dict = {}
@@ -45,12 +56,19 @@ def _read_results(num_vms, num_tasks, num_cpus_per_vm):
         task_ids = results["TaskId"].to_list()
         times_exec = results["TimeExecuting"].to_list()
         times_queue = results["TimeInQueue"].to_list()
+        start_ts = results["StartTimeStamp"].to_list()
+        genesis_ts = min(start_ts)
+        end_ts = results["EndTimeStamp"].to_list()
         result_dict[baseline]["exec-time"] = [-1 for _ in task_ids]
         result_dict[baseline]["queue-time"] = [-1 for _ in task_ids]
+        result_dict[baseline]["jct"] = [-1 for _ in task_ids]
 
-        for tid, texec, tqueue in zip(task_ids, times_exec, times_queue):
+        for tid, texec, tqueue, e_ts in zip(
+            task_ids, times_exec, times_queue, end_ts
+        ):
             result_dict[baseline]["exec-time"][tid] = texec
             result_dict[baseline]["queue-time"][tid] = tqueue
+            result_dict[baseline]["jct"][tid] = e_ts - genesis_ts
 
         # -----
         # Results to visualise job churn
@@ -61,7 +79,9 @@ def _read_results(num_vms, num_tasks, num_cpus_per_vm):
         time_elapsed_secs = int(end_ts - start_ts)
         result_dict[baseline]["makespan"] = time_elapsed_secs
         print(
-            "Baseline: {} - Makespan: {}s".format(baseline, time_elapsed_secs)
+            "Num VMs: {} - Num Tasks: {} - Baseline: {} - Makespan: {}s".format(
+                num_vms, num_tasks, baseline, time_elapsed_secs
+            )
         )
         if time_elapsed_secs > 1e5:
             raise RuntimeError(
@@ -230,7 +250,7 @@ def _read_results(num_vms, num_tasks, num_cpus_per_vm):
     return result_dict
 
 
-def do_plot(plot_name, results, ax):
+def do_plot(plot_name, results, ax, num_vms, num_tasks):
     """
     This method keeps track of all the different alternative plots we have
     explored for the motivation figure.
@@ -238,44 +258,253 @@ def do_plot(plot_name, results, ax):
 
     if plot_name == "exec_vs_tiq":
         """
-        This plot compares the execution time and the time in queue for all
-        jobs in a trace. In the X axis we have the job number, and on the Y
-        axis both the executin time and the time in queue.
+        This plot presents the percentiles of slowdown of execution time (and
+        time in queue too?)
         """
-        num_jobs = len(results["slurm"]["exec-time"])
-        x1 = range(num_jobs)
+        num_jobs = len(results[num_vms[0]]["slurm"]["exec-time"])
 
-        ax.plot(
-            x1, results["slurm"]["exec-time"], label="slurm", color="orange"
+        num_slowdowns = 3
+        percentiles = [50, 75, 90, 95, 100]
+        width = float(1 / len(percentiles)) * 0.8
+        xs = []
+        ys = []
+        xticks = []
+        xlabels = []
+        colors = []
+        xs_vlines = []
+
+        for vm_ind, n_vms in enumerate(num_vms):
+
+            x_vm_offset = vm_ind * num_slowdowns
+
+            # Calculate slowdowns wrt granny w/ migration
+            slurm_slowdown = sorted(
+                [
+                    float(slurm_time / granny_time)
+                    for (slurm_time, granny_time) in zip(
+                        results[n_vms]["slurm"]["exec-time"],
+                        results[n_vms]["granny-migrate"]["exec-time"],
+                    )
+                ]
+            )
+            batch_slowdown = sorted(
+                [
+                    float(batch_time / granny_time)
+                    for (batch_time, granny_time) in zip(
+                        results[n_vms]["batch"]["exec-time"],
+                        results[n_vms]["granny-migrate"]["exec-time"],
+                    )
+                ]
+            )
+            granny_nomig_slowdown = sorted(
+                [
+                    float(granny_nomig_time / granny_time)
+                    for (granny_nomig_time, granny_time) in zip(
+                        results[n_vms]["granny"]["exec-time"],
+                        results[n_vms]["granny-migrate"]["exec-time"],
+                    )
+                ]
+            )
+
+            for ind, (bline, slowdown) in enumerate(
+                [
+                    ("slurm", slurm_slowdown),
+                    ("batch", batch_slowdown),
+                    ("granny-no-migration", granny_nomig_slowdown),
+                ]
+            ):
+                x_bline_offset = ind
+
+                if "granny" in bline:
+                    color = PLOT_COLORS["granny"]
+                else:
+                    color = PLOT_COLORS[bline]
+
+                for subind, percentile in enumerate(percentiles):
+                    x = (
+                        x_vm_offset
+                        + x_bline_offset
+                        - width * int(len(percentiles) / 2)
+                        + width * subind
+                        + width * 0.5 * (len(percentiles) % 2 == 0)
+                    )
+                    xs.append(x)
+                    if percentile == 100:
+                        ys.append(slowdown[-1])
+                    else:
+                        index = int(percentile / 100 * num_jobs)
+                        ys.append(slowdown[index])
+                    colors.append(color)
+
+            # Add a vertical line at the end of each VM block
+            xs_vlines.append(
+                x_vm_offset
+                + (num_slowdowns * len(percentiles) + 1 - 0.25) * width
+            )
+
+            # Add a label once per VM block
+            x_label = x_vm_offset + (
+                (num_slowdowns * len(percentiles) + num_slowdowns - 2)
+                / 2
+                * width
+            )
+            xticks.append(x_label)
+            xlabels.append(
+                "{} VMs\n({} Jobs)".format(n_vms, num_tasks[vm_ind])
+            )
+
+        xmin = -0.5
+        xmax = len(num_vms) * num_slowdowns - 0.5
+        ymin = 0.75
+        ymax = 2
+
+        ax.bar(xs, ys, width=width, color=colors, edgecolor="black")
+        ax.hlines(y=1, color="red", xmin=xmin, xmax=xmax)
+        ax.vlines(
+            xs_vlines,
+            ymin=ymin,
+            ymax=ymax,
+            color="gray",
+            linestyles="dashed",
+            linewidth=0.5,
         )
-        ax.plot(x1, results["batch"]["exec-time"], label="batch", color="blue")
-        ax.plot(
-            x1,
-            results["slurm"]["queue-time"],
-            color="orange",
-            linestyle="dashed",
+        ax.set_xticks(xticks, labels=xlabels, fontsize=6)
+        ax.set_ylabel("Slowdown [Baseline/Granny]")
+        ax.set_xlabel(
+            "Job percentile [{}]".format(
+                ",".join([str(p) + "th" for p in percentiles])
+            ),
+            fontsize=8,
         )
-        ax.plot(
-            x1,
-            results["batch"]["queue-time"],
-            color="blue",
-            linestyle="dashed",
-        )
-        ax.legend(bbox_to_anchor=(0.5, 1))
+        ax.set_xlim(left=xmin, right=xmax)
+        ax.set_ylim(bottom=ymin, top=ymax)
+
+    elif plot_name == "exec_abs":
+        """
+        TEMP
+        """
+        num_vms = 32
+        num_jobs = len(results[num_vms]["slurm"]["exec-time"])
+        labels = ["slurm", "batch", "granny", "granny-migrate"]
+        percentiles = [50, 75, 90, 95, 100]
+
+        xs = list(range(num_jobs))
+        for label in labels:
+            ys = []
+            for percentile in percentiles:
+                if percentile == 100:
+                    index = -1
+                else:
+                    index = int(percentile / 100 * num_jobs)
+
+                ys.append(results[num_vms][label]["exec-time"][index])
+
+            this_label = label
+            if label == "granny-migrate":
+                this_label = "granny"
+            elif label == "granny":
+                this_label = "granny-nomig"
+
+            ax.plot(
+                percentiles, ys, label=this_label, color=PLOT_COLORS[label]
+            )
+            ax.set_xlabel("Job percentile [th]")
+            ax.set_ylabel("Job completion time [s]")
+            ax.set_ylim(bottom=0)
+            ax.legend()
+
+    elif plot_name == "exec_cdf":
+        """
+        CDF of the absolute job completion time
+        (from the beginning of time, until the job has finished)
+        """
+        num_vms = 32
+        num_jobs = len(results[num_vms]["slurm"]["exec-time"])
+        labels = ["slurm", "batch", "granny", "granny-migrate"]
+        xs = list(range(num_jobs))
+
+        for label in labels:
+            ys = []
+
+            this_label = label
+            if label == "granny-migrate":
+                this_label = "granny"
+            elif label == "granny":
+                this_label = "granny-nomig"
+
+            # Calculate the histogram using the histogram function, get the
+            # results from the return value, but make the plot transparent.
+            # TODO: maybe just calculate the CDF analitically?
+            ys, xs, patches = ax.hist(
+                results[num_vms][label]["jct"],
+                100,
+                color=PLOT_COLORS[label],
+                histtype="step",
+                density=True,
+                cumulative=True,
+                label=this_label,
+                # alpha=0,
+            )
+            fix_hist_step_vertical_line_at_end(ax)
+
+            # Interpolate more points
+            # spl = splrep(xs[:-1], ys, s=0.01, per=False)
+            # x2 = linspace(xs[0], xs[-1], 400)
+            # y2 = splev(x2, spl)
+            # ax.plot(x2, y2, color=PLOT_COLORS[label], label=this_label, linewidth=0.5)
+
+            ax.set_xlabel("Job Completion Time [s]")
+            ax.set_ylabel("CDF")
+            ax.set_ylim(bottom=0, top=1)
+            ax.legend()
 
     elif plot_name == "makespan":
-        labels = list(results.keys())
-        xs = [x for x in range(len(labels))]
-        ys = [results[la]["makespan"] for la in labels]
-        bars = ax.bar(xs, ys)
-        for bar, key in zip(bars, labels):
-            bar.set_color(PLOT_COLORS[key])
-            # bar.set_hatch(PLOT_PATTERNS[labels.index(key)])
-            bar.set_edgecolor("black")
+        labels = ["slurm", "batch", "granny", "granny-migrate"]
+
+        xs = []
+        ys = []
+        colors = []
+        xticks = []
+        xticklabels = []
+
+        for ind, n_vms in enumerate(num_vms):
+            x_offset = ind * len(labels) + (ind + 1)
+            xs += [x + x_offset for x in range(len(labels))]
+            ys += [results[n_vms][la]["makespan"] for la in labels]
+            colors += [PLOT_COLORS[la] for la in labels]
+
+            # Add one tick and xlabel per VM size
+            xticks.append(x_offset + len(labels) / 2)
+            xticklabels.append(
+                "{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind])
+            )
+
+            # Add spacing between vms
+            xs.append(x_offset + len(labels))
+            ys.append(0)
+            colors.append("white")
+
+        ax.bar(xs, ys, color=colors, edgecolor="black", width=1)
         ax.set_ylim(bottom=0)
         ax.set_ylabel("Makespan [s]")
-        ax.set_xticks(xs)
-        ax.set_xticklabels([_l for _l in labels], rotation=25, ha="right")
+        ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
+
+        # Manually craft legend
+        legend_entries = []
+        for label in labels:
+            if label == "granny":
+                legend_entries.append(
+                    Patch(color=PLOT_COLORS[label], label="granny-nomig")
+                )
+            elif label == "granny-migrate":
+                legend_entries.append(
+                    Patch(color=PLOT_COLORS[label], label="granny")
+                )
+            else:
+                legend_entries.append(
+                    Patch(color=PLOT_COLORS[label], label=label)
+                )
+        ax.legend(handles=legend_entries, ncols=2, fontsize=8)
 
     elif plot_name == "job_churn":
         """
@@ -393,18 +622,26 @@ def do_plot(plot_name, results, ax):
 
 
 @task(default=True)
-def plot(ctx, num_vms=32, num_tasks=100, num_cpus_per_vm=8):
+def plot(ctx):
     """
     Motivation plot:
     - Baselines: `slurm` and `batch`
     - TOP: timeseries of % of idle vCPUs over time
     - BOTTOM: timeseries of # of cross-VM links over time
     """
+    num_vms = [16, 24, 32, 48, 64]
+    num_tasks = [50, 75, 100, 150, 200]
+    num_cpus_per_vm = 8
+
     plots_dir = join(PLOTS_ROOT, "motivation")
     makedirs(plots_dir, exist_ok=True)
 
-    results = _read_results(num_vms, num_tasks, num_cpus_per_vm)
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(6, 3))
+    # Read results from files
+    results = {}
+    for (n_vms, n_tasks) in zip(num_vms, num_tasks):
+        results[n_vms] = do_read_results(n_vms, n_tasks, num_cpus_per_vm)
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)  # , figsize=(6, 3))
     fig.subplots_adjust(wspace=0.35)
 
     # TODO: check result integrity
@@ -413,13 +650,14 @@ def plot(ctx, num_vms=32, num_tasks=100, num_cpus_per_vm=8):
     # Plot 1: TODO
     # ----------
 
-    do_plot("ts_vcpus", results, ax1)
+    # do_plot("exec_vs_tiq", results, ax1, num_vms, num_tasks)
+    do_plot("exec_cdf", results, ax1, num_vms, num_tasks)
 
     # ----------
     # Plot 2: Job Churn
     # ----------
 
-    do_plot("makespan", results, ax2)
+    do_plot("makespan", results, ax2, num_vms, num_tasks)
 
     # ----------
     # Save figure

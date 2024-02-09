@@ -6,12 +6,12 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from random import randint
-from tasks.lammps.env import get_faasm_benchmark
-from tasks.makespan.env import (
+from tasks.util.env import PLOTS_ROOT, RESULTS_DIR
+from tasks.util.lammps import (
     LAMMPS_DOCKER_BINARY,
     LAMMPS_DOCKER_DIR,
+    get_faasm_benchmark,
 )
-from tasks.util.env import PLOTS_ROOT, RESULTS_DIR
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
 from time import time
 
