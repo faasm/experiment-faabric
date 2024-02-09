@@ -5,7 +5,7 @@ from faasmctl.util.config import (
 from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
 
 
-def get_faasm_exec_time_from_json(results_json):
+def get_faasm_exec_time_from_json(results_json, check=False):
     """
     Return the execution time (included in Faasm's response JSON) in seconds
     """

@@ -95,15 +95,20 @@ def get_lammps_migration_params(
     native=False,
 ):
     if native:
-        return "-x FAASM_BENCH_PARAMS={}:{}:{}".format(int(num_loops), int(num_net_loops), int(chunk_size))
+        return "-x FAASM_BENCH_PARAMS={}:{}:{}".format(
+            int(num_loops), int(num_net_loops), int(chunk_size)
+        )
 
     # We add an extra whitespace because there seems to be a strange bug when
     # encoding/decoding input data with a 4-digit chunk size. Adding the
     # whitespace works-around the issue
     return b64encode(
-        "{} {} {} {} ".format(int(check_every), int(num_loops), int(num_net_loops), int(chunk_size)).encode(
-            "utf-8"
-        )
+        "{} {} {} {} ".format(
+            int(check_every),
+            int(num_loops),
+            int(num_net_loops),
+            int(chunk_size),
+        ).encode("utf-8")
     ).decode("utf-8")
 
 

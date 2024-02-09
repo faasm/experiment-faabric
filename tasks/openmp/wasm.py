@@ -4,10 +4,10 @@ from tasks.util.env import (
     DGEMM_DOCKER_WASM,
     DGEMM_FAASM_USER,
     DGEMM_FAASM_FUNC,
-    KERNELS_WASM_DIR,
     OPENMP_KERNELS,
     OPENMP_KERNELS_FAASM_USER,
 )
+from tasks.util.kernels import KERNELS_WASM_DIR
 from tasks.util.upload import upload_wasm
 
 
