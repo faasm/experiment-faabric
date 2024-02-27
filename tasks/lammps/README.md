@@ -29,7 +29,7 @@ Upload the WASM file:
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv lammps.run.granny
+(faasm-exp-faabric) inv lammps.run.granny -w compute -w network
 ```
 
 To remove the cluster, run:
@@ -49,12 +49,27 @@ inv lammps.native.deploy
 And run:
 
 ```bash
-inv lammps.run.native
+inv lammps.run.native -w compute -w network
+```
+
+finally, delete the native cluster:
+
+```bash
+inv lammps.native.delete
 ```
 
 # Plot
 
-TODO:
+To plot the results, you may run:
+
+```bash
+inv lammps.plot
+```
+
+which will generate a plot in [`./plots/lammps/runtime.png`](
+./plots/lammps/runtime.png), we also include it below:
+
+![LAMMPS Runtime Plot](./plots/lammps/runtime.png)
 
 ## Clean-Up
 

@@ -1,30 +1,41 @@
+from glob import glob
 from invoke import task
-from math import sqrt
 from matplotlib.pyplot import subplots
 from os import makedirs
-from os.path import join, exists
+from os.path import join
 from pandas import read_csv
 from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.faasm import get_faasm_version
 
-LAMMPS_WORKLOAD = "compute-xl"
+LAMMPS_WORKLOADS = ["compute", "network"]
 RESULTS_DIR = join(PROJ_ROOT, "results", "lammps")
 PLOTS_DIR = join(PLOTS_ROOT, "lammps")
 
 
-def _read_results(csv):
-    csv = join(RESULTS_DIR, csv)
+def _read_results():
+    glob_str = "lammps_*.csv"
+    result_dict = {}
 
-    if not exists(csv):
-        raise RuntimeError("CSV not found: {}".format(csv))
+    for csv in glob(join(RESULTS_DIR, glob_str)):
+        baseline = csv.split("_")[1]
+        workload = csv.split("_")[-1][0:-4]
 
-    results = read_csv(csv)
+        if workload not in LAMMPS_WORKLOADS:
+            continue
 
-    grouped = results.groupby("WorldSize", as_index=False)
-    times = grouped.mean()
-    # Note that we use the standard error for correct error propagation
-    errs = grouped.sem()
+        if baseline not in result_dict:
+            result_dict[baseline] = {}
 
-    return grouped, times, errs
+        results = read_csv(csv)
+        grouped = results.groupby("WorldSize", as_index=False)
+
+        result_dict[baseline][workload] = {
+            "world-size": results["WorldSize"].to_list(),
+            "exec-time-mean": grouped.mean()["Time"].to_list(),
+            "exec-time-sem": grouped.sem()["Time"].to_list(),
+        }
+
+    return result_dict
 
 
 @task(default=True)
@@ -32,104 +43,49 @@ def plot(ctx, plot_elapsed_times=True):
     """
     Plot the LAMMPS results
     """
-    fig, ax = subplots(figsize=(6, 3))
     makedirs(PLOTS_DIR, exist_ok=True)
-    plot_file = join(
-        PLOTS_DIR, "runtime_{}.{}".format(LAMMPS_WORKLOAD, PLOTS_FORMAT)
-    )
+    result_dict = _read_results()
 
-    # Process data
-    native_csv = join(
-        RESULTS_DIR, "lammps_native_{}.csv".format(LAMMPS_WORKLOAD)
-    )
-    wasm_csv = join(
-        RESULTS_DIR, "lammps_granny_{}.csv".format(LAMMPS_WORKLOAD)
-    )
+    workloads = result_dict["granny"]
+    num_workloads = len(workloads)
+    num_procs = result_dict["granny"]["network"]["world-size"]
 
-    native_grouped, native_times, native_errs = _read_results(native_csv)
-    wasm_grouped, wasm_times, wasm_errs = _read_results(wasm_csv)
-
-    # Divide by first result to obtain speedup
-    native_single = native_times["Time"][0]
-    wasm_single = wasm_times["Time"][0]
-    native_speedup = [native_single / time for time in native_times["Time"]]
-    wasm_speedup = [wasm_single / time for time in wasm_times["Time"]]
-
-    # Error propagation (for dummies)
-    # https://www.dummies.com/education/science/biology/simple-error-propagation-formulas-for-simple-expressions/
-    native_speedup_errs = []
-    native_err_single = native_errs["Time"][0]
-    for native_sup, native_e, native_t in zip(
-        native_speedup, native_errs["Time"], native_times["Time"]
-    ):
-        native_speedup_errs.append(
-            native_sup
-            * sqrt(
-                pow(native_err_single / native_single, 2)
-                + pow(native_e / native_t, 2)
+    fig, ax = subplots()
+    width = 0.3
+    for workload_ind, workload in enumerate(workloads):
+        x_wload_offset = (
+            -int(num_workloads) / 2 * width
+            + width * workload_ind
+            + width * 0.5 * (num_workloads % 2 == 0)
+        )
+        slowdown = [
+            float(granny_time / native_time)
+            for (native_time, granny_time) in zip(
+                result_dict["native"][workload]["exec-time-mean"],
+                result_dict["granny"][workload]["exec-time-mean"],
             )
-        )
-    wasm_speedup_errs = []
-    wasm_err_single = wasm_errs["Time"][0]
-    for wasm_sup, wasm_e, wasm_t in zip(
-        wasm_speedup, wasm_errs["Time"], wasm_times["Time"]
-    ):
-        wasm_speedup_errs.append(
-            wasm_sup
-            * sqrt(
-                pow(wasm_err_single / wasm_single, 2) + pow(wasm_e / wasm_t, 2)
-            )
+        ]
+
+        x = [np - x_wload_offset for np in num_procs]
+        ax.bar(
+            x,
+            slowdown,
+            width=width,
+            label=workload,
         )
 
-    # Plot speed up data with error bars
-    ax.errorbar(
-        wasm_times["WorldSize"],
-        wasm_speedup,
-        yerr=wasm_speedup_errs,
-        label="Granny",
-        ecolor="gray",
-        elinewidth=0.8,
-        capsize=1.0,
-    )
-    ax.errorbar(
-        native_times["WorldSize"],
-        native_speedup,
-        yerr=native_speedup_errs,
-        label="OpenMPI",
-        ecolor="gray",
-        elinewidth=0.8,
-        capsize=1.0,
-    )
-
-    # Plot elapsed time in a separate y axis
-    if plot_elapsed_times:
-        ax_et = ax.twinx()
-        ax_et.errorbar(
-            wasm_times["WorldSize"],
-            wasm_times["Time"],
-            yerr=wasm_errs["Time"],
-            ecolor="gray",
-            elinewidth=0.8,
-            capsize=1.0,
-            alpha=0.3,
-        )
-        ax_et.errorbar(
-            native_times["WorldSize"],
-            native_times["Time"],
-            yerr=native_errs["Time"],
-            ecolor="gray",
-            elinewidth=0.8,
-            capsize=1.0,
-            alpha=0.3,
-        )
-        ax_et.set_ylabel("Elapsed time [s]")
-        ax_et.set_ylim(bottom=0)
-
-        ax.set_ylim(bottom=0)
-        ax.set_xlim(left=0)
-        ax.set_xticks([2 * i for i in range(9)])
-        ax.set_xlabel("# of processes")
-        ax.set_ylabel("Speed Up (vs 1 MPI Proc performance)")
-
+    xmin = 0
+    xmax = max(num_procs) + 1
+    ax.hlines(y=1, color="red", xmin=xmin, xmax=xmax)
+    ax.set_xlim(left=xmin)
+    ax.set_xticks(list(range(17)))
+    ax.set_ylim(bottom=0)
     ax.legend()
-    fig.savefig(plot_file, format=PLOTS_FORMAT, bbox_inches="tight")
+    ax.set_xlabel("# MPI Processes")
+    ax.set_ylabel("Slowdown [Granny / OpenMPI]")
+    ax.set_title("Faasm Version ({})".format(get_faasm_version()))
+
+    for plot_format in ["png", "pdf"]:
+        plot_file = join(PLOTS_DIR, "runtime_slowdown.{}".format(plot_format))
+        fig.savefig(plot_file, format=PLOTS_FORMAT, bbox_inches="tight")
+        print("Saved plot to: {}".format(plot_file))

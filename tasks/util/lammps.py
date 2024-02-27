@@ -42,7 +42,19 @@ LAMMPS_SIM_CHECK_AT = 3
 LAMMPS_SIM_NUM_NET_LOOPS = 1e4
 LAMMPS_SIM_CHUNK_SIZE = 2e4
 
+LAMMPS_SIM_WORKLOAD_CONFIGS = {
+    "compute": {
+        "num_net_loops": 0,
+        "chunk_size": 0,
+    },
+    "network": {
+        "num_net_loops": LAMMPS_SIM_NUM_NET_LOOPS,
+        "chunk_size": LAMMPS_SIM_CHUNK_SIZE,
+    },
+}
+
 # Different supported LAMMPS benchmarks
+# TODO: in general, we only run `compute-xl`
 BENCHMARKS = {
     "lj": {"data": ["bench/in.lj"], "out_file": "compute"},
     "compute": {"data": ["bench/in.lj"], "out_file": "compute"},

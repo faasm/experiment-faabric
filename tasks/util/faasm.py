@@ -3,6 +3,7 @@ from faasmctl.util.config import (
     get_faasm_planner_host_port as faasmctl_get_planner_host_port,
 )
 from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
+from os import environ
 
 
 def get_faasm_exec_time_from_json(results_json, check=False):
@@ -19,6 +20,13 @@ def get_faasm_exec_time_from_json(results_json, check=False):
 
 def get_faasm_planner_host_port():
     return faasmctl_get_planner_host_port(get_faasm_ini_file())
+
+
+def get_faasm_version():
+    if "FAASM_VERSION" in environ:
+        return environ["FAASM_VERSION"]
+
+    return "0.0.0"
 
 
 def post_async_msg_and_get_result_json(msg, host_list=None):
