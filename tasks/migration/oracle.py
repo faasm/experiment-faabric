@@ -20,6 +20,7 @@ from tasks.util.lammps import (
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
     LAMMPS_SIM_WORKLOAD,
+    LAMMPS_SIM_WORKLOAD_CONFIGS,
     get_faasm_benchmark,
     get_lammps_migration_params,
 )
@@ -53,16 +54,18 @@ def calculate_cross_vm_links(part):
 
 
 @task()
-def run(ctx, nprocs=None):
+def run(ctx, workload="network", nprocs=None):
     """
     Experiment to measure the benefits of migration in isolation
     """
     # Work out the number of processes to run with
     num_procs = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     num_cpus_per_vm = 8
-    num_vms = 8  # 16
+    num_vms = 16
     if nprocs is not None:
         num_procs = [int(nprocs)]
+
+    workload_config = LAMMPS_SIM_WORKLOAD_CONFIGS[workload]
 
     makedirs(RESULTS_DIR, exist_ok=True)
     result_dir = join(RESULTS_DIR, "migration")
@@ -79,9 +82,7 @@ def run(ctx, nprocs=None):
         reset_planner(num_vms)
 
         # Initialise CSV file
-        csv_name = "migration_oracle_{}_{}.csv".format(
-            LAMMPS_SIM_WORKLOAD, n_proc
-        )
+        csv_name = "migration_oracle_{}_{}.csv".format(workload, n_proc)
         result_file = join(result_dir, csv_name)
         with open(result_file, "w") as out_file:
             out_file.write("Partition,CrossVMLinks,Time\n")
@@ -89,7 +90,7 @@ def run(ctx, nprocs=None):
         partitions = partition(n_proc)
 
         # Prune the number of partitions we will explore to a hard cap
-        max_num_partitions = 10
+        max_num_partitions = 5
         partitions = [
             part for part in partitions if max(part) <= num_cpus_per_vm
         ]
@@ -118,7 +119,7 @@ def run(ctx, nprocs=None):
                     n_proc,
                     ind + 1,
                     len(pruned_partitions),
-                    LAMMPS_SIM_WORKLOAD,
+                    workload,
                     part,
                 )
             )
@@ -139,7 +140,10 @@ def run(ctx, nprocs=None):
                 "cmdline": cmdline,
                 # NOTE: in the oracle experiment we never migrate apps, we just
                 # explore the impact of # of cross-VM links in execution time
-                "input_data": get_lammps_migration_params(),
+                "input_data": get_lammps_migration_params(
+                    num_net_loops=workload_config["num_net_loops"],
+                    chunk_size=workload_config["chunk_size"],
+                ),
             }
 
             # Calculate number of cross-vm links
@@ -211,3 +215,4 @@ def plot(ctx):
 
     fig.tight_layout()
     savefig(out_file, format="pdf")  # , bbox_inches="tight")
+    print("Plot saved to: {}".format(out_file))

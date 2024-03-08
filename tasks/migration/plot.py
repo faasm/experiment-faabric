@@ -6,10 +6,9 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
-from tasks.util.plot import PLOT_COLORS, PLOT_PATTERNS
 
 
-ALL_WORKLOADS = ["lammps", "all-to-all"]
+ALL_WORKLOADS = ["compute", "network"]
 
 
 def _read_results():
@@ -18,7 +17,7 @@ def _read_results():
 
     for csv in glob(join(results_dir, "migration_*.csv")):
         workload = csv.split("_")[-1].split(".")[0]
-        if workload not in ["lammps", "all-to-all"]:
+        if workload not in ALL_WORKLOADS:
             continue
 
         results = read_csv(csv)
@@ -43,8 +42,8 @@ def plot(ctx):
     """
     migration_results = _read_results()
 
-    do_plot("all-to-all", migration_results)
-    do_plot("lammps", migration_results)
+    do_plot("compute", migration_results)
+    do_plot("network", migration_results)
 
 
 def do_plot(workload, migration_results):
@@ -56,7 +55,6 @@ def do_plot(workload, migration_results):
     xticks = arange(1, 6)
     width = 0.5
     idx_ref = migration_results[workload]["checks"].index(10)
-    ind = ALL_WORKLOADS.index(workload)
     ys = []
     for x in xs:
         idx_granny = migration_results[workload]["checks"].index(x)
@@ -72,8 +70,6 @@ def do_plot(workload, migration_results):
         ys,
         width,
         label=workload,
-        color=list(PLOT_COLORS.values())[ind],
-        hatch=PLOT_PATTERNS[ind],
         edgecolor="black",
     )
 

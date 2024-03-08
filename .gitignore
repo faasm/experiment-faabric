@@ -12,19 +12,9 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Plots and results (uncomment as we finish them)
-plots/makespan
-plots/migration
-plots/motivation
-plots/mpi
-plots/openmp
-plots/polybench
-results/makespan
-results/migration
-results/motivation
-results/mpi
-results/openmp
-results/polybench
+# Plots and results (uncomment once results are stable, and publicly available)
+plots/
+results/
 
 # Kubernetes
 .kube/

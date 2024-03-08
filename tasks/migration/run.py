@@ -1,15 +1,10 @@
 from faasmctl.util.config import get_faasm_worker_ips
-from faasmctl.util.flush import flush_workers
 from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
 from tasks.migration.util import generate_host_list
-from tasks.util.env import (
-    MPI_MIGRATE_FAASM_USER,
-    MPI_MIGRATE_FAASM_FUNC,
-    RESULTS_DIR,
-)
+from tasks.util.env import RESULTS_DIR
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
@@ -17,6 +12,8 @@ from tasks.util.faasm import (
 from tasks.util.lammps import (
     LAMMPS_FAASM_USER,
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    LAMMPS_SIM_WORKLOAD,
+    LAMMPS_SIM_WORKLOAD_CONFIGS,
     get_faasm_benchmark,
     get_lammps_migration_params,
 )
@@ -44,65 +41,68 @@ def _write_csv_line(csv_name, nprocs, check, run_num, actual_time):
         )
 
 
-@task(default=True)
-def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
+@task(default=True, iterable=["w"])
+def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
     """
     Run migration experiment
     """
-    num_workers = len(get_faasm_worker_ips())
-    reset_planner(num_workers)
-
-    all_workloads = ["all-to-all", "lammps", "all"]
-    if workload == "all":
-        workload = all_workloads[:-1]
-    elif workload in all_workloads:
-        workload = [workload]
-    else:
-        raise RuntimeError(
-            "Unrecognised workload: {}. Must be one in: {}".format(
-                workload, all_workloads
-            )
-        )
+    num_vms = len(get_faasm_worker_ips())
+    assert num_vms == 2, "Expected 2 VMs got: {}!".format(num_vms)
+    data_file = basename(get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0])
 
     if check_in is None:
         check_array = [0, 2, 4, 6, 8, 10]
     else:
         check_array = [int(check_in)]
 
-    for wload in workload:
-        csv_name = "migration_{}.csv".format(wload)
+    for workload in w:
+        if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
+            print(
+                "Unrecognised workload config ({}) must be one in: {}".format(
+                    workload, LAMMPS_SIM_WORKLOAD.keys()
+                )
+            )
+        workload_config = LAMMPS_SIM_WORKLOAD_CONFIGS[workload]
+
+        csv_name = "migration_{}.csv".format(workload)
         _init_csv_file(csv_name)
 
         for check in check_array:
             for run_num in range(repeats):
-                # First, flush the host state
-                flush_workers()
-                sleep(2)
+                reset_planner(num_vms)
 
                 # Print progress
                 print(
                     "Running migration micro-benchmark (wload:"
                     + "{} - check-at: {} - repeat: {}/{})".format(
-                        wload, check, run_num + 1, repeats
+                        workload, check, run_num + 1, repeats
                     )
                 )
 
-                if wload == "all-to-all":
+                """
+                TODO: do we want to keep the all-to-all baseline?
+                if workload == "all-to-all":
                     num_loops = 100000
                     user = MPI_MIGRATE_FAASM_USER
                     func = MPI_MIGRATE_FAASM_FUNC
                     cmdline = "{} {}".format(
                         check if check != 0 else 5, num_loops
                     )
-                else:
-                    file_name = basename(
-                        get_faasm_benchmark("network")["data"][0]
-                    )
-                    user = LAMMPS_FAASM_USER
-                    func = LAMMPS_FAASM_MIGRATION_NET_FUNC
-                    cmdline = "-in faasm://lammps-data/{}".format(file_name)
-                    num_loops = 5
-                    check_at_loop = num_loops if check == 0 else check / 2
+                """
+
+                # Run LAMMPS
+                cmdline = "-in faasm://lammps-data/{}".format(data_file)
+                msg = {
+                    "user": LAMMPS_FAASM_USER,
+                    "function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
+                    "cmdline": cmdline,
+                    "mpi_world_size": int(num_cores_per_vm),
+                    "input_data": get_lammps_migration_params(
+                        num_loops=5,
+                        num_net_loops=workload_config["num_net_loops"],
+                        chunk_size=workload_config["chunk_size"],
+                    ),
+                }
 
                 if check == 0:
                     # Setting a check fraction of 0 means we don't
@@ -115,18 +115,6 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                     # planner
                     host_list = generate_host_list([num_cores_per_vm / 2] * 2)
 
-                msg = {
-                    "user": user,
-                    "function": func,
-                    "mpi": True,
-                    "mpi_world_size": int(num_cores_per_vm),
-                    "cmdline": cmdline,
-                }
-                if wload == "lammps":
-                    msg["input_data"] = get_lammps_migration_params(
-                        check_at_loop, num_loops
-                    )
-
                 # Invoke with or without pre-loading
                 result_json = post_async_msg_and_get_result_json(
                     msg, host_list=host_list
@@ -135,3 +123,5 @@ def run(ctx, workload="all", check_in=None, repeats=1, num_cores_per_vm=8):
                 _write_csv_line(
                     csv_name, num_cores_per_vm, check, run_num, actual_time
                 )
+
+                sleep(2)
