@@ -75,11 +75,13 @@ def plot(ctx, plot_elapsed_times=True):
         )
 
     xmin = 0
+    ymin = 0
+    ymax = 1.5
     xmax = max(num_procs) + 1
     ax.hlines(y=1, color="red", xmin=xmin, xmax=xmax)
     ax.set_xlim(left=xmin)
     ax.set_xticks(list(range(17)))
-    ax.set_ylim(bottom=0)
+    ax.set_ylim(bottom=ymin, top=ymax)
     ax.legend()
     ax.set_xlabel("# MPI Processes")
     ax.set_ylabel("Slowdown [Granny / OpenMPI]")
