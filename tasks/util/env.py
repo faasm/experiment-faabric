@@ -29,14 +29,6 @@ MPL_STYLE_FILE = join(PROJ_ROOT, "faasm.mplstyle")
 EXAMPLES_BASE_DIR = join("/code", "faasm-examples")
 EXAMPLES_DOCKER_DIR = join(EXAMPLES_BASE_DIR, "examples")
 
-# --- LULESH ---
-
-LULESH_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "LULESH")
-LULESH_DOCKER_BINARY = join(LULESH_DOCKER_DIR, "build", "native", "lulesh2.0")
-LULESH_DOCKER_WASM = join(LULESH_DOCKER_DIR, "build", "wasm", "lulesh2.0")
-LULESH_FAASM_USER = "lulesh"
-LULESH_FAASM_FUNC = "main"
-
 # --- DGEMM (OpenMP Kernel) ---
 
 DGEMM_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")

@@ -9,13 +9,14 @@ RUN rm -rf /code \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout d36abd4f0cb302a7be4c3eacdf3aec26280a1ca0 \
+    && git checkout 287220031b51fb464df5217e79f2ae95d7707584 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
     && git submodule update --init -f examples/lammps \
     && git submodule update --init -f examples/lammps-migration \
     && git submodule update --init -f examples/lammps-migration-net \
+    && git submodule update --init -f examples/LULESH \
     && git submodule update --init -f examples/polybench \
     && ./bin/create_venv.sh \
     && source ./venv/bin/activate \
@@ -27,8 +28,8 @@ RUN rm -rf /code \
     && inv lammps --migration \
     && inv lammps --migration-net --native \
     && inv lammps --migration-net \
-    # && inv lulesh --native \
-    # && inv lulesh \
+    && inv lulesh --native \
+    && inv lulesh \
     && inv polybench \
     && inv polybench --native \
     && inv func lammps chain \
