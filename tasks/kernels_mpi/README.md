@@ -24,13 +24,13 @@ Deploy the cluster:
 Upload the WASM file:
 
 ```bash
-(faasm-exp-faabric) inv kernels.wasm.upload
+(faasm-exp-faabric) inv kernels-mpi.wasm.upload
 ```
 
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv kernels.run.granny
+(faasm-exp-faabric) inv kernels-mpi.run.granny
 ```
 
 finally, delete the Granny cluster:
@@ -44,17 +44,17 @@ faasmctl delete
 Deploy the OpenMPI cluster:
 
 ```bash
-inv kernels.native.deploy
+inv kernels-mpi.native.deploy
 ```
 
 ```bash
-inv kernels.run.native
+inv kernels-mpi.run.native
 ```
 
 finally, delete the OpenMPI cluster
 
 ```bash
-inv kernels.native.delete
+inv kernels-mpi.native.delete
 ```
 
 ## Plot
@@ -62,7 +62,7 @@ inv kernels.native.delete
 To plot the results, just run:
 
 ```bash
-inv kernels.plot
+inv kernels-mpi.plot
 ```
 
 the plot will be available in [`./plots/kernels-mpi/mpi_kernels_slowdown.pdf`](
