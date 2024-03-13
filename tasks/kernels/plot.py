@@ -1,12 +1,11 @@
 from glob import glob
 from invoke import task
+from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
 from tasks.util.kernels import KERNELS_EXPERIMENT_NPROCS, KERNELS_FAASM_FUNCS
-
-import matplotlib.pyplot as plt
 
 PLOTS_DIR = join(PLOTS_ROOT, "kernels-mpi")
 
@@ -45,7 +44,7 @@ def kernels(ctx):
     out_file_name = "mpi_kernels_slowdown.pdf"
     result_dict = _read_kernels_results()
     makedirs(PLOTS_DIR, exist_ok=True)
-    fig, ax = plt.subplots()
+    fig, ax = subplots()
 
     num_kernels = len(KERNELS_FAASM_FUNCS)
     width = float(1 / (num_kernels + 1))
@@ -100,12 +99,12 @@ def kernels(ctx):
     # Horizontal line at slowdown of 1
     xlim_left = -0.5
     xlim_right = len(KERNELS_EXPERIMENT_NPROCS) + 0.5
-    plt.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
+    fig.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
 
     # Vertical lines to separate MPI processes
     ylim_bottom = 0
     ylim_top = 5
-    plt.vlines(
+    fig.vlines(
         [i + 0.5 for i in range(len(KERNELS_EXPERIMENT_NPROCS) - 1)],
         ylim_bottom,
         ylim_top,
@@ -119,7 +118,7 @@ def kernels(ctx):
     ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
     ax.legend(loc="upper right", ncol=4)
 
-    plt.savefig(
+    fig.savefig(
         join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
     )
 

@@ -1,25 +1,20 @@
-from faasmctl.util.flush import flush_workers
-from faasmctl.util.invoke import invoke_wasm as faasmctl_invoke_wasm
+from faasmctl.util.config import get_faasm_worker_ips
+from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import join
 from subprocess import run
 from tasks.util.env import (
-    DGEMM_DOCKER_BINARY,
-    DGEMM_FAASM_USER,
-    DGEMM_FAASM_FUNC,
     OPENMP_KERNELS,
     OPENMP_KERNELS_DOCKER_DIR,
     OPENMP_KERNELS_FAASM_USER,
     RESULTS_DIR,
 )
-from tasks.util.faasm import get_faasm_exec_time_from_json
-from time import time
-
-# TODO: move this to tasks.openmp.env
-from tasks.makespan.env import (
-    get_dgemm_cmdline,
+from tasks.util.faasm import (
+    get_faasm_exec_time_from_json,
+    post_async_msg_and_get_result_json,
 )
+from time import time
 
 """
 from tasks.util.openmpi import (
@@ -28,6 +23,7 @@ from tasks.util.openmpi import (
 )
 """
 
+EXPECTED_NUM_VMS = 1
 TOTAL_NUM_THREADS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
@@ -54,9 +50,10 @@ def _write_csv_line(csv_name, num_threads, run, exec_time):
 def get_kernel_cmdline(kernel, num_threads):
     kernels_cmdline = {
         # dgemm: iterations, matrix order, tile size
-        "dgemm": [10, 2048, 32],
+        "dgemm": "10 2048 32",
         # global: iterations, scramble string length
-        "global": "10000 100000",
+        # string length must be multiple of num_threads
+        "global": "10000 {}".format(1 * 2 * 3 * 4 * 5 * 6 * 7 * 8 * 2),
         # nstream: iterations, vector length, offset
         # nstream vector length gets OOM somewhere over 50000000 in wasm
         "nstream": "10 50000000 32",
@@ -68,9 +65,9 @@ def get_kernel_cmdline(kernel, num_threads):
         # reduce: iterations, vector length
         "reduce": "200 10000000",
         # sparse: iterations, 2log grid size, radius
-        "sparse": [10, 10, 12],
+        "sparse": "10 10 12",
         # stencil: iterations, array dimension
-        "stencil": [10, 10000],
+        "stencil": "10 10000",
         # transpose: iterations, matrix order, tile size
         "transpose": "10 8000 32",
     }
@@ -99,111 +96,99 @@ def has_execution_failed(results_json):
 
 
 @task
-def granny(ctx, workload="dgemm", num_threads=None, repeats=1):
-    if num_threads is not None:
-        num_threads = [num_threads]
-    else:
-        num_threads = TOTAL_NUM_THREADS  # [1, 2, 3, 4, 5, 6, 7, 8]
+def granny(ctx, kernel=None, num_threads=None, repeats=1):
+    """
+    Run the OpenMP Kernels
+    """
+    num_vms = len(get_faasm_worker_ips())
+    assert num_vms == EXPECTED_NUM_VMS, "Expected {} VMs got: {}!".format(
+        EXPECTED_NUM_VMS, num_vms
+    )
 
-    all_workloads = ["dgemm"]
-    if workload not in OPENMP_KERNELS:
-        raise RuntimeError(
-            "Unrecognised workload ({}) must be one in: {}".format(
-                workload, all_workloads
-            )
-        )
-    elif workload == "all":
-        workload = all_workloads
-    else:
-        workload = [workload]
-
-    for wload in workload:
-        for nthread in num_threads:
-            for r in range(int(repeats)):
-                csv_name = "openmp_{}_granny_{}.csv".format(wload, num_threads)
-                _init_csv_file(csv_name)
-
-                flush_workers()
-
-                if wload == "dgemm":
-                    user = DGEMM_FAASM_USER
-                    func = DGEMM_FAASM_FUNC
-                    cmdline = get_dgemm_cmdline(nthread, iterations=4)  # 20)
-                else:
-                    user = OPENMP_KERNELS_FAASM_USER
-                    func = wload
-                    cmdline = get_kernel_cmdline(wload, nthread)
-                msg = {
-                    "user": user,
-                    "function": func,
-                    "cmdline": cmdline,
-                }
-                req = {
-                    "user": user,
-                    "function": func,
-                    "singleHost": True,
-                }
-                if wload == "lulesh":
-                    msg["input_data"] = str(nthread)
-
-                # result_json = post_async_msg_and_get_result_json(msg)
-                results_json = faasmctl_invoke_wasm(
-                    msg, req_dict=req, dict_out=True
-                )["messageResults"]
-                while has_execution_failed(results_json):
-                    print("Execution failed, trying again...")
-                    return
-                    # print(results_json)
-                    # print(result_json)
-                    results_json = faasmctl_invoke_wasm(
-                        msg, req_dict=req, dict_out=True
-                    )["messageResults"]
-
-                result_json = results_json[0]
-
-                actual_time = int(get_faasm_exec_time_from_json(result_json))
-                _write_csv_line(csv_name, nthread, r, actual_time)
-                print(
-                    "Nthreads: {} - Actual time: {}".format(
-                        nthread, actual_time
-                    )
-                )
-
-
-@task
-def native(ctx, workload="dgemm", num_threads=None, repeats=1):
     if num_threads is not None:
         num_threads = [num_threads]
     else:
         num_threads = TOTAL_NUM_THREADS
 
-    all_workloads = ["dgemm", "lulesh", "all"]
-    if workload not in OPENMP_KERNELS:
+    if (kernel is not None) and (kernel not in OPENMP_KERNELS):
         raise RuntimeError(
-            "Unrecognised workload ({}) must be one in: {}".format(
-                workload, all_workloads
+            "Unrecognised kernel ({}) must be one in: {}".format(
+                kernel, OPENMP_KERNELS
             )
         )
-    elif workload == "all":
-        workload = ["dgemm", "lulesh"]
+    elif kernel is None:
+        kernel = OPENMP_KERNELS
     else:
-        workload = [workload]
+        kernel = [kernel]
+
+    for wload in kernel:
+        reset_planner(num_vms)
+
+        csv_name = "openmp_{}_granny.csv".format(wload)
+        _init_csv_file(csv_name)
+
+        for nthread in num_threads:
+            for r in range(int(repeats)):
+                print(
+                    "Running OpenMP Kernel ({}) with {} threads (repeat: {}/{})".format(
+                        wload, nthread, r + 1, repeats
+                    )
+                )
+                user = OPENMP_KERNELS_FAASM_USER
+                func = wload
+                cmdline = get_kernel_cmdline(wload, nthread)
+                msg = {
+                    "user": user,
+                    "function": func,
+                    "cmdline": cmdline,
+                }
+
+                result_json = post_async_msg_and_get_result_json(msg)
+                actual_time = get_faasm_exec_time_from_json(
+                    result_json, check=True
+                )
+                _write_csv_line(csv_name, nthread, r, actual_time)
+                print(
+                    "Kernel: {} - Nthreads: {} - Actual time: {}".format(
+                        wload, nthread, actual_time
+                    )
+                )
+
+
+@task
+def native(ctx, kernel=None, num_threads=None, repeats=1):
+    if num_threads is not None:
+        num_threads = [num_threads]
+    else:
+        num_threads = TOTAL_NUM_THREADS
+
+    if (kernel is not None) and (kernel not in OPENMP_KERNELS):
+        raise RuntimeError(
+            "Unrecognised kernel ({}) must be one in: {}".format(
+                kernel, OPENMP_KERNELS
+            )
+        )
+    elif kernel is None:
+        kernel = OPENMP_KERNELS
+    else:
+        kernel = [kernel]
 
     # Pick one VM in the cluster at random to run native OpenMP in
     # vm_names, vm_ips = get_native_mpi_pods("openmp")
     # master_vm = vm_names[0]
 
-    for wload in workload:
+    for wload in kernel:
         csv_name = "openmp_{}_native.csv".format(wload)
         _init_csv_file(csv_name)
         for r in range(int(repeats)):
             for nthread in num_threads:
-                if wload == "dgemm":
-                    binary = DGEMM_DOCKER_BINARY
-                    cmdline = get_dgemm_cmdline(nthread, iterations=20)
-                else:
-                    binary = get_kernel_binary(wload)
-                    cmdline = get_kernel_cmdline(wload, nthread)
+                print(
+                    "Running OpenMP Kernel ({}) with {} threads (repeat: {}/{})".format(
+                        wload, nthread, r + 1, repeats
+                    )
+                )
+                binary = get_kernel_binary(wload)
+                cmdline = get_kernel_cmdline(wload, nthread)
                 openmp_cmd = "bash -c 'OPENMP_NUM_THREADS={} {} {}'".format(
                     nthread, binary, cmdline
                 )
@@ -227,6 +212,6 @@ def native(ctx, workload="dgemm", num_threads=None, repeats=1):
                 start_ts = time()
                 # run_kubectl_cmd("openmp", exec_cmd)
                 run(docker_cmd, shell=True, check=True)
-                actual_time = int(time() - start_ts)
+                actual_time = round(time() - start_ts, 2)
                 _write_csv_line(csv_name, nthread, r, actual_time)
-                print("Actual time: {}".format(actual_time))
+                print("Actual time: {} s".format(actual_time))

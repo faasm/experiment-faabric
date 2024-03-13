@@ -48,7 +48,7 @@ DGEMM_FAASM_FUNC = "main"
 # --- OpenMP Kernels ---
 
 OPENMP_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
-OPENMP_KERNELS = ["global", "p2p", "nstream", "reduce", "dgemm"]
+OPENMP_KERNELS = ["global", "p2p", "sparse", "nstream", "reduce", "dgemm"]
 OPENMP_KERNELS_FAASM_USER = "kernels-omp"
 
 # --- MPI Migration Microbenchmark
