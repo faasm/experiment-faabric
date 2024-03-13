@@ -28,7 +28,7 @@ TOTAL_NUM_THREADS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "openmp")
+    result_dir = join(RESULTS_DIR, "kernels-omp")
     makedirs(result_dir, exist_ok=True)
 
     result_file = join(result_dir, csv_name)
@@ -38,7 +38,7 @@ def _init_csv_file(csv_name):
 
 
 def _write_csv_line(csv_name, num_threads, run, exec_time):
-    result_dir = join(RESULTS_DIR, "openmp")
+    result_dir = join(RESULTS_DIR, "kernels-omp")
     makedirs(result_dir, exist_ok=True)
 
     result_file = join(result_dir, csv_name)

@@ -23,10 +23,11 @@ the results.
 Microbenchmarks:
 * [Polybench](./tasks/polybench/README.md) - experiment to measure the baseline overhead of using WebAssembly to execute the [PolyBench/C](https://web.cse.ohio-state.edu/~pouchet.2/software/polybench/) kernels.
 * [Kernels (MPI)](./tasks/kernels_mpi/README.md) - microbenchmark of Faabric's MPI implementation using a subset of the [ParRes Kernels](https://github.com/ParRes/Kernels)
-* Kernels (OpenMP) - TODO
+* [Kernels (OpenMP)](./tasks/kernels_omp/README.md) - microbenchmark of Faabric's OpenMP implementation using a subset of the [ParRes Kernels](https://github.com/ParRes/Kernels).
 * LULESH - TODO
 * [LAMMPS](./tasks/lammps/README.md) - experiment using Faabric to run a one-off molecule simulation using [LAMMPS](https://www.lammps.org)
 * [Migration](./tasks/migration/README.md) - microbenchmark showcasing the benefits of migrating an MPI application to improve locality.
+* [Elastic] - TODO
 
 Macrobenchmarks:
 * [Makespan](./tasks/makespan/README.md) - experiment using Faabric to run a trace of scientific applications over a shared cluster of VMs. Comes in three flavours:

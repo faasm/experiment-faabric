@@ -7,8 +7,8 @@ from pandas import read_csv
 from tasks.util.env import OPENMP_KERNELS, PLOTS_ROOT, PROJ_ROOT
 
 
-RESULTS_DIR = join(PROJ_ROOT, "results", "openmp")
-PLOTS_DIR = join(PLOTS_ROOT, "openmp")
+RESULTS_DIR = join(PROJ_ROOT, "results", "kernels-omp")
+PLOTS_DIR = join(PLOTS_ROOT, "kernels-omp")
 
 
 def _read_results():

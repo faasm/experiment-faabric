@@ -1,7 +1,7 @@
-# ParRes Kernels Experiment (MPI)
+# ParRes Kernels Experiment (OpenMP)
 
 This experiment runs a set of the [ParRes Kernels](https://github.com/ParRes/Kernels)
-as a microbenchmark for Granny's MPI implementation.
+as a microbenchmark for Granny's OpenMP implementation.
 
 ## Start AKS cluster
 
@@ -22,13 +22,13 @@ Deploy the cluster:
 Upload the WASM file:
 
 ```bash
-(faasm-exp-faabric) inv kernels-mpi.wasm.upload
+(faasm-exp-faabric) inv kernels-omp.wasm.upload
 ```
 
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv kernels-mpi.run.granny
+(faasm-exp-faabric) inv kernels-omp.run.granny
 ```
 
 finally, delete the Granny cluster:
@@ -39,20 +39,20 @@ faasmctl delete
 
 ## OpenMPI
 
-Deploy the OpenMPI cluster:
+Deploy the native cluster:
 
 ```bash
-inv kernels-mpi.native.deploy
+inv kernels-omp.native.deploy
 ```
 
 ```bash
-inv kernels-mpi.run.native
+inv kernels-omp.run.native
 ```
 
-finally, delete the OpenMPI cluster
+finally, delete the native cluster
 
 ```bash
-inv kernels-mpi.native.delete
+inv kernels-omp.native.delete
 ```
 
 ## Plot
@@ -60,13 +60,13 @@ inv kernels-mpi.native.delete
 To plot the results, just run:
 
 ```bash
-inv kernels-mpi.plot
+inv kernels-omp.plot
 ```
 
-the plot will be available in [`./plots/kernels-mpi/mpi_kernels_slowdown.pdf`](
-./plots/kernels-mpi/mpi_kernels_slowdown.pdf), we also include it below:
+the plot will be available in [`./plots/kernels-omp/openmp_kernels_slowdown.pdf`](
+./plots/kernels-omp/openmp_kernels_slowdown.pdf), we also include it below:
 
-![MPI Kernels Slowdown Plot](./plots/kernels-mpi/mpi_kernels_slowdown.png)
+![OpenMP Kernels Slowdown Plot](./plots/kernels-omp/openmp_kernels_slowdown.png)
 
 ## Clean-up
 
