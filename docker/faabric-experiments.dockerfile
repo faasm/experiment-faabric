@@ -1,5 +1,5 @@
 # Build the experiments' code
-FROM faasm.azurecr.io/examples-build:0.3.1_0.3.1 as build
+FROM faasm.azurecr.io/examples-build:0.4.0_0.4.0 as build
 
 RUN rm -rf /code \
     && mkdir -p /code \
@@ -9,7 +9,7 @@ RUN rm -rf /code \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout eae2a2925808cc972a55fba4a7d7e8fd9ec531af \
+    && git checkout d36abd4f0cb302a7be4c3eacdf3aec26280a1ca0 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
@@ -19,25 +19,23 @@ RUN rm -rf /code \
     && git submodule update --init -f examples/polybench \
     && ./bin/create_venv.sh \
     && source ./venv/bin/activate \
-    && inv \
-        kernels --native \
-        kernels \
-        lammps --native \
-        lammps \
-        lammps --migration --native \
-        lammps --migration \
-        lammps --migration-net --native \
-        lammps --migration-net \
-        # lulesh --native \
-        # lulesh \
-        polybench \
-        polybench --native \
-    && inv \
-        func lammps chain \
-        func mpi migrate
+    && inv kernels --native \
+    && inv kernels \
+    && inv lammps --native \
+    && inv lammps \
+    && inv lammps --migration --native \
+    && inv lammps --migration \
+    && inv lammps --migration-net --native \
+    && inv lammps --migration-net \
+    # && inv lulesh --native \
+    # && inv lulesh \
+    && inv polybench \
+    && inv polybench --native \
+    && inv func lammps chain \
+    && inv func mpi migrate
 
 # Prepare the runtime to run the native experiments
-FROM faasm.azurecr.io/openmpi:0.3.0
+FROM faasm.azurecr.io/openmpi:0.5.0
 
 COPY --from=build --chown=mpirun:mpirun /code/faasm-examples /code/faasm-examples
 COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/mpi/migrate/function.wasm /code/faasm-examples/mpi_migrate.wasm
@@ -46,4 +44,4 @@ COPY --from=build --chown=mpirun:mpirun /usr/local/faasm/wasm/polybench/ /code/f
 # Install OpenMP
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update \
-    && apt install -y libomp-13-dev
+    && apt install -y libomp-17-dev

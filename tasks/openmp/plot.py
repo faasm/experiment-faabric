@@ -1,13 +1,10 @@
 from glob import glob
 from invoke import task
-from numpy import arange
+from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from pandas import read_csv
-from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
-from tasks.util.plot import PLOT_COLORS, PLOT_PATTERNS
-
-import matplotlib.pyplot as plt
+from tasks.util.env import OPENMP_KERNELS, PLOTS_ROOT, PROJ_ROOT
 
 
 RESULTS_DIR = join(PROJ_ROOT, "results", "openmp")
@@ -28,87 +25,83 @@ def _read_results():
             result_dict[baseline] = {}
         if workload not in result_dict[baseline]:
             result_dict[baseline][workload] = {}
-        result_dict[baseline][workload] = {
-            "num-threads": groupped_results.mean()["NumThreads"].to_list(),
-            "mean": groupped_results.mean()["ExecTimeSecs"].to_list(),
-            "sem": groupped_results.sem()["ExecTimeSecs"].to_list(),
-        }
+
+        for nt in groupped_results.mean()["NumThreads"].to_list():
+            index = groupped_results.mean()["NumThreads"].to_list().index(nt)
+            result_dict[baseline][workload][nt] = {
+                "mean": groupped_results.mean()["ExecTimeSecs"].to_list()[
+                    index
+                ],
+                "sem": groupped_results.sem()["ExecTimeSecs"].to_list()[index],
+            }
 
     return result_dict
 
 
 @task(default=True)
 def plot(ctx):
-    out_file_name = "openmp_slowdown.pdf"
+    """
+    Plot the slowdown of OpenMP's ParRes kernels
+    """
+    out_file_name = "openmp_kernels_slowdown.pdf"
     result_dict = _read_results()
     makedirs(PLOTS_DIR, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(6, 2))
-    xs = [1, 2, 3, 4, 5, 6, 7, 8]  # , 10, 12, 14, 16]
-    xticks = arange(1, len(xs) + 1)
-    num_ctrs_per_vm = 8
-    allowed_workloads = ["dgemm", "reduce"]
-    width = 0.5 / len(allowed_workloads)
-    if len(allowed_workloads) == 2:
-        x_offset = 0.5
-    elif len(allowed_workloads) == 1:
-        x_offset = 0
-    ymax = 1.5
-    for ind, workload in enumerate(result_dict["granny"]):
-        if workload not in allowed_workloads:
-            continue
+    fig, ax = subplots(figsize=(6, 2))
+
+    num_kernels = len(OPENMP_KERNELS)
+    width = float(1 / (num_kernels + 1))
+    nprocs = list(range(1, 9))
+
+    for ind_kernel, kernel in enumerate(OPENMP_KERNELS):
         ys = []
-        for x_ind, x in enumerate(xs):
-            try:
-                idx_granny = result_dict["granny"][workload][
-                    "num-threads"
-                ].index(x)
-                if x > num_ctrs_per_vm:
-                    idx_native = result_dict["native-1"][workload][
-                        "num-threads"
-                    ].index(num_ctrs_per_vm)
-                else:
-                    idx_native = result_dict["native-1"][workload][
-                        "num-threads"
-                    ].index(x)
-                yval = float(
-                    result_dict["native"][workload]["mean"][idx_native]
-                    / result_dict["granny"][workload]["mean"][idx_granny]
-                )
-                ys.append(yval)
-                if yval > ymax:
-                    plt.text(
-                        xticks[x_ind] - 0.4,
-                        ymax / 2,
-                        "{}x".format(int(yval)),
-                        fontdict={"rotation": 90},
-                    )
-            except ValueError:
-                ys.append(0)
-        barlist = ax.bar(
-            [x - width * x_offset + width * ind for x in xticks],
+        xs = []
+        x_kern_offset = -(num_kernels / 2) * width + ind_kernel * width
+        if num_kernels % 2 == 0:
+            x_kern_offset += width / 2
+
+        for ind_np, np in enumerate(nprocs):
+            xs.append(ind_np + x_kern_offset)
+            y = (
+                result_dict["granny"][kernel][np]["mean"]
+                / result_dict["native"][kernel][np]["mean"]
+            )
+            ys.append(
+                result_dict["granny"][kernel][np]["mean"]
+                / result_dict["native"][kernel][np]["mean"]
+            )
+            ax.text(
+                x=ind_np + x_kern_offset - 0.08,
+                y=y + 0.1,
+                s="{} s".format(result_dict["granny"][kernel][np]["mean"]),
+                rotation=90,
+                fontsize=6,
+            )
+
+        ax.bar(
+            xs,
             ys,
             width,
-            label=workload,
-            color=list(PLOT_COLORS.values())[ind],
-            hatch=PLOT_PATTERNS[ind],
+            label=kernel,
             edgecolor="black",
         )
-        for ind, bar in enumerate(barlist):
-            if ind >= num_ctrs_per_vm:
-                bar.set_alpha(0.5)
-    ax.set_xlim(left=0)
-    ax.set_xlabel("Number of OpenMP threads")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xs)
+
+    # Labels
+    xs = list(range(len(nprocs)))
+    ax.set_xticks(xs, labels=nprocs)
+
+    # Horizontal line at slowdown of 1
+    xlim_left = -0.5
+    xlim_right = len(nprocs) + 0.5
+    fig.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
+
+    ymax = 5
     ax.set_ylim(bottom=0, top=ymax)
-    plt.vlines(8.5, 0, ymax, linestyle="dashed", color="gray")
-    plt.text(8.5 - 1, ymax + 0.1, "VM capacity")
-    plt.hlines(1, 0, 17, linestyle="dashed", colors="red")
-    ax.legend(loc="upper left", ncol=1)
-    ax.set_ylabel("Speed-up \n [OpenMP / Granny]")
+    ax.set_xlabel("Number of OpenMP threads")
+    ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
+    ax.legend(loc="upper right", ncol=4)
 
     fig.tight_layout()
-    plt.savefig(
+    fig.savefig(
         join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
     )
 
