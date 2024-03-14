@@ -1,5 +1,5 @@
 # Build the experiments' code
-FROM faasm.azurecr.io/examples-build:0.4.0_0.4.0 as build
+FROM faasm.azurecr.io/examples-build:0.5.0_0.4.0 as build
 
 RUN rm -rf /code \
     && mkdir -p /code \
@@ -9,7 +9,7 @@ RUN rm -rf /code \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout 287220031b51fb464df5217e79f2ae95d7707584 \
+    && git checkout 55884feb268e8b9837b9af0ba4e82667fae397c1 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
