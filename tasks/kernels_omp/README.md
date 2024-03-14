@@ -11,12 +11,12 @@ In the `experiment-base` terminal, run:
 (faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 2 cluster.credentials
 ```
 
-## Granny
+## Faasm
 
 Deploy the cluster:
 
 ```bash
-(faasm-exp-faabric) faasmctl deploy.k8s --workers=4
+(faasm-exp-faabric) faasmctl deploy.k8s --workers=1
 ```
 
 Upload the WASM file:
@@ -28,10 +28,10 @@ Upload the WASM file:
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv kernels-omp.run.granny
+(faasm-exp-faabric) inv kernels-omp.run.wasm
 ```
 
-finally, delete the Granny cluster:
+finally, delete the cluster:
 
 ```bash
 faasmctl delete

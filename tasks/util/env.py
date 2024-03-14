@@ -6,6 +6,7 @@ from subprocess import run
 HOME_DIR = expanduser("~")
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
 FAASM_ROOT = join(HOME_DIR, "faasm")
+SYSTEM_NAME = "Granny"
 
 ACR_NAME = "faasm.azurecr.io"
 FAABRIC_EXP_IMAGE_NAME = "faabric-experiments"
@@ -36,12 +37,6 @@ DGEMM_DOCKER_BINARY = join(DGEMM_DOCKER_DIR, "build", "native", "omp_dgemm.o")
 DGEMM_DOCKER_WASM = join(DGEMM_DOCKER_DIR, "build", "wasm", "omp_dgemm.wasm")
 DGEMM_FAASM_USER = "dgemm"
 DGEMM_FAASM_FUNC = "main"
-
-# --- OpenMP Kernels ---
-
-OPENMP_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
-OPENMP_KERNELS = ["global", "p2p", "sparse", "nstream", "reduce", "dgemm"]
-OPENMP_KERNELS_FAASM_USER = "kernels-omp"
 
 # --- MPI Migration Microbenchmark
 

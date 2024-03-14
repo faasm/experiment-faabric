@@ -4,17 +4,18 @@ from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from pandas import read_csv
-from tasks.util.env import OPENMP_KERNELS, PLOTS_ROOT, PROJ_ROOT
-
-
-RESULTS_DIR = join(PROJ_ROOT, "results", "kernels-omp")
-PLOTS_DIR = join(PLOTS_ROOT, "kernels-omp")
+from tasks.util.env import SYSTEM_NAME
+from tasks.util.kernels import (
+    OPENMP_KERNELS,
+    OPENMP_KERNELS_PLOTS_DIR,
+    OPENMP_KERNELS_RESULTS_DIR,
+)
 
 
 def _read_results():
     result_dict = {}
 
-    for csv in glob(join(RESULTS_DIR, "openmp_*.csv")):
+    for csv in glob(join(OPENMP_KERNELS_RESULTS_DIR, "openmp_*.csv")):
         results = read_csv(csv)
 
         workload = csv.split("_")[1]
@@ -43,15 +44,15 @@ def plot(ctx):
     """
     Plot the slowdown of OpenMP's ParRes kernels
     """
-    out_file_name = "openmp_kernels_slowdown.pdf"
     result_dict = _read_results()
-    makedirs(PLOTS_DIR, exist_ok=True)
-    fig, ax = subplots(figsize=(6, 2))
+    makedirs(OPENMP_KERNELS_PLOTS_DIR, exist_ok=True)
+    fig, ax = subplots(figsize=(6, 3))
 
     num_kernels = len(OPENMP_KERNELS)
     width = float(1 / (num_kernels + 1))
     nprocs = list(range(1, 9))
 
+    ymax = 2
     for ind_kernel, kernel in enumerate(OPENMP_KERNELS):
         ys = []
         xs = []
@@ -65,17 +66,18 @@ def plot(ctx):
                 result_dict["granny"][kernel][np]["mean"]
                 / result_dict["native"][kernel][np]["mean"]
             )
-            ys.append(
-                result_dict["granny"][kernel][np]["mean"]
-                / result_dict["native"][kernel][np]["mean"]
-            )
-            ax.text(
-                x=ind_np + x_kern_offset - 0.08,
-                y=y + 0.1,
-                s="{} s".format(result_dict["granny"][kernel][np]["mean"]),
-                rotation=90,
-                fontsize=6,
-            )
+            if y > ymax:
+                ax.text(
+                    x=ind_np + x_kern_offset - 0.05,
+                    y=ymax - 0.3,
+                    s="{}x".format(round(y, 1)),
+                    rotation=90,
+                    fontsize=6,
+                )
+
+                ys.append(ymax)
+            else:
+                ys.append(y)
 
         ax.bar(
             xs,
@@ -91,18 +93,20 @@ def plot(ctx):
 
     # Horizontal line at slowdown of 1
     xlim_left = -0.5
-    xlim_right = len(nprocs) + 0.5
-    fig.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
+    xlim_right = len(nprocs) - 0.5
+    ax.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
 
-    ymax = 5
+    ax.set_xlim(left=xlim_left, right=xlim_right)
     ax.set_ylim(bottom=0, top=ymax)
     ax.set_xlabel("Number of OpenMP threads")
-    ax.set_ylabel("Slowdown \n [Granny / OpenMPI]")
-    ax.legend(loc="upper right", ncol=4)
+    ax.set_ylabel("Slowdown \n [{} / OpenMPI]".format(SYSTEM_NAME))
+    ax.legend(loc="upper right", ncol=4, bbox_to_anchor=(0.95, 1.35))
 
     fig.tight_layout()
-    fig.savefig(
-        join(PLOTS_DIR, out_file_name), format="pdf", bbox_inches="tight"
-    )
-
-    print("Plot saved to: {}".format(join(PLOTS_DIR, out_file_name)))
+    for plot_format in ["png", "pdf"]:
+        plot_file = join(
+            OPENMP_KERNELS_PLOTS_DIR,
+            "openmp_kernels_slowdown.{}".format(plot_format),
+        )
+        fig.savefig(plot_file, format=plot_format, bbox_inches="tight")
+        print("Plot saved to: {}".format(plot_file))

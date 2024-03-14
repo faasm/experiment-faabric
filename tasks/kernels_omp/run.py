@@ -4,15 +4,15 @@ from invoke import task
 from os import makedirs
 from os.path import join
 from subprocess import run
-from tasks.util.env import (
-    OPENMP_KERNELS,
-    OPENMP_KERNELS_DOCKER_DIR,
-    OPENMP_KERNELS_FAASM_USER,
-    RESULTS_DIR,
-)
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
+)
+from tasks.util.kernels import (
+    OPENMP_KERNELS,
+    OPENMP_KERNELS_DOCKER_DIR,
+    OPENMP_KERNELS_FAASM_USER,
+    OPENMP_KERNELS_RESULTS_DIR,
 )
 from time import time
 
@@ -28,21 +28,15 @@ TOTAL_NUM_THREADS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "kernels-omp")
-    makedirs(result_dir, exist_ok=True)
+    makedirs(OPENMP_KERNELS_RESULTS_DIR, exist_ok=True)
 
-    result_file = join(result_dir, csv_name)
-    makedirs(RESULTS_DIR, exist_ok=True)
+    result_file = join(OPENMP_KERNELS_RESULTS_DIR, csv_name)
     with open(result_file, "w") as out_file:
         out_file.write("NumThreads,Run,ExecTimeSecs\n")
 
 
 def _write_csv_line(csv_name, num_threads, run, exec_time):
-    result_dir = join(RESULTS_DIR, "kernels-omp")
-    makedirs(result_dir, exist_ok=True)
-
-    result_file = join(result_dir, csv_name)
-    makedirs(RESULTS_DIR, exist_ok=True)
+    result_file = join(OPENMP_KERNELS_RESULTS_DIR, csv_name)
     with open(result_file, "a") as out_file:
         out_file.write("{},{},{}\n".format(num_threads, run, exec_time))
 
@@ -50,7 +44,7 @@ def _write_csv_line(csv_name, num_threads, run, exec_time):
 def get_kernel_cmdline(kernel, num_threads):
     kernels_cmdline = {
         # dgemm: iterations, matrix order, tile size
-        "dgemm": "10 2048 32",
+        "dgemm": "20 2048 32",
         # global: iterations, scramble string length
         # string length must be multiple of num_threads
         "global": "10000 {}".format(1 * 2 * 3 * 4 * 5 * 6 * 7 * 8 * 2),
@@ -95,8 +89,8 @@ def has_execution_failed(results_json):
     return False
 
 
-@task
-def granny(ctx, kernel=None, num_threads=None, repeats=1):
+@task()
+def wasm(ctx, kernel=None, num_threads=None, repeats=1):
     """
     Run the OpenMP Kernels
     """
