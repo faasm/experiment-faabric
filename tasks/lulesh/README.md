@@ -2,6 +2,12 @@
 
 This experiment is a single execution of the LULESH simulation using OpenMP.
 
+> [!WARNING]
+> LULESH does a lot of forking in a tight loop. This is highly inefficient
+> in our current implementation, so the results are very bad until we do
+> something about it. The first easy fix is caching scheduling results
+> locally, avoiding a round-trip to the planner.
+
 ## Start AKS cluster
 
 In the `experiment-base` terminal, run:
