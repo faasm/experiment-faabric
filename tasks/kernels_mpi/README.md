@@ -8,7 +8,7 @@ as a microbenchmark for Granny's MPI implementation.
 In the `experiment-base` terminal, run:
 
 ```bash
-(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 2 cluster.credentials
+(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 3 cluster.credentials
 ```
 
 ## Granny
@@ -16,7 +16,7 @@ In the `experiment-base` terminal, run:
 Deploy the cluster:
 
 ```bash
-(faasm-exp-faabric) faasmctl deploy.k8s --workers=4
+(faasm-exp-faabric) faasmctl deploy.k8s --workers=2
 ```
 
 Upload the WASM file:
