@@ -4,23 +4,24 @@ from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from pandas import read_csv
-from tasks.util.env import PLOTS_FORMAT, PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import SYSTEM_NAME
 from tasks.util.faasm import get_faasm_version
-
-LAMMPS_WORKLOADS = ["compute", "network"]
-RESULTS_DIR = join(PROJ_ROOT, "results", "lammps")
-PLOTS_DIR = join(PLOTS_ROOT, "lammps")
+from tasks.util.lammps import (
+    LAMMPS_PLOTS_DIR,
+    LAMMPS_RESULTS_DIR,
+    LAMMPS_SIM_WORKLOAD_CONFIGS,
+)
 
 
 def _read_results():
     glob_str = "lammps_*.csv"
     result_dict = {}
 
-    for csv in glob(join(RESULTS_DIR, glob_str)):
+    for csv in glob(join(LAMMPS_RESULTS_DIR, glob_str)):
         baseline = csv.split("_")[1]
         workload = csv.split("_")[-1][0:-4]
 
-        if workload not in LAMMPS_WORKLOADS:
+        if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
             continue
 
         if baseline not in result_dict:
@@ -43,7 +44,7 @@ def plot(ctx, plot_elapsed_times=True):
     """
     Plot the LAMMPS results
     """
-    makedirs(PLOTS_DIR, exist_ok=True)
+    makedirs(LAMMPS_PLOTS_DIR, exist_ok=True)
     result_dict = _read_results()
 
     workloads = result_dict["granny"]
@@ -84,10 +85,12 @@ def plot(ctx, plot_elapsed_times=True):
     ax.set_ylim(bottom=ymin, top=ymax)
     ax.legend()
     ax.set_xlabel("# MPI Processes")
-    ax.set_ylabel("Slowdown [Granny / OpenMPI]")
+    ax.set_ylabel("Slowdown [{} / OpenMPI]".format(SYSTEM_NAME))
     ax.set_title("Faasm Version ({})".format(get_faasm_version()))
 
     for plot_format in ["png", "pdf"]:
-        plot_file = join(PLOTS_DIR, "runtime_slowdown.{}".format(plot_format))
-        fig.savefig(plot_file, format=PLOTS_FORMAT, bbox_inches="tight")
+        plot_file = join(
+            LAMMPS_PLOTS_DIR, "runtime_slowdown.{}".format(plot_format)
+        )
+        fig.savefig(plot_file, format=plot_format, bbox_inches="tight")
         print("Saved plot to: {}".format(plot_file))

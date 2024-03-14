@@ -3,7 +3,6 @@ from faasmctl.util.planner import reset as reset_planner
 from invoke import task
 from os import makedirs
 from os.path import basename, join
-from tasks.util.env import RESULTS_DIR
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     post_async_msg_and_get_result_json,
@@ -13,6 +12,7 @@ from tasks.util.lammps import (
     LAMMPS_MIGRATION_NET_DOCKER_BINARY,
     LAMMPS_MIGRATION_NET_DOCKER_DIR,
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    LAMMPS_RESULTS_DIR,
     LAMMPS_SIM_WORKLOAD,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
     get_faasm_benchmark,
@@ -29,11 +29,8 @@ NPROCS_EXPERIMENT = list(range(2, 17))
 
 
 def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "lammps")
-    makedirs(result_dir, exist_ok=True)
-
-    result_file = join(result_dir, csv_name)
-    makedirs(RESULTS_DIR, exist_ok=True)
+    makedirs(LAMMPS_RESULTS_DIR, exist_ok=True)
+    result_file = join(LAMMPS_RESULTS_DIR, csv_name)
     with open(result_file, "w") as out_file:
         out_file.write("WorldSize,Run,Time\n")
 
@@ -41,14 +38,13 @@ def _init_csv_file(csv_name):
 
 
 def _write_csv_line(csv_name, nprocs, run_num, actual_time):
-    result_dir = join(RESULTS_DIR, "lammps")
-    result_file = join(result_dir, csv_name)
+    result_file = join(LAMMPS_RESULTS_DIR, csv_name)
     with open(result_file, "a") as out_file:
         out_file.write("{},{},{:.2f}\n".format(nprocs, run_num, actual_time))
 
 
 @task(iterable=["w"])
-def granny(ctx, w, repeats=1):
+def wasm(ctx, w, repeats=1):
     """
     Run LAMMPS simulation on Granny
     """

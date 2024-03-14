@@ -8,7 +8,7 @@ as part of the array experiment.
 In the `experiment-base` terminal, run:
 
 ```bash
-(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 2
+(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 3
 (faasm-exp-base) inv cluster.credentials
 ```
 
@@ -29,7 +29,7 @@ Upload the WASM file:
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv lammps.run.granny -w compute -w network
+(faasm-exp-faabric) inv lammps.run.wasm -w compute -w network
 ```
 
 To remove the cluster, run:

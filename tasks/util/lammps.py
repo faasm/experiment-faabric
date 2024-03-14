@@ -1,7 +1,10 @@
 from base64 import b64encode
 from os.path import join
-from tasks.util.env import EXAMPLES_DOCKER_DIR
+from tasks.util.env import EXAMPLES_DOCKER_DIR, PLOTS_ROOT, RESULTS_DIR
 from tasks.util.upload import upload_files
+
+LAMMPS_PLOTS_DIR = join(PLOTS_ROOT, "lammps")
+LAMMPS_RESULTS_DIR = join(RESULTS_DIR, "lammps")
 
 LAMMPS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps")
 LAMMPS_MIGRATION_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "lammps-migration")
