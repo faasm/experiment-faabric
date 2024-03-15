@@ -4,12 +4,12 @@ from invoke import task
 from math import ceil, floor, log10
 from os import makedirs
 from os.path import join
-from tasks.util.env import RESULTS_DIR
 from tasks.util.kernels import (
-    KERNELS_FAASM_FUNCS,
-    KERNELS_FAASM_USER,
     KERNELS_NATIVE_DIR,
-    KERNELS_EXPERIMENT_NPROCS,
+    MPI_KERNELS_FAASM_FUNCS,
+    MPI_KERNELS_FAASM_USER,
+    MPI_KERNELS_EXPERIMENT_NPROCS,
+    MPI_KERNELS_RESULTS_DIR,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
@@ -36,10 +36,10 @@ def log_2(x):
 
 
 def get_kernels_cmdline(kernel_name, np):
-    if kernel_name not in KERNELS_FAASM_FUNCS:
+    if kernel_name not in MPI_KERNELS_FAASM_FUNCS:
         raise RuntimeError(
             "Kernel {} not supported. Available: {}".format(
-                kernel_name, KERNELS_FAASM_FUNCS
+                kernel_name, MPI_KERNELS_FAASM_FUNCS
             )
         )
 
@@ -92,18 +92,14 @@ def get_kernels_cmdline(kernel_name, np):
 
 
 def _init_csv_file(csv_name):
-    result_dir = join(RESULTS_DIR, "kernels-mpi")
-    makedirs(result_dir, exist_ok=True)
-
-    result_file = join(result_dir, csv_name)
-    makedirs(RESULTS_DIR, exist_ok=True)
+    makedirs(MPI_KERNELS_RESULTS_DIR, exist_ok=True)
+    result_file = join(MPI_KERNELS_RESULTS_DIR, csv_name)
     with open(result_file, "w") as out_file:
         out_file.write("WorldSize,Run,ActualTime\n")
 
 
 def _write_csv_line(csv_name, num_procs, run, exec_time):
-    result_dir = join(RESULTS_DIR, "kernels-mpi")
-    result_file = join(result_dir, csv_name)
+    result_file = join(MPI_KERNELS_RESULTS_DIR, csv_name)
     with open(result_file, "a") as out_file:
         out_file.write("{},{},{}\n".format(num_procs, run, exec_time))
 
@@ -136,9 +132,9 @@ def print_exp_status(
 
 
 @task
-def granny(ctx, repeats=1, num_procs=None, kernel=None):
+def wasm(ctx, repeats=1, num_procs=None, kernel=None):
     """
-    Run the kernels benchmark in faasm
+    Run the MPI Kernels (WASM)
     """
     # This experiment must be run with a 4 VM cluster
     num_vms = len(get_faasm_worker_ips())
@@ -150,15 +146,15 @@ def granny(ctx, repeats=1, num_procs=None, kernel=None):
     if num_procs is not None:
         num_procs = [int(num_procs)]
     else:
-        num_procs = KERNELS_EXPERIMENT_NPROCS
+        num_procs = MPI_KERNELS_EXPERIMENT_NPROCS
 
     if kernel:
         if kernel == "all":
-            kernels = KERNELS_FAASM_FUNCS
+            kernels = MPI_KERNELS_FAASM_FUNCS
         else:
             kernels = [kernel]
     else:
-        kernels = KERNELS_FAASM_FUNCS
+        kernels = MPI_KERNELS_FAASM_FUNCS
 
     for ind_kernel, kernel in enumerate(kernels):
         csv_name = "kernels_granny_{}.csv".format(kernel)
@@ -193,7 +189,7 @@ def granny(ctx, repeats=1, num_procs=None, kernel=None):
                     repeats,
                 )
 
-                user = KERNELS_FAASM_USER
+                user = MPI_KERNELS_FAASM_USER
                 func = kernel
                 msg = {
                     "user": user,
@@ -218,15 +214,15 @@ def native(ctx, repeats=1, num_procs=None, kernel=None):
     if num_procs is not None:
         num_procs = [int(num_procs)]
     else:
-        num_procs = KERNELS_EXPERIMENT_NPROCS
+        num_procs = MPI_KERNELS_EXPERIMENT_NPROCS
 
     if kernel:
         if kernel == "all":
-            kernels = KERNELS_FAASM_FUNCS
+            kernels = MPI_KERNELS_FAASM_FUNCS
         else:
             kernels = [kernel]
     else:
-        kernels = KERNELS_FAASM_FUNCS
+        kernels = MPI_KERNELS_FAASM_FUNCS
 
     # Pick one VM in the cluster at random to run native OpenMP in
     vm_names, vm_ips = get_native_mpi_pods("kernels")

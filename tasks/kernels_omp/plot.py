@@ -10,6 +10,7 @@ from tasks.util.kernels import (
     OPENMP_KERNELS_PLOTS_DIR,
     OPENMP_KERNELS_RESULTS_DIR,
 )
+from tasks.util.plot import save_plot
 
 
 def _read_results():
@@ -102,11 +103,4 @@ def plot(ctx):
     ax.set_ylabel("Slowdown \n [{} / OpenMPI]".format(SYSTEM_NAME))
     ax.legend(loc="upper right", ncol=4, bbox_to_anchor=(0.95, 1.35))
 
-    fig.tight_layout()
-    for plot_format in ["png", "pdf"]:
-        plot_file = join(
-            OPENMP_KERNELS_PLOTS_DIR,
-            "openmp_kernels_slowdown.{}".format(plot_format),
-        )
-        fig.savefig(plot_file, format=plot_format, bbox_inches="tight")
-        print("Plot saved to: {}".format(plot_file))
+    save_plot(fig, OPENMP_KERNELS_PLOTS_DIR, "openmp_kernels_slowdown")

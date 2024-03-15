@@ -11,6 +11,7 @@ from tasks.util.lammps import (
     LAMMPS_RESULTS_DIR,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
 )
+from tasks.util.plot import save_plot
 
 
 def _read_results():
@@ -88,9 +89,4 @@ def plot(ctx, plot_elapsed_times=True):
     ax.set_ylabel("Slowdown [{} / OpenMPI]".format(SYSTEM_NAME))
     ax.set_title("Faasm Version ({})".format(get_faasm_version()))
 
-    for plot_format in ["png", "pdf"]:
-        plot_file = join(
-            LAMMPS_PLOTS_DIR, "runtime_slowdown.{}".format(plot_format)
-        )
-        fig.savefig(plot_file, format=plot_format, bbox_inches="tight")
-        print("Saved plot to: {}".format(plot_file))
+    save_plot(fig, LAMMPS_PLOTS_DIR, "lammps_slowdown")

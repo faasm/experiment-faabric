@@ -28,7 +28,7 @@ Upload the WASM file:
 and run the experiment with:
 
 ```bash
-(faasm-exp-faabric) inv kernels-mpi.run.granny
+(faasm-exp-faabric) inv kernels-mpi.run.wasm
 ```
 
 finally, delete the Granny cluster:
