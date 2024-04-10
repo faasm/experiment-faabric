@@ -3,7 +3,7 @@
 First, from the `faasm-exp-base` shell, deploy the VM cluster:
 
 ```bash
-(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 32
+(faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 33
 (faasm-exp-base) inv cluster.credentials
 ```
 
@@ -33,7 +33,6 @@ inv makespan.native.delete
 First, deploy the k8s cluster:
 
 ```bash
-# Optioanlly set the following env. variables
 faasmctl deploy.k8s --workers=32
 ```
 
@@ -67,32 +66,5 @@ To plot the results, just run:
 ```bash
 # TODO: this does not work atm
 # TODO: move from tasks/motivation/plot.py
-inv motivation.plot
+inv makespan.plot.migration
 ```
-
-## Syntax
-
-### Workload
-
-A workload is the type of job that we are executing. It can either be `mpi`,
-or `omp`.
-
-### Experiment trace
-
-An experiment E is a set of jobs (or tasks), where each job is defined by: (i)
-its arrival time, (ii) its size requirements, and (iii) the user it belongs
-to.
-
-To generate a trace run:
-
-```bash
-inv makespan.trace.generate --workload [omp,mpi,mix] --num-tasks <> --num-cores-per-vm <>
-```
-
-### Baseline
-
-A baseline is one of the systems that we evaluate in this experiment. We
-currently support three different baselines: `granny`, `batch`, and `slurm`.
-- `granny`: is our system
-- `batch`: is native OpenMPI where jobs are scheduled at VM granularity
-- `slurm` is native OpenMPI where jobs are shceduled at process granularity

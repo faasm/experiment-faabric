@@ -12,6 +12,7 @@ from tasks.lulesh import ns as lulesh_ns
 from tasks.makespan import ns as makespan_ns
 from tasks.migration import ns as migration_ns
 from tasks.motivation import ns as motivation_ns
+from tasks.openmpi import ns as openmpi_ns
 from tasks.polybench import ns as polybench_ns
 
 
@@ -29,4 +30,5 @@ ns.add_collection(lulesh_ns, name="lulesh")
 ns.add_collection(makespan_ns, name="makespan")
 ns.add_collection(migration_ns, name="migration")
 ns.add_collection(motivation_ns, name="motivation")
+ns.add_collection(openmpi_ns, name="openmpi")
 ns.add_collection(polybench_ns, name="polybench")

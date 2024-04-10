@@ -10,7 +10,7 @@ from tasks.util.kernels import (
     OPENMP_KERNELS_PLOTS_DIR,
     OPENMP_KERNELS_RESULTS_DIR,
 )
-from tasks.util.plot import save_plot
+from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
 
 
 def _read_results():
@@ -47,7 +47,7 @@ def plot(ctx):
     """
     result_dict = _read_results()
     makedirs(OPENMP_KERNELS_PLOTS_DIR, exist_ok=True)
-    fig, ax = subplots(figsize=(6, 3))
+    fig, ax = subplots(figsize=SINGLE_COL_FIGSIZE)
 
     num_kernels = len(OPENMP_KERNELS)
     width = float(1 / (num_kernels + 1))

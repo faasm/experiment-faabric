@@ -6,11 +6,11 @@ applications to benefit from dynamic changes in the compute environment.
 First, provision the cluster:
 
 ```bash
-(faasm-exp-pase) inv cluster.provision --vm Standard_D8_v5 --nodes 2 --name ${CLUSTER_NAME}
+(faasm-exp-pase) inv cluster.provision --vm Standard_D8_v5 --nodes 3 --name ${CLUSTER_NAME}
 (faasm-exp-base) inv cluster.credentials --name ${CLUSTER_NAME}
 ```
 
-Second, deploy Granny:
+Second, deploy the cluster
 
 ```bash
 (faasm-exp-faabric) faasmctl deploy.k8s --workers 2
@@ -25,7 +25,7 @@ Second, upload the WASM files:
 Third, run the experiments:
 
 ```bash
-(faasm-exp-faabric) inv migration.run
+(faasm-exp-faabric) inv migration.run -w compute -w network
 ```
 
 Lastly, plot the results:

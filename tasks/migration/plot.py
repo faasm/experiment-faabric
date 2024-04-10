@@ -6,6 +6,8 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
+from tasks.util.migration import MIGRATION_PLOTS_DIR
+from tasks.util.plot import save_plot
 
 
 ALL_WORKLOADS = ["compute", "network"]
@@ -47,9 +49,6 @@ def plot(ctx):
 
 
 def do_plot(workload, migration_results):
-    plots_dir = join(PLOTS_ROOT, "migration")
-    makedirs(plots_dir, exist_ok=True)
-    out_file = join(plots_dir, "migration_speedup_{}.pdf".format(workload))
     fig, ax = subplots(figsize=(3, 2))
     xs = [0, 2, 4, 6, 8]
     xticks = arange(1, 6)
@@ -100,6 +99,5 @@ def do_plot(workload, migration_results):
         ax.set_ylim(bottom=0)
 
     hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
-    fig.tight_layout()
-    savefig(out_file, format="pdf")  # , bbox_inches="tight")
-    print("Plot saved to: {}".format(out_file))
+
+    save_plot(fig, MIGRATION_PLOTS_DIR, "migration_speedup_{}".format(workload))

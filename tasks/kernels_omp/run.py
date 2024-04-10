@@ -14,14 +14,11 @@ from tasks.util.kernels import (
     OPENMP_KERNELS_FAASM_USER,
     OPENMP_KERNELS_RESULTS_DIR,
 )
-from time import time
-
-"""
 from tasks.util.openmpi import (
     get_native_mpi_pods,
     run_kubectl_cmd,
 )
-"""
+from time import time
 
 EXPECTED_NUM_VMS = 1
 TOTAL_NUM_THREADS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -43,7 +40,7 @@ def _write_csv_line(csv_name, num_threads, run, exec_time):
 
 def get_kernel_cmdline(kernel, num_threads):
     kernels_cmdline = {
-        # dgemm: iterations, matrix order, tile size
+        # dgemm: iterations, matrix order, tile size (20 iterations fine, 100 long)
         "dgemm": "100 2048 32",
         # global: iterations, scramble string length
         # string length must be multiple of num_threads
@@ -136,8 +133,13 @@ def wasm(ctx, kernel=None, num_threads=None, repeats=1):
                     "function": func,
                     "cmdline": cmdline,
                 }
+                req = {
+                    "user": user,
+                    "function": func,
+                    "singleHostHint": True,
+                }
 
-                result_json = post_async_msg_and_get_result_json(msg)
+                result_json = post_async_msg_and_get_result_json(msg, req_dict=req)
                 actual_time = get_faasm_exec_time_from_json(
                     result_json, check=True
                 )
@@ -168,8 +170,8 @@ def native(ctx, kernel=None, num_threads=None, repeats=1):
         kernel = [kernel]
 
     # Pick one VM in the cluster at random to run native OpenMP in
-    # vm_names, vm_ips = get_native_mpi_pods("openmp")
-    # master_vm = vm_names[0]
+    vm_names, vm_ips = get_native_mpi_pods("openmp")
+    master_vm = vm_names[0]
 
     for wload in kernel:
         csv_name = "openmp_{}_native.csv".format(wload)
@@ -187,7 +189,6 @@ def native(ctx, kernel=None, num_threads=None, repeats=1):
                     nthread, binary, cmdline
                 )
 
-                """
                 exec_cmd = [
                     "exec",
                     master_vm,
@@ -202,10 +203,11 @@ def native(ctx, kernel=None, num_threads=None, repeats=1):
                     openmp_cmd,
                 ]
                 docker_cmd = " ".join(docker_cmd)
+                """
 
                 start_ts = time()
-                # run_kubectl_cmd("openmp", exec_cmd)
-                run(docker_cmd, shell=True, check=True)
+                run_kubectl_cmd("openmp", exec_cmd)
+                # run(docker_cmd, shell=True, check=True)
                 actual_time = round(time() - start_ts, 2)
                 _write_csv_line(csv_name, nthread, r, actual_time)
                 print("Actual time: {} s".format(actual_time))

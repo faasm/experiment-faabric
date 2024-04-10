@@ -9,7 +9,7 @@ RUN rm -rf /code \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout 55884feb268e8b9837b9af0ba4e82667fae397c1 \
+    && git checkout 269557d7244c67d27ec4c98cc72fb04d7af762c8 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \

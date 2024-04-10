@@ -11,7 +11,7 @@ from tasks.util.lammps import (
     LAMMPS_RESULTS_DIR,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
 )
-from tasks.util.plot import save_plot
+from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
 
 
 def _read_results():
@@ -52,7 +52,7 @@ def plot(ctx, plot_elapsed_times=True):
     num_workloads = len(workloads)
     num_procs = result_dict["granny"]["network"]["world-size"]
 
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=SINGLE_COL_FIGSIZE)
     width = 0.3
     for workload_ind, workload in enumerate(workloads):
         x_wload_offset = (

@@ -6,8 +6,8 @@ from tasks.makespan.data import ExecutedTaskInfo
 from tasks.makespan.scheduler import (
     BatchScheduler,
 )
-from tasks.makespan.trace import load_task_trace_from_file
-from tasks.makespan.util import (
+from tasks.util.env import RESULTS_DIR
+from tasks.util.makespan import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
@@ -20,7 +20,7 @@ from tasks.makespan.util import (
     get_workload_from_trace,
     write_line_to_csv,
 )
-from tasks.util.env import RESULTS_DIR
+from tasks.util.trace import load_task_trace_from_file
 from time import sleep
 from typing import Dict
 

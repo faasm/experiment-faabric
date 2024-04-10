@@ -11,7 +11,7 @@ from tasks.util.kernels import (
     MPI_KERNELS_PLOTS_DIR,
     MPI_KERNELS_RESULTS_DIR,
 )
-from tasks.util.plot import save_plot
+from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
 
 
 def _read_kernels_results():
@@ -46,11 +46,12 @@ def kernels(ctx):
     """
     result_dict = _read_kernels_results()
     makedirs(MPI_KERNELS_PLOTS_DIR, exist_ok=True)
-    fig, ax = subplots()
+    fig, ax = subplots(figsize=SINGLE_COL_FIGSIZE)
 
     num_kernels = len(MPI_KERNELS_FAASM_FUNCS)
     width = float(1 / (num_kernels + 1))
 
+    ymax = 2
     for ind_kernel, kernel in enumerate(MPI_KERNELS_FAASM_FUNCS):
         ys = []
         xs = []
@@ -66,17 +67,18 @@ def kernels(ctx):
                     result_dict["granny"][kernel][np]["mean"]
                     / result_dict["native"][kernel][np]["mean"]
                 )
-                ys.append(
-                    result_dict["granny"][kernel][np]["mean"]
-                    / result_dict["native"][kernel][np]["mean"]
-                )
-                ax.text(
-                    x=ind_np + x_kern_offset - 0.08,
-                    y=y + 0.1,
-                    s="{} s".format(result_dict["granny"][kernel][np]["mean"]),
-                    rotation=90,
-                    fontsize=6,
-                )
+                if y > ymax:
+                    ax.text(
+                        x=ind_np + x_kern_offset - 0.05,
+                        y=ymax - 0.3,
+                        s="{}x".format(round(y, 1)),
+                        rotation=90,
+                        fontsize=6,
+                    )
+
+                    ys.append(ymax)
+                else:
+                    ys.append(y)
             else:
                 print(
                     "Skipping {} with {} MPI procs "
@@ -100,13 +102,13 @@ def kernels(ctx):
 
     # Horizontal line at slowdown of 1
     xlim_left = -0.5
-    xlim_right = len(MPI_KERNELS_EXPERIMENT_NPROCS) + 0.5
-    fig.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
+    xlim_right = len(MPI_KERNELS_EXPERIMENT_NPROCS) - 0.5
+    ax.hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
 
     # Vertical lines to separate MPI processes
     ylim_bottom = 0
-    ylim_top = 5
-    fig.vlines(
+    ylim_top = ymax
+    ax.vlines(
         [i + 0.5 for i in range(len(MPI_KERNELS_EXPERIMENT_NPROCS) - 1)],
         ylim_bottom,
         ylim_top,

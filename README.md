@@ -31,6 +31,6 @@ Microbenchmarks:
 
 Macrobenchmarks:
 * [Makespan](./tasks/makespan/README.md) - experiment using Faabric to run a trace of scientific applications over a shared cluster of VMs. Comes in three flavours:
-  - [MPI Migration for Locality] - TODO
-  - [OpenMP Elastic Scaling to improve utilisation] - TODO
-  - [MPI + OpenMP Migration to reduce VM working set] - TODO
+* [MPI Migration for Locality] - TODO
+* [OpenMP Elastic Scaling to improve utilisation] - TODO
+* [MPI + OpenMP Migration to reduce VM working set] - TODO

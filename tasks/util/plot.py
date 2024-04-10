@@ -20,6 +20,7 @@ PLOT_LABELS = {
 }
 
 PLOT_PATTERNS = ["//", "\\\\", "||", "-", "*-", "o-"]
+SINGLE_COL_FIGSIZE = (6, 3)
 
 
 def save_plot(fig, plot_dir, plot_name):
@@ -39,3 +40,15 @@ def save_plot(fig, plot_dir, plot_name):
             shell=True,
             check=True,
         )
+
+    hostname = (
+        run("hostname", shell=True, check=True, capture_output=True)
+        .stdout.decode("utf-8")
+        .strip()
+    )
+    tmp_file = "/tmp/{}".format(this_plot_name)
+    print(
+        "scp {}:{} {} && evince {} &".format(
+            hostname, plot_file, tmp_file, tmp_file
+        )
+    )

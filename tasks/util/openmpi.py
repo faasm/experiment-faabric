@@ -2,11 +2,17 @@ from subprocess import run, PIPE
 from os.path import join
 from os import makedirs
 from jinja2 import Environment, FileSystemLoader
-
 from tasks.util.env import (
+    PLOTS_ROOT,
     PROJ_ROOT,
+    RESULTS_DIR,
     get_docker_tag,
 )
+
+# ----- Variables used for the OpenMPI experiment -----
+OPENMPI_RESULTS_DIR = join(RESULTS_DIR, "openmpi")
+OPENMPI_PLOTS_DIR = join(PLOTS_ROOT, "openmpi")
+# -----------------------------------------------------
 
 NATIVE_HOSTFILE = "/home/mpirun/hostfile"
 
