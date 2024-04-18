@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  worker:
+    image: ${FAABRIC_EXP_IMAGE_NAME}
+    deploy:
+      resources:
+        limits:
+          cpus: ${NUM_CORES_PER_VM}

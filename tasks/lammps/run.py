@@ -99,6 +99,9 @@ def native(ctx, w, repeats=1):
     """
     num_cpus_per_vm = 8
     num_vms = 2
+    # data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0],
+    # TODO: is this a good idea? FIXME FIXME DELETE ME
+    data_file = get_faasm_benchmark("compute")["data"][0]
 
     for workload in w:
         if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
@@ -121,7 +124,7 @@ def native(ctx, w, repeats=1):
 
         native_cmdline = "-in {}/{}.faasm.native".format(
             LAMMPS_MIGRATION_NET_DOCKER_DIR,
-            get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0],
+            data_file,
         )
 
         for nproc in NPROCS_EXPERIMENT:
