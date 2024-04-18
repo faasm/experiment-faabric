@@ -48,7 +48,9 @@ def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
     """
     num_vms = len(get_faasm_worker_ips())
     assert num_vms == 2, "Expected 2 VMs got: {}!".format(num_vms)
-    data_file = basename(get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0])
+    # data_file = basename(get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0])
+    # TODO: is this a good idea? FIXME FIXME DELETE ME
+    data_file = basename(get_faasm_benchmark("compute")["data"][0])
 
     if check_in is None:
         check_array = [0, 2, 4, 6, 8, 10]

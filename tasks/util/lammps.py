@@ -39,9 +39,11 @@ LAMMPS_FAASM_MIGRATION_FUNC = "migration"
 LAMMPS_FAASM_MIGRATION_NET_FUNC = "migration-net"
 
 # Intra-experiment configuration shared among experiments
-LAMMPS_SIM_WORKLOAD = "compute-xl"
-LAMMPS_SIM_NUM_ITERATIONS = 3
-LAMMPS_SIM_CHECK_AT = 3
+# LAMMPS_SIM_WORKLOAD = "compute-xl"
+LAMMPS_SIM_WORKLOAD = "compute"
+# LAMMPS_SIM_NUM_ITERATIONS = 3
+LAMMPS_SIM_NUM_ITERATIONS = 10
+LAMMPS_SIM_CHECK_AT = LAMMPS_SIM_NUM_ITERATIONS
 LAMMPS_SIM_NUM_NET_LOOPS = 1e4
 LAMMPS_SIM_CHUNK_SIZE = 2e4
 
@@ -57,7 +59,8 @@ LAMMPS_SIM_WORKLOAD_CONFIGS = {
 }
 
 # Different supported LAMMPS benchmarks
-# TODO: in general, we only run `compute-xl`
+# 18/04/2024 - Seems that we may want to run `compute` with a high number of
+# iterations
 BENCHMARKS = {
     "lj": {"data": ["bench/in.lj"], "out_file": "compute"},
     "compute": {"data": ["bench/in.lj"], "out_file": "compute"},
@@ -105,7 +108,8 @@ def get_faasm_benchmark(bench):
 def get_lammps_migration_params(
     check_every=LAMMPS_SIM_CHECK_AT,
     num_loops=LAMMPS_SIM_NUM_ITERATIONS,
-    num_net_loops=LAMMPS_SIM_NUM_NET_LOOPS,
+    # num_net_loops=LAMMPS_SIM_NUM_NET_LOOPS,
+    num_net_loops=0,
     chunk_size=LAMMPS_SIM_CHUNK_SIZE,
     native=False,
 ):

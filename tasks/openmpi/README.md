@@ -29,8 +29,6 @@ Upload the WASM file:
 and run the experiment with:
 
 ```bash
-# TODO: consider making this experiment shorter
-# TODO: do we need the network workload?
 (faasm-exp-faabric) inv lammps.run.wasm -w compute -w network
 ```
 
