@@ -12,6 +12,7 @@ from tasks.util.makespan import (
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
     IDLE_CORES_FILE_PREFIX,
+    NATIVE_BASELINES,
     init_csv_file,
     get_idle_core_count_from_task_info,
     get_num_cpus_per_vm_from_trace,
@@ -73,7 +74,7 @@ def granny(
 @task()
 def native_slurm(
     ctx,
-    workload="all",
+    workload="mpi-migrate",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -96,7 +97,7 @@ def native_slurm(
 @task()
 def native_batch(
     ctx,
-    workload="all",
+    workload="mpi-migrate",
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -152,22 +153,25 @@ def _do_run(baseline, num_vms, trace):
 
     executed_task_info = scheduler.run(baseline, task_trace)
 
-    num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
-        baseline,
-        executed_task_info,
-        task_trace,
-        num_vms,
-        num_cpus_per_vm,
-    )
-    for time_step in num_idle_cores_per_time_step:
-        write_line_to_csv(
+    # For granny we get the idle cores as we run the experiment, from the
+    # planner
+    if baseline in NATIVE_BASELINES:
+        num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
             baseline,
-            IDLE_CORES_FILE_PREFIX,
+            executed_task_info,
+            task_trace,
             num_vms,
-            trace,
-            time_step,
-            num_idle_cores_per_time_step[time_step],
+            num_cpus_per_vm,
         )
+        for time_step in num_idle_cores_per_time_step:
+            write_line_to_csv(
+                baseline,
+                IDLE_CORES_FILE_PREFIX,
+                num_vms,
+                trace,
+                time_step,
+                num_idle_cores_per_time_step[time_step],
+            )
 
     # Finally shutdown the scheduler
     scheduler.shutdown()

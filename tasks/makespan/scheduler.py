@@ -3,6 +3,7 @@ from faasmctl.util.config import (
     get_faasm_worker_names,
 )
 from faasmctl.util.flush import flush_workers
+from faasmctl.util.planner import get_in_fligh_apps as planner_get_in_fligh_apps
 from logging import (
     getLogger,
     INFO as log_level_INFO,
@@ -11,17 +12,6 @@ from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
 from typing import Dict, List, Tuple, Union
-from tasks.util.lammps import (
-    LAMMPS_FAASM_USER,
-    LAMMPS_DOCKER_BINARY,
-    LAMMPS_DOCKER_DIR,
-    LAMMPS_FAASM_MIGRATION_NET_FUNC,
-    LAMMPS_MIGRATION_NET_DOCKER_BINARY,
-    LAMMPS_MIGRATION_NET_DOCKER_DIR,
-    LAMMPS_SIM_NUM_ITERATIONS,
-    get_faasm_benchmark,
-    get_lammps_migration_params,
-)
 from tasks.makespan.data import (
     ExecutedTaskInfo,
     ResultQueueItem,
@@ -34,24 +24,40 @@ from tasks.makespan.env import (
     DGEMM_FAASM_USER,
     get_dgemm_cmdline,
 )
-from tasks.makespan.util import (
+from tasks.util.faasm import (
+    get_faasm_exec_time_from_json,
+    has_app_failed,
+    post_async_msg_and_get_result_json,
+)
+from tasks.util.lammps import (
+    LAMMPS_FAASM_USER,
+    LAMMPS_DOCKER_BINARY,
+    LAMMPS_DOCKER_DIR,
+    LAMMPS_FAASM_MIGRATION_NET_FUNC,
+    LAMMPS_MIGRATION_NET_DOCKER_BINARY,
+    LAMMPS_MIGRATION_NET_DOCKER_DIR,
+    LAMMPS_SIM_NUM_ITERATIONS,
+    LAMMPS_SIM_WORKLOAD,
+    get_faasm_benchmark,
+    get_lammps_migration_params,
+)
+from tasks.util.makespan import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
-    # Important!
-    MPI_LAMMPS_BENCHMARK,
+    GRANNY_MIGRATE_BASELINES,
     MPI_MIGRATE_WORKLOADS,
     MPI_WORKLOADS,
     NATIVE_BASELINES,
-    SCHEDULINNG_INFO_FILE_PREFIX,
+    SCHEDULING_INFO_FILE_PREFIX,
     get_num_cpus_per_vm_from_trace,
     write_line_to_csv,
 )
-from tasks.util.faasm import (
-    get_faasm_exec_time_from_json,
-    post_async_msg_and_get_result_json,
-)
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
+from tasks.util.planner import (
+    get_num_idle_cpus_from_in_flight_apps,
+    get_num_xvm_links_from_in_flight_apps,
+)
 from time import sleep, time
 
 # Configure a global logger for the scheduler
@@ -65,6 +71,8 @@ NOT_ENOUGH_SLOTS = "NOT_ENOUGH_SLOTS"
 QUEUE_TIMEOUT_SEC = 10
 QUEUE_SHUTDOWN = "QUEUE_SHUTDOWN"
 INTERTASK_SLEEP = 1
+# How often do we query the planner for cluster occupation
+PLANNER_MONITOR_RESOLUTION_SECS = 4
 
 
 def dequeue_with_timeout(
@@ -92,6 +100,7 @@ def thread_pool_thread(
     baseline: str,
     vm_ip_to_name: Dict[str, str],
     num_cpus_per_vm: int,
+    trace_str: str,
 ) -> None:
     """
     Loop for the worker threads in the thread pool. Each thread performs a
@@ -102,6 +111,39 @@ def thread_pool_thread(
         sch_logger.debug("[Thread {}] {}".format(thread_idx, msg))
 
     thread_print("Pool thread {} starting".format(thread_idx))
+
+    if thread_idx == 0:
+        if baseline in NATIVE_BASELINES:
+            return
+
+        read_one = False
+        while True:
+            sleep(PLANNER_MONITOR_RESOLUTION_SECS)
+            num_vms = len(list(vm_ip_to_name.keys()))
+
+            in_flight_apps = planner_get_in_fligh_apps()
+            idle_vms, idle_cpus = get_num_idle_cpus_from_in_flight_apps(
+                num_vms,
+                num_cpus_per_vm,
+                in_flight_apps,
+            )
+
+            if read_one and len(in_flight_apps.apps) == 0:
+                print("Zero in-flight apps. Shutting down poller thread...")
+                break
+            elif len(in_flight_apps.apps) != 0:
+                read_one = True
+
+            write_line_to_csv(
+                baseline,
+                SCHEDULING_INFO_FILE_PREFIX,
+                num_vms,
+                trace_str,
+                time(),
+                idle_vms,
+                idle_cpus,
+                get_num_xvm_links_from_in_flight_apps(in_flight_apps),
+            )
 
     work_queue: WorkQueueItem
     while True:
@@ -118,10 +160,13 @@ def thread_pool_thread(
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app in MPI_WORKLOADS:
             # We always use the same LAMMPS benchmark ("compute-xl")
-            data_file = get_faasm_benchmark(MPI_LAMMPS_BENCHMARK)["data"][0]
+            # TODO: FIXME: delete me!
+            data_file = get_faasm_benchmark("compute")["data"][0]
+            # data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
 
         # Record the start timestamp
         start_ts = 0
+        has_failed = False
         if baseline in NATIVE_BASELINES:
             if work_item.task.app in MPI_WORKLOADS:
                 if work_item.task.app == "mpi":
@@ -200,7 +245,7 @@ def thread_pool_thread(
                 if work_item.task.app in MPI_MIGRATE_WORKLOADS:
                     check_every = (
                         1
-                        if baseline == "granny-migrate"
+                        if baseline in GRANNY_MIGRATE_BASELINES
                         else LAMMPS_SIM_NUM_ITERATIONS
                     )
                     msg["input_data"] = get_lammps_migration_params(
@@ -228,6 +273,7 @@ def thread_pool_thread(
             try:
                 result_json = post_async_msg_and_get_result_json(msg)
                 actual_time = int(get_faasm_exec_time_from_json(result_json))
+                has_failed = has_app_failed(result_json)
                 thread_print(
                     "Finished executiong app {} (time: {})".format(
                         result_json[0]["appId"], actual_time
@@ -239,15 +285,29 @@ def thread_pool_thread(
                     "Error executing task {}".format(work_item.task.task_id)
                 )
 
-        result_queue.put(
-            ResultQueueItem(
-                work_item.task.task_id,
-                actual_time,
-                start_ts,
-                time(),
-                master_vm_ip,
+        end_ts = time()
+
+        if has_failed:
+            sch_logger.error("Error executing task {}".format(work_item.task.task_id))
+            result_queue.put(
+                ResultQueueItem(
+                    work_item.task.task_id,
+                    -1,
+                    -1,
+                    -1,
+                    master_vm_ip,
+                )
             )
-        )
+        else:
+            result_queue.put(
+                ResultQueueItem(
+                    work_item.task.task_id,
+                    actual_time,
+                    start_ts,
+                    end_ts,
+                    master_vm_ip,
+                )
+            )
 
     thread_print("Pool thread {} shutting down".format(thread_idx))
 
@@ -495,8 +555,9 @@ class BatchScheduler:
 
         # We are pessimistic with the number of threads and allocate 2 times
         # the number of VMs, as the minimum world size we will ever use is half
-        # of a VM
-        self.num_threads_in_pool = int(2 * self.state.num_vms)
+        # of a VM. We use and additional thread to monitor the number of cross-
+        # VM links in our deployment
+        self.num_threads_in_pool = int(2 * self.state.num_vms + 1)
         self.thread_pool = [
             Process(
                 target=thread_pool_thread,
@@ -507,6 +568,7 @@ class BatchScheduler:
                     baseline,
                     self.state.vm_ip_to_name,
                     self.state.num_cpus_per_vm,
+                    self.state.trace_str,
                 ),
             )
             for i in range(self.num_threads_in_pool)
@@ -654,7 +716,7 @@ class BatchScheduler:
             scheduling_decision = self.schedule_task_to_vm(t)
 
             # If we don't have enough resources, wait for results until enough
-            # resources, or autoscale if allowed to do so
+            # resources
             time_in_queue_start = time()
             while scheduling_decision == NOT_ENOUGH_SLOTS:
                 result: ResultQueueItem
@@ -691,14 +753,15 @@ class BatchScheduler:
                 )
             )
             # Log the scheduling decision to a file
-            write_line_to_csv(
-                self.state.baseline,
-                SCHEDULINNG_INFO_FILE_PREFIX,
-                self.state.num_vms,
-                self.state.trace_str,
-                t.task_id,
-                scheduling_decision,
-            )
+            if self.state.baseline in NATIVE_BASELINES:
+                write_line_to_csv(
+                    self.state.baseline,
+                    SCHEDULING_INFO_FILE_PREFIX,
+                    self.state.num_vms,
+                    self.state.trace_str,
+                    t.task_id,
+                    scheduling_decision,
+                )
 
             # Lastly, put the scheduled task in the work queue
             self.work_queue.put(WorkQueueItem(scheduling_decision, t))
