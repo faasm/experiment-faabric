@@ -63,13 +63,13 @@ def conservative(ctx):
     # more
     # num_vms = [16, 24, 32, 48, 64]
     # num_tasks = [50, 75, 100, 150, 200]
-    num_vms = [8, 16, 24]
-    num_tasks = [25, 50, 75]
+    num_vms = [8, 16, 16, 24]
+    num_tasks = [25, 50, 100, 75]
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
     timeseries_num_vms = 16 # 32
-    timeseries_num_tasks = 50 # 100
+    timeseries_num_tasks = 100 # 100
 
     results = {}
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
