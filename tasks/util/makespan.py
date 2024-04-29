@@ -28,13 +28,15 @@ SCHEDULING_INFO_FILE_PREFIX = "sched-info"
 # - Granny: is our system
 # - Batch: native OpenMPI where we schedule jobs at VM granularity
 # - Slurm: native OpenMPI where we schedule jobs at CPU core granularity
-NATIVE_BASELINES = ["batch", "slurm"]
-GRANNY_MIGRATE_BASELINES = ["granny-migrate", "granny-evict"]
-GRANNY_BASELINES = ["granny"] + GRANNY_MIGRATE_BASELINES
+NATIVE_FT_BASELINES = ["batch-ft", "slutm-ft"]
+NATIVE_BASELINES = ["batch", "slurm"] + NATIVE_FT_BASELINES
+GRANNY_FT_BASELINES = ["granny-ft"]
+GRANNY_MIGRATE_BASELINES = ["granny-migrate"]
+GRANNY_BASELINES = ["granny"] + GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES
 ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
 # Workload/Migration related constants
-MPI_MIGRATE_WORKLOADS = ["mpi-migrate"]
+MPI_MIGRATE_WORKLOADS = ["mpi-migrate", "mpi-evict", "mpi-spot"]
 MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
 
 
@@ -59,14 +61,14 @@ def cum_sum(ts, values):
     return cum_sum
 
 
-def init_csv_file(baseline, num_vms, trace_str):
+def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
     makedirs(MAKESPAN_RESULTS_DIR, exist_ok=True)
 
     # Idle Cores file
     csv_name_ic = "makespan_{}_{}_{}_{}".format(
         IDLE_CORES_FILE_PREFIX,
         baseline,
-        num_vms,
+        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     ic_file = join(MAKESPAN_RESULTS_DIR, csv_name_ic)
@@ -77,7 +79,7 @@ def init_csv_file(baseline, num_vms, trace_str):
     csv_name = "makespan_{}_{}_{}_{}".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         baseline,
-        num_vms,
+        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -91,7 +93,7 @@ def init_csv_file(baseline, num_vms, trace_str):
     csv_name = "makespan_{}_{}_{}_{}".format(
         SCHEDULING_INFO_FILE_PREFIX,
         baseline,
-        num_vms,
+        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -107,12 +109,12 @@ def init_csv_file(baseline, num_vms, trace_str):
             out_file.write
 
 
-def write_line_to_csv(baseline, exp_key, num_vms, trace_str, *args):
+def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str, *args):
     if exp_key == IDLE_CORES_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}".format(
             IDLE_CORES_FILE_PREFIX,
             baseline,
-            num_vms,
+            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -122,7 +124,7 @@ def write_line_to_csv(baseline, exp_key, num_vms, trace_str, *args):
         csv_name = "makespan_{}_{}_{}_{}".format(
             EXEC_TASK_INFO_FILE_PREFIX,
             baseline,
-            num_vms,
+            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -132,7 +134,7 @@ def write_line_to_csv(baseline, exp_key, num_vms, trace_str, *args):
         csv_name = "makespan_{}_{}_{}_{}".format(
             SCHEDULING_INFO_FILE_PREFIX,
             baseline,
-            num_vms,
+            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -184,6 +186,13 @@ def get_trace_from_parameters(workload, num_tasks=100, num_cpus_per_vm=8):
 # ----------------------------
 # Idle core's utilities
 # ----------------------------
+
+
+def get_user_id_from_task(num_tasks_per_user, task_id):
+    if num_tasks_per_user is None:
+        return None
+
+    return int(task_id / num_tasks_per_user) + 1
 
 
 def get_idle_core_count_from_task_info(

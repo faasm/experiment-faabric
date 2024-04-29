@@ -1,10 +1,8 @@
 from invoke import task
 from numpy import arange
 from numpy.random import default_rng
-from os.path import join
 from random import uniform
 from tasks.makespan.data import TaskObject
-from tasks.util.env import PROJ_ROOT
 from tasks.util.makespan import MPI_WORKLOADS
 from tasks.util.trace import dump_task_trace_to_file
 from typing import List
@@ -29,7 +27,10 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
 
     # Work out the possible number of cores per VM
     # possible_mpi_sizes = arange(2, int(num_cores_per_vm * 2))
-    possible_mpi_sizes = arange(2, int(num_cores_per_vm * 2))
+    if workload == "mpi-evict":
+        possible_mpi_sizes = arange(4, int(num_cores_per_vm * 2))
+    else:
+        possible_mpi_sizes = arange(2, int(num_cores_per_vm * 2))
     possible_omp_sizes = arange(1, num_cores_per_vm)
 
     # The lambda parameter regulates how frequently new tasks arrive. If we
@@ -48,8 +49,10 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
         possible_workloads = ["mpi"]
     elif workload == "mpi-migrate":
         possible_workloads = ["mpi-migrate"]
-    elif workload == "mpi-no-migrate":
-        possible_workloads = ["mpi-no-migrate"]
+    elif workload == "mpi-evict":
+        possible_workloads = ["mpi-migrate"]
+    elif workload == "mpi-spot":
+        possible_workloads = ["mpi-migrate"]
     elif workload == "omp":
         possible_workloads = ["omp"]
     elif workload == "mix":

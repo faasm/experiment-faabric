@@ -8,6 +8,7 @@ from tasks.util.env import (
     RESULTS_DIR,
     get_docker_tag,
 )
+from tasks.util.k8s import wait_for_pods
 
 # ----- Variables used for the OpenMPI experiment -----
 OPENMPI_RESULTS_DIR = join(RESULTS_DIR, "openmpi")
@@ -152,6 +153,9 @@ def deploy_native_mpi(experiment_name, image_name, num_vms):
         shell=True,
         check=True,
     )
+
+    namespace = get_native_mpi_namespace(experiment_name)
+    wait_for_pods(namespace, "run=faasm-opnempi")
 
 
 def delete_native_mpi(experiment_name, image_name, num_vms):

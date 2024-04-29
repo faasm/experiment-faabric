@@ -1,9 +1,14 @@
 from invoke import task
 from matplotlib.pyplot import subplots, subplot_mosaic
+# TODO: consider moving some of the migration to a different file
 from tasks.util.makespan import (
     MAKESPAN_PLOTS_DIR,
     do_makespan_plot,
     read_makespan_results,
+)
+from tasks.util.eviction import (
+        read_eviction_results,
+        plot_eviction_results,
 )
 from tasks.util.plot import save_plot
 
@@ -56,8 +61,8 @@ def conservative(ctx):
     """
     Macrobenchmark plot showing the benefits of migrating MPI applications to
     improve locality of execution. We show:
-    - LHS: box plot of idle vCPUs and # of cross-VM links for all VM sizes
-    - RHS: timeseries of one of the box plots
+    - LHS: both number of cross-VM links and number of idle cpu cores per exec
+    - RHS: timeseries of one of the points in the plot
     """
     # NOTE: probably we want highter num-tasks here to make sure we migrate
     # more
@@ -71,6 +76,8 @@ def conservative(ctx):
     timeseries_num_vms = 16 # 32
     timeseries_num_tasks = 100 # 100
 
+    # WARN: this assumes that we never repeat num_vms with different numbers of
+    # num_tasks (fair at this point)
     results = {}
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
         results[n_vms] = read_makespan_results(n_vms, n_tasks, num_cpus_per_vm)
@@ -127,24 +134,23 @@ def eviction(ctx):
     """
     Macrobenchmark plot showing the benefits of migrating MPI applications to
     evict idle VMs.
-    - LHS: Bar plot of the VMseconds used per execution
-    - RHS: timeseries of the number of idle VMs over time
+    - LHS: Bar plot of the VMseconds used per execution (makespan)
+    - RHS: timeseries of the number of active jobs per user
     """
-    # NOTE: probably we want lower num-tasks here to just show the benefits
-    # at the tails
-    # num_vms = [16, 24, 32, 48, 64]
-    # num_tasks = [50, 75, 100, 150, 200]
-    num_vms = [8, 16, 24]
-    num_tasks = [25, 50, 75]
+    # num_vms = [8, 16, 32]
+    # num_tasks = [50, 100, 200]
+    num_vms = [8, 16]
+    num_tasks = [50, 100]
+    num_users = [10, 10]
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
-    timeseries_num_vms = 16 # 32
-    timeseries_num_tasks = 50 # 100
+    timeseries_num_vms = 8
+    timeseries_num_users = 10
 
     results = {}
-    for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-        results[n_vms] = read_makespan_results(n_vms, n_tasks, num_cpus_per_vm)
+    for (n_vms, n_users, n_tasks) in zip(num_vms, num_users, num_tasks):
+        results[n_vms] = read_eviction_results(n_vms, n_users, n_tasks, num_cpus_per_vm)
 
     fig, ax = subplot_mosaic([['left', 'right'],
                               ['left', 'right']])
@@ -153,24 +159,25 @@ def eviction(ctx):
     # Plot 1: bar plot of the CPUsecs per execution
     # ----------
 
-    do_makespan_plot(
-        "used_vmsecs",
+    plot_eviction_results(
+        "makespan",
         results,
         ax["left"],
-        num_vms,
-        num_tasks
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+        num_users=num_users,
     )
 
     # ----------
     # Plot 2: timeseries of one of the cluster sizes
     # ----------
 
-    do_makespan_plot(
-        "ts_idle_vms",
+    plot_eviction_results(
+        "tasks_per_user",
         results,
         ax["right"],
-        timeseries_num_vms,
-        timeseries_num_tasks
+        num_vms=timeseries_num_vms,
+        num_users=timeseries_num_users,
     )
 
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "idle_vms")
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "eviction")

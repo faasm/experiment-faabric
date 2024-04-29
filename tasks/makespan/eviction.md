@@ -1,11 +1,4 @@
-# Makespan Experiment
-
-This experiment presents the benefits of migrating MPI processes to reduce
-fragmentation and improve locality of execution.
-
-NOTE: we only compare to ourselves!
-
-TODO: add README for the conservative plot
+# Makespan Experiment (Eviction version)
 
 First, from the `faasm-exp-base` shell, deploy the VM cluster:
 
@@ -25,8 +18,8 @@ First, deploy the native `k8s` cluster:
 Now, you can run the different baselines:
 
 ```bash
-(faasm-exp-base) inv makespan.run.native-batch --workload mpi-migrate --num-vms 32 --num-tasks 100
-(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-migrate --num-vms 32 --num-tasks 100
+(faasm-exp-base) inv makespan.run.native-batch --workload mpi-evict --num-vms 32 --num-tasks 200
+(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-evict --num-vms 32 --num-tasks 200
 ```
 
 Lastly, remove the native `k8s` cluster:
@@ -52,6 +45,10 @@ Second, upload the corresponding WASM files:
 Third, run the experiment:
 
 ```bash
+# TODO: will probably ditch --workload=mpi
+# (faasm-exp-faabric) inv makespan.run.granny --workload mpi
+# Set the --migrate flag to enable migrating Granules at runtime
+# TODO: rename the workload to `mpi`
 (faasm-exp-faabric) inv makespan.run.granny --num-vms 32 --num-tasks 100 --workload mpi-migrate [--migrate]
 ```
 

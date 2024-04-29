@@ -1,4 +1,4 @@
-from faasmctl.util.planner import reset as reset_planner
+from faasmctl.util.planner import reset as reset_planner, set_planner_policy
 from invoke import task
 from logging import getLogger, WARNING as log_level_WARNING
 from os.path import join
@@ -33,7 +33,7 @@ getLogger("urllib3").setLevel(log_level_WARNING)
 def _get_workload_from_cmdline(workload):
     base_workloads = ["mpi", "omp", "mix"]
     exp_workloads = ["mpi-migrate"]
-    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-no-migrate", "omp"]
+    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-evict", "mpi-spot", "omp"]
     if workload == "all":
         workload = all_workloads
     elif workload == "base":
@@ -59,15 +59,23 @@ def granny(
     num_cpus_per_vm=8,
     num_tasks=100,
     migrate=False,
+    fault=False,
+    num_users=None,
 ):
     """
-    Run: `inv makespan.run.granny --workload [mpi,mpi-migrate,mpi-no-migrate]
+    Run: `inv makespan.run.granny --workload [mpi-migrate,mpi-evict,omp]
     """
+    # Work-out the baseline name from the arguments
+    baseline = "granny"
+    if migrate:
+        baseline = "granny-migrate"
+    if fault:
+        baseline = "granny-ft"
+
     workload = _get_workload_from_cmdline(workload)
-    baseline = "granny-migrate" if migrate else "granny"
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(baseline, num_vms, trace)
+        _do_run(baseline, num_vms, trace, num_users)
         sleep(5)
 
 
@@ -78,18 +86,25 @@ def native_slurm(
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
+    num_users=None,
+    fault=False,
 ):
     """
     Run the native `slurm` baseline of the makespan experiment. The `slurm`
     baseline allocates resources at process/thread granularity
     """
+    baseline = "slurm"
+    if fault:
+        baseline = "slurm-ft"
+
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(
-            "slurm",
+            baseline,
             num_vms,
             trace,
+            num_users,
         )
         sleep(5)
 
@@ -101,27 +116,40 @@ def native_batch(
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
+    num_users=None,
+    fault=False,
 ):
     """
     Run the native `batch` baseline of the makespan experiment. The `batch`
     baseline allocates resources at VM granularity
     """
+    baseline = "batch"
+    if fault:
+        baseline = "batch-ft"
+
     workload = _get_workload_from_cmdline(workload)
     for wload in workload:
         trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
         _do_run(
-            "batch",
+            baseline,
             num_vms,
             trace,
+            num_users,
         )
         sleep(5)
 
 
-def _do_run(baseline, num_vms, trace):
+def _do_run(baseline, num_vms, trace, num_users):
     num_vms = int(num_vms)
     job_workload = get_workload_from_trace(trace)
     num_tasks = get_num_tasks_from_trace(trace)
     num_cpus_per_vm = get_num_cpus_per_vm_from_trace(trace)
+
+    if job_workload == "mpi-evict":
+        num_users = 10 if num_users is None else int(num_users)
+        num_tasks_per_user = int(num_tasks / num_users)
+    else:
+        num_tasks_per_user = None
 
     if baseline not in ALLOWED_BASELINES:
         raise RuntimeError(
@@ -134,18 +162,34 @@ def _do_run(baseline, num_vms, trace):
     if baseline in GRANNY_BASELINES:
         reset_planner(num_vms)
 
+        if job_workload == "mpi-evict":
+            set_planner_policy("compact")
+        elif job_workload == "mpi-migrate":
+            set_planner_policy("bin-pack")
+        elif job_workload == "mpi-spot":
+            set_planner_policy("spot")
+
     scheduler = BatchScheduler(
         baseline,
         num_tasks,
         num_vms,
+        num_tasks_per_user,
         trace,
     )
 
-    init_csv_file(
-        baseline,
-        num_vms,
-        trace,
-    )
+    if job_workload == "mpi-evict":
+        init_csv_file(
+            baseline,
+            num_vms,
+            trace,
+            num_tasks_per_user=num_tasks_per_user,
+        )
+    else:
+        init_csv_file(
+            baseline,
+            num_vms,
+            trace,
+        )
 
     task_trace = load_task_trace_from_file(
         job_workload, num_tasks, num_cpus_per_vm
@@ -154,8 +198,8 @@ def _do_run(baseline, num_vms, trace):
     executed_task_info = scheduler.run(baseline, task_trace)
 
     # For granny we get the idle cores as we run the experiment, from the
-    # planner
-    if baseline in NATIVE_BASELINES:
+    # planner (also, for the moment, we do not need these results for mpi-evict)
+    if baseline in NATIVE_BASELINES and job_workload != "mpi-evict":
         num_idle_cores_per_time_step = get_idle_core_count_from_task_info(
             baseline,
             executed_task_info,

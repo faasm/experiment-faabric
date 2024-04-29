@@ -1,15 +1,9 @@
-# Makespan Experiment
-
-This experiment presents the benefits of migrating MPI processes to reduce
-fragmentation and improve locality of execution.
-
-NOTE: we only compare to ourselves!
-
-TODO: add README for the conservative plot
+# Makespan Experiment (SPOT VM version)
 
 First, from the `faasm-exp-base` shell, deploy the VM cluster:
 
 ```bash
+# TODO: varying sizes of cluster
 (faasm-exp-base) inv cluster.provision --vm Standard_D8_v5 --nodes 33
 (faasm-exp-base) inv cluster.credentials
 ```
@@ -25,8 +19,8 @@ First, deploy the native `k8s` cluster:
 Now, you can run the different baselines:
 
 ```bash
-(faasm-exp-base) inv makespan.run.native-batch --workload mpi-migrate --num-vms 32 --num-tasks 100
-(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-migrate --num-vms 32 --num-tasks 100
+(faasm-exp-base) inv makespan.run.native-batch --workload mpi-evict --num-vms 32 --num-tasks 200
+(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-evict --num-vms 32 --num-tasks 200
 ```
 
 Lastly, remove the native `k8s` cluster:
@@ -52,7 +46,8 @@ Second, upload the corresponding WASM files:
 Third, run the experiment:
 
 ```bash
-(faasm-exp-faabric) inv makespan.run.granny --num-vms 32 --num-tasks 100 --workload mpi-migrate [--migrate]
+# In this case the migration activates the fault-injection thread
+(faasm-exp-faabric) inv makespan.run.granny --num-vms 32 --num-tasks 100 --workload mpi-spot [--fault]
 ```
 
 During an experiment, you may monitor the state of the cluster (in a separete

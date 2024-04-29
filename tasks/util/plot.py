@@ -11,14 +11,6 @@ PLOT_COLORS = {
     "slurm": (0.3, 0.3, 0.3),
 }
 
-PLOT_LABELS = {
-    "granny": "granny",
-    "native-1": "1-ctr-per-vm",
-    "native-2": "2-ctr-per-vm",
-    "native-4": "4-ctr-per-vm",
-    "native-8": "8-ctr-per-vm",
-}
-
 PLOT_PATTERNS = ["//", "\\\\", "||", "-", "*-", "o-"]
 SINGLE_COL_FIGSIZE = (6, 3)
 
