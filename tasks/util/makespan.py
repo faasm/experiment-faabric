@@ -23,12 +23,13 @@ MAKESPAN_PLOTS_DIR = join(PLOTS_ROOT, "makespan")
 IDLE_CORES_FILE_PREFIX = "idle-cores"
 EXEC_TASK_INFO_FILE_PREFIX = "exec-task-info"
 SCHEDULING_INFO_FILE_PREFIX = "sched-info"
+MAKESPAN_FILE_PREFIX = "makespan"
 
 # Allowed system baselines:
 # - Granny: is our system
 # - Batch: native OpenMPI where we schedule jobs at VM granularity
 # - Slurm: native OpenMPI where we schedule jobs at CPU core granularity
-NATIVE_FT_BASELINES = ["batch-ft", "slutm-ft"]
+NATIVE_FT_BASELINES = ["batch-ft", "slurm-ft"]
 NATIVE_BASELINES = ["batch", "slurm"] + NATIVE_FT_BASELINES
 GRANNY_FT_BASELINES = ["granny-ft"]
 GRANNY_MIGRATE_BASELINES = ["granny-migrate"]
@@ -108,6 +109,20 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
             out_file.write("TimeStampSecs,NumIdleVms,NumIdleCpus,NumCrossVmLinks\n")
             out_file.write
 
+    # Makespan file
+    # In some fault-tolerant baselines we cannot only rely on the executed task
+    # info to get the end-to-end latency measurement as some tasks may fail.
+    # Instead, we use a CSV file too
+    csv_name = "makespan_{}_{}_{}_{}".format(
+        MAKESPAN_FILE_PREFIX,
+        baseline,
+        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+        get_trace_ending(trace_str),
+    )
+    csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
+    with open(csv_file, "w") as out_file:
+        out_file.write("MakespanSecs\n")
+
 
 def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str, *args):
     if exp_key == IDLE_CORES_FILE_PREFIX:
@@ -147,6 +162,16 @@ def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str,
         else:
             with open(makespan_file, "a") as out_file:
                 out_file.write("{},{},{},{}\n".format(*args))
+    elif exp_key == MAKESPAN_FILE_PREFIX:
+        csv_name = "makespan_{}_{}_{}_{}".format(
+            MAKESPAN_FILE_PREFIX,
+            baseline,
+            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+            get_trace_ending(trace_str),
+        )
+        makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
+        with open(makespan_file, "a") as out_file:
+            out_file.write("{}\n".format(*args))
 
 
 # ----------------------------

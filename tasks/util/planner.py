@@ -1,4 +1,5 @@
 from faasmctl.util.planner import (
+    get_available_hosts as planner_get_available_hosts,
     get_in_fligh_apps as planner_get_in_fligh_apps,
 )
 from time import sleep
@@ -26,10 +27,23 @@ def get_num_idle_cpus_from_in_flight_apps(num_vms, num_cpus_per_vm, in_flight_ap
 def get_num_available_slots_from_in_flight_apps(
   num_vms, num_cpus_per_vm, user_id = None
 ):
-    # For Granny baselines, we cannot use static knowledge of the
-    # allocated slots, as migrations may happen so we query the planner
+    """
+    For Granny baselines, we cannot use static knowledge of the
+    allocated slots, as migrations may happen so we query the planner
+    """
+    short_sleep_secs = 0.25
+
     while True:
         in_flight_apps = planner_get_in_fligh_apps()
+        available_hosts = planner_get_available_hosts()
+        available_ips = [host.ip for host in available_hosts.hosts]
+
+        if len(available_ips) != num_vms:
+            print("Not enough slots registered. Retrying...")
+            sleep(short_sleep_secs)
+            continue
+
+        available_slots = sum([int(host.slots - host.usedSlots) for host in available_hosts.hosts])
 
         next_evicted_vm_ip = ""
         try:
@@ -41,12 +55,13 @@ def get_num_available_slots_from_in_flight_apps(
 
         if len(next_evicted_vm_ip) > 0:
             worker_occupation[next_evicted_vm_ip] = int(num_cpus_per_vm)
+            available_slots -= int(num_cpus_per_vm)
 
         # Annoyingly, we may query for the in-flight apps as soon as we
         # schedule them, missing the init stage of the mpi app. Thus we
         # sleep for a bit and ask again
         if any([len(app.hostIps) != app.size for app in in_flight_apps.apps]):
-            sleep(0.25)
+            sleep(short_sleep_secs)
             continue
 
         for app in in_flight_apps.apps:
@@ -73,12 +88,19 @@ def get_num_available_slots_from_in_flight_apps(
                 if worker_occupation[ip] < int(num_cpus_per_vm):
                     worker_occupation[ip] += 1
 
+        num_available_slots = (num_vms - len(list(worker_occupation.keys()))) * num_cpus_per_vm
+        for ip in worker_occupation:
+            num_available_slots += num_cpus_per_vm - worker_occupation[ip]
+
+        # Double-check the number of available slots with our other source of truth
+        if user_id is not None and num_available_slots != available_slots:
+            print(
+              "WARNING: inconsistency in the number of available slots (in flight: {} - registered: {})".format(num_available_slots, available_slots))
+            sleep(short_sleep_secs)
+            continue
+
         # If we have made it this far, we are done
         break
-
-    num_available_slots = (num_vms - len(list(worker_occupation.keys()))) * num_cpus_per_vm
-    for ip in worker_occupation:
-        num_available_slots += num_cpus_per_vm - worker_occupation[ip]
 
     # If we have any frozen apps, we want to make space for them to be
     # un-frozen, so we deduct their size from the available slots tally

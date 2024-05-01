@@ -8,7 +8,6 @@ from faasmctl.util.planner import (
     set_next_evicted_host as planner_set_next_evicted_host,
 )
 from faasmctl.util.restart import replica as restart_faasm_replica
-from google.protobuf.text_format import ParseError
 from logging import (
     getLogger,
     INFO as log_level_INFO,
@@ -17,6 +16,7 @@ from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
 from random import randint
+from subprocess import CalledProcessError
 from typing import Dict, List, Tuple, Union
 from tasks.makespan.data import (
     ExecutedTaskInfo,
@@ -35,6 +35,7 @@ from tasks.util.faasm import (
     has_app_failed,
     post_async_msg_and_get_result_json,
 )
+from tasks.util.k8s import wait_for_pods as wait_for_native_mpi_pods
 from tasks.util.lammps import (
     LAMMPS_FAASM_USER,
     LAMMPS_DOCKER_BINARY,
@@ -63,7 +64,12 @@ from tasks.util.makespan import (
     get_workload_from_trace,
     write_line_to_csv,
 )
-from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
+from tasks.util.openmpi import (
+    get_native_mpi_namespace,
+    get_native_mpi_pods,
+    restart_native_mpi_pod,
+    run_kubectl_cmd,
+)
 from tasks.util.planner import (
     get_num_available_slots_from_in_flight_apps,
     get_num_idle_cpus_from_in_flight_apps,
@@ -88,6 +94,10 @@ INTERTASK_SLEEP = 1
 PLANNER_MONITOR_RESOLUTION_SECS = 4
 
 
+def has_task_failed(result: ResultQueueItem):
+    return result.exec_time == -1
+
+
 def fault_injection_thread(
     baseline,
     fault_injection_period_secs,
@@ -105,21 +115,18 @@ def fault_injection_thread(
         if baseline in GRANNY_BASELINES:
             vm_names = get_faasm_worker_names()
             vm_ips = get_faasm_worker_ips()
-
-            evicted_idx = randint(0, len(vm_names) - 1)
         else:
-            raise RuntimeError("Fault-injection thread not implemented for native!")
+            vm_names, vm_ips = get_native_mpi_pods("makespan")
 
+        evicted_idx = randint(0, len(vm_names) - 1)
         return vm_names[evicted_idx], vm_ips[evicted_idx]
 
     # Main fault-injection loop. We have two periods that determine the loop:
     # (i) how often we inject a fault, and (ii) how much heads-up we give the
-    # batch-scheduler (grace period). In the loop, we first sleep for (i) - (ii)
-    # and then for (ii)
+    # batch-scheduler (grace period). In the loop, we first sleep for (i) -
+    # (ii) and then for (ii)
     while True:
         next_evicted_host, next_evicted_ip = get_next_evicted_host(baseline)
-        # TODO: delete me!
-        print("FT selected next evicted host: {} (ip: {})".format(next_evicted_host, next_evicted_ip))
 
         # First, sleep until we need to give the grace period
         sleep(fault_injection_period_secs - host_grace_period_secs)
@@ -132,13 +139,11 @@ def fault_injection_thread(
         # Now sleep for the grace period
         sleep(host_grace_period_secs)
 
-        # TODO: delete me!
-        print("FT thread restarting replica: {} (ip: {})".format(next_evicted_host, next_evicted_ip))
         # Finally, restart the host to simulate a spot VM eviction (aka fault)
         if baseline in GRANNY_BASELINES:
             restart_faasm_replica(next_evicted_host)
         else:
-            raise RuntimeError("Fault-injection thread not implemented for native!")
+            restart_native_mpi_pod("makespan", next_evicted_host)
 
 
 def dequeue_with_timeout(
@@ -166,7 +171,7 @@ def thread_pool_thread(
     result_queue: Queue,
     thread_idx: int,
     baseline: str,
-    vm_ip_to_name: Dict[str, str],
+    num_vms: int,
     num_cpus_per_vm: int,
     num_tasks_per_user: int,
     trace_str: str,
@@ -188,7 +193,6 @@ def thread_pool_thread(
         read_one = False
         while True:
             sleep(PLANNER_MONITOR_RESOLUTION_SECS)
-            num_vms = len(list(vm_ip_to_name.keys()))
 
             in_flight_apps = planner_get_in_fligh_apps()
             idle_vms, idle_cpus = get_num_idle_cpus_from_in_flight_apps(
@@ -218,13 +222,21 @@ def thread_pool_thread(
     work_queue: WorkQueueItem
     while True:
         work_item = dequeue_with_timeout(work_queue, "work queue", silent=True)
+        has_failed = False
 
         # IP for the master VM
         master_vm_ip = None
         if len(work_item.sched_decision) > 0:
             master_vm_ip = work_item.sched_decision[0][0]
-            if master_vm_ip != QUEUE_SHUTDOWN:
-                master_vm = vm_ip_to_name[master_vm_ip]
+
+        if baseline in NATIVE_BASELINES and master_vm_ip != QUEUE_SHUTDOWN:
+            # Get the VM name for an IP directly from kuberenetes every
+            # time, as the translation may become stale in a faulty
+            # workload (e.g. mpi-spot)
+            names, ips = get_native_mpi_pods("makespan")
+            for name, ip in zip(names, ips):
+                if ip == master_vm_ip:
+                    master_vm = name
 
         # Check for shutdown message
         if master_vm_ip == QUEUE_SHUTDOWN:
@@ -239,7 +251,6 @@ def thread_pool_thread(
 
         # Record the start timestamp
         start_ts = 0
-        has_failed = False
         if baseline in NATIVE_BASELINES:
             if work_item.task.app in MPI_WORKLOADS:
                 if work_item.task.app == "mpi":
@@ -297,9 +308,11 @@ def thread_pool_thread(
                 exec_cmd = " ".join(exec_cmd)
 
             start_ts = time()
-            run_kubectl_cmd("makespan", exec_cmd)
+            try:
+                run_kubectl_cmd("makespan", exec_cmd)
+            except CalledProcessError:
+                has_failed = True
             actual_time = int(time() - start_ts)
-            thread_print("Actual time: {}".format(actual_time))
         else:
             # Prepare Faasm request
             req = {}
@@ -489,11 +502,40 @@ class SchedulerState:
         for ip, name in zip(vm_ips, vm_names):
             self.vm_map[ip] = self.num_cpus_per_vm
             self.vm_ip_to_name[ip] = name
+
             sch_logger.info(
                 "- IP: {} (name: {}) - Slots: {}".format(
                     ip, name, self.num_cpus_per_vm
                 )
             )
+
+    def update_vm_list(self):
+        if self.baseline not in NATIVE_BASELINES:
+            raise RuntimeError("This method should only be used in native baselines!")
+
+        wait_for_native_mpi_pods(
+            get_native_mpi_namespace("makespan"),
+            "run=faasm-openmpi",
+            num_expected=self.num_vms,
+            quiet=True,
+        )
+        vm_names, vm_ips = get_native_mpi_pods("makespan")
+
+        # First, delete the IPs that are not in the cluster anymore
+        ips_to_delete = []
+        for vm_ip in self.vm_map:
+            if vm_ip not in vm_ips:
+                ips_to_delete.append(vm_ip)
+
+        for vm_ip in ips_to_delete:
+            del self.vm_map[vm_ip]
+            del self.vm_ip_to_name[vm_ip]
+
+        # Second, add the new IPs
+        for vm_ip, vm_name in zip(vm_ips, vm_names):
+            if vm_ip not in self.vm_map:
+                self.vm_map[vm_ip] = self.num_cpus_per_vm
+                self.vm_ip_to_name[vm_ip] = vm_name
 
     def remove_in_flight_task(self, task_id: int) -> None:
         if task_id not in self.in_flight_tasks:
@@ -507,11 +549,26 @@ class SchedulerState:
             task_id
         ]
         for ip, slots in scheduling_decision:
-            self.vm_map[ip] += slots
+            if ip in self.vm_map:
+                self.vm_map[ip] += slots
+
             self.total_available_slots += slots
 
         # Remove the task from in-flight
         del self.in_flight_tasks[task_id]
+
+    def get_next_task(self, tasks):
+        for task in tasks:
+            if (
+                task.task_id in self.executed_task_info
+                and self.executed_task_info[task.task_id].time_executing == -1
+            ):
+                return task
+
+            if task.task_id not in self.executed_task_info:
+                return task
+
+        return None
 
     def print_executed_task_info(self, footer_text=None):
         """
@@ -593,33 +650,42 @@ class SchedulerState:
         Given a ResultQueueItem, update our records on executed tasks
         """
         self.remove_in_flight_task(result.task_id)
+
         if result.task_id not in self.executed_task_info:
             raise RuntimeError("Unrecognised task {}", result.task_id)
+
         self.executed_task_info[
             result.task_id
         ].time_executing = result.exec_time
         self.executed_task_info[result.task_id].exec_start_ts = result.start_ts
         self.executed_task_info[result.task_id].exec_end_ts = result.end_ts
-        self.executed_task_count += 1
 
-        # For reliability, also write a line to a file
-        # Note that we tag CSV files by the hardware we provision; i.e. the
-        # number of VMs and the number of cores per VM
-        write_line_to_csv(
-            self.baseline,
-            EXEC_TASK_INFO_FILE_PREFIX,
-            self.num_vms,
-            self.num_tasks_per_user,
-            self.trace_str,
-            self.executed_task_info[result.task_id].task_id,
-            self.executed_task_info[result.task_id].time_executing,
-            self.executed_task_info[result.task_id].time_in_queue,
-            self.executed_task_info[result.task_id].exec_start_ts,
-            self.executed_task_info[result.task_id].exec_end_ts,
-        )
+        if not has_task_failed(result):
+            self.executed_task_count += 1
+
+            # For reliability, also write a line to a file
+            # Note that we tag CSV files by the hardware we provision; i.e. the
+            # number of VMs and the number of cores per VM
+            write_line_to_csv(
+                self.baseline,
+                EXEC_TASK_INFO_FILE_PREFIX,
+                self.num_vms,
+                self.num_tasks_per_user,
+                self.trace_str,
+                self.executed_task_info[result.task_id].task_id,
+                self.executed_task_info[result.task_id].time_executing,
+                self.executed_task_info[result.task_id].time_in_queue,
+                self.executed_task_info[result.task_id].exec_start_ts,
+                self.executed_task_info[result.task_id].exec_end_ts,
+            )
 
         # Lastly, print the executed task info for visualisation purposes
         self.print_executed_task_info()
+
+        # For native baselines that rely on this scheduler for the correct IP
+        # allocation, we need to update the list of IPs and VM map
+        if self.baseline in NATIVE_BASELINES:
+            self.update_vm_list()
 
 
 class BatchScheduler:
@@ -665,7 +731,7 @@ class BatchScheduler:
                     self.result_queue,
                     i,
                     baseline,
-                    self.state.vm_ip_to_name,
+                    self.state.num_vms,
                     self.state.num_cpus_per_vm,
                     self.state.num_tasks_per_user,
                     self.state.trace_str,
@@ -886,99 +952,114 @@ class BatchScheduler:
         """
         Execute a list of tasks, and return details on the task execution
         """
-        # If running a WASM workload, flush the hosts first
-        if self.state.baseline in GRANNY_BASELINES:
-            flush_workers()
-
         # Mark the initial timestamp
         self.start_ts = time()
 
-        for t_num, t in enumerate(tasks):
-            sch_logger.debug(
-                "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
-            )
-            sleep(INTERTASK_SLEEP)
-            sch_logger.debug("Done sleeping")
+        # def do_execute_tasks(this_tasks):
 
-            # Try to schedule the task with the current available
-            # resources
-            scheduling_decision = self.schedule_task_to_vm(t)
+        # We loop through all the tasks in a while loop to make sure that we
+        # re-start tasks that have failed
+        while True:
+            # for t_num, t in enumerate(this_tasks):
+            t = self.state.get_next_task(tasks)
 
-            # If we don't have enough resources, wait for results until enough
-            # resources
-            time_in_queue_start = time()
-            while scheduling_decision == NOT_ENOUGH_SLOTS:
-                result: ResultQueueItem
+            while t is not None:
+                sch_logger.debug(
+                    "Sleeping {} seconds between tasks".format(INTERTASK_SLEEP)
+                )
+                sleep(INTERTASK_SLEEP)
+                sch_logger.debug("Done sleeping")
 
-                # In the MPI evict baseline we want to query often about being
-                # able to schedule, as some planner migrations may unblock
-                # scheduling
-                if self.state.workload == "mpi-evict" and self.state.baseline in GRANNY_BASELINES:
-                    # If there are not enough slots, first try to deque
-                    try:
+                # Try to schedule the task with the current available
+                # resources
+                scheduling_decision = self.schedule_task_to_vm(t)
+
+                # If we don't have enough resources, wait for results until enough
+                # resources
+                time_in_queue_start = time()
+                while scheduling_decision == NOT_ENOUGH_SLOTS:
+                    result: ResultQueueItem
+
+                    # In the MPI evict baseline we want to query often about being
+                    # able to schedule, as some planner migrations may unblock
+                    # scheduling
+                    if self.state.workload == "mpi-evict" and self.state.baseline in GRANNY_BASELINES:
+                        # If there are not enough slots, first try to deque
+                        try:
+                            result = dequeue_with_timeout(
+                                self.result_queue,
+                                "result queue",
+                                throw=True,
+                                timeout_s=1,
+                            )
+
+                            # If dequeue works, update records and try to
+                            # schedule again
+                            self.state.update_records_from_result(result)
+                        except Queue_Empty:
+                            # If dequeue does not work (it times out) try to
+                            # schedule again anyway
+                            pass
+
+                        scheduling_decision = self.schedule_task_to_vm(t)
+                    else:
                         result = dequeue_with_timeout(
-                            self.result_queue,
-                            "result queue",
-                            throw=True,
-                            timeout_s=1,
+                            self.result_queue, "result queue"
                         )
 
-                        # If dequeue works, update records and try to
-                        # schedule again
+                        # Update our local records according to result
                         self.state.update_records_from_result(result)
-                    except Queue_Empty:
-                        # If dequeue does not work (it times out) try to
-                        # schedule again anyway
-                        pass
 
-                    scheduling_decision = self.schedule_task_to_vm(t)
-                else:
-                    result = dequeue_with_timeout(
-                        self.result_queue, "result queue"
-                    )
+                        # Try to schedule again
+                        scheduling_decision = self.schedule_task_to_vm(t)
 
-                    # Update our local records according to result
-                    self.state.update_records_from_result(result)
-
-                    # Try to schedule again
-                    scheduling_decision = self.schedule_task_to_vm(t)
-
-            # Once we have been able to schedule the task, record the time it
-            # took, i.e. the time the task spent in the queue
-            time_in_queue = int(time() - time_in_queue_start)
-            self.state.executed_task_info[t.task_id] = ExecutedTaskInfo(
-                t.task_id, 0, time_in_queue, 0, 0
-            )
-
-            # Before printing the executed task info, update the next task
-            # (so that it is not anymore the current one)
-            if t_num < len(tasks) - 1:
-                self.state.next_task_in_queue = tasks[t_num + 1]
-            self.state.print_executed_task_info()
-
-            # Log the scheduling decision to a file
-            if self.state.baseline in NATIVE_BASELINES:
-                write_line_to_csv(
-                    self.state.baseline,
-                    SCHEDULING_INFO_FILE_PREFIX,
-                    self.state.num_vms,
-                    self.state.num_tasks_per_user,
-                    self.state.trace_str,
-                    t.task_id,
-                    scheduling_decision,
+                # Once we have been able to schedule the task, record the time it
+                # took, i.e. the time the task spent in the queue
+                time_in_queue = int(time() - time_in_queue_start)
+                self.state.executed_task_info[t.task_id] = ExecutedTaskInfo(
+                    t.task_id, 0, time_in_queue, 0, 0
                 )
 
-            # Lastly, put the scheduled task in the work queue
-            self.work_queue.put(WorkQueueItem(scheduling_decision, t))
+                # Log the scheduling decision to a file
+                if self.state.baseline in NATIVE_BASELINES:
+                    write_line_to_csv(
+                        self.state.baseline,
+                        SCHEDULING_INFO_FILE_PREFIX,
+                        self.state.num_vms,
+                        self.state.num_tasks_per_user,
+                        self.state.trace_str,
+                        t.task_id,
+                        scheduling_decision,
+                    )
 
-        # Once we are done scheduling tasks, drain the result queue (no more
-        # tasks are next in queue)
-        self.state.next_task_in_queue = None
-        while self.state.executed_task_count < len(tasks):
-            result = dequeue_with_timeout(self.result_queue, "result queue")
+                # Lastly, put the scheduled task in the work queue
+                self.work_queue.put(WorkQueueItem(scheduling_decision, t))
 
-            # Update our local records according to result
-            self.state.update_records_from_result(result)
+                t = self.state.get_next_task(tasks)
+
+                # Before printing the executed task info, update the next task
+                # (so that it is not anymore the current one)
+                if t is not None:
+                    self.state.next_task_in_queue = t
+                self.state.print_executed_task_info()
+
+            # Once we are done scheduling tasks, drain the result queue (no more
+            # tasks are next in queue). If any of the dequeued tasks fails,
+            # we will go back to the beginning
+            self.state.next_task_in_queue = None
+            while self.state.executed_task_count < len(tasks):
+                result = dequeue_with_timeout(self.result_queue, "result queue")
+
+                # Update our local records according to result
+                self.state.update_records_from_result(result)
+
+                # If the task has failed, make sure we try to run it again
+                if has_task_failed(result):
+                    break
+
+            # Finally, break out of the main loop if we are indeed done
+            if self.state.executed_task_count == len(tasks):
+                break
 
         return self.state.executed_task_info
 

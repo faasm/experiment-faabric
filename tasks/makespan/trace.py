@@ -27,7 +27,7 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
 
     # Work out the possible number of cores per VM
     # possible_mpi_sizes = arange(2, int(num_cores_per_vm * 2))
-    if workload == "mpi-evict":
+    if workload == "mpi-evict" or workload == "mpi-spot":
         possible_mpi_sizes = arange(4, int(num_cores_per_vm * 2))
     else:
         possible_mpi_sizes = arange(2, int(num_cores_per_vm * 2))

@@ -2,10 +2,11 @@ from subprocess import run
 from time import sleep
 
 
-def wait_for_pods(namespace, label):
+def wait_for_pods(namespace, label, num_expected=1, quiet=False):
     # Wait for the faasm pods to be ready
     while True:
-        print("Waiting for {} pods...".format(namespace))
+        if not quiet:
+            print("Waiting for {} pods...".format(namespace))
         cmd = [
             "kubectl",
             "-n {}".format(namespace),
@@ -20,9 +21,12 @@ def wait_for_pods(namespace, label):
             .rstrip()
         )
         statuses = [o.strip() for o in output.split(" ") if o.strip()]
-        if all([s == "True" for s in statuses]):
-            print("All {} pods ready, continuing...".format(namespace))
+        statuses = [s == "True" for s in statuses]
+        if len(statuses) == num_expected and all(statuses):
+            if not quiet:
+                print("All {} pods ready, continuing...".format(namespace))
             break
 
-        print("{} pods not ready, waiting ({})".format(namespace, output))
+        if not quiet:
+            print("{} pods not ready, waiting ({}/{})".format(namespace, len(statuses), num_expected))
         sleep(5)

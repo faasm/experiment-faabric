@@ -19,8 +19,8 @@ First, deploy the native `k8s` cluster:
 Now, you can run the different baselines:
 
 ```bash
-(faasm-exp-base) inv makespan.run.native-batch --workload mpi-evict --num-vms 32 --num-tasks 200
-(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-evict --num-vms 32 --num-tasks 200
+(faasm-exp-base) inv makespan.run.native-batch --workload mpi-spot --num-vms 32 --num-tasks 100 [--fault]
+(faasm-exp-base) inv makespan.run.native-slurm --workload mpi-spot --num-vms 32 --num-tasks 100 [--fault]
 ```
 
 Lastly, remove the native `k8s` cluster:

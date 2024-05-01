@@ -12,6 +12,7 @@ from tasks.util.makespan import (
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
     IDLE_CORES_FILE_PREFIX,
+    MAKESPAN_FILE_PREFIX,
     NATIVE_BASELINES,
     init_csv_file,
     get_idle_core_count_from_task_info,
@@ -22,7 +23,7 @@ from tasks.util.makespan import (
     write_line_to_csv,
 )
 from tasks.util.trace import load_task_trace_from_file
-from time import sleep
+from time import sleep, time
 from typing import Dict
 
 # Configure the logging settings globally
@@ -195,7 +196,19 @@ def _do_run(baseline, num_vms, trace, num_users):
         job_workload, num_tasks, num_cpus_per_vm
     )
 
+    start_ts = time()
     executed_task_info = scheduler.run(baseline, task_trace)
+    makespan_secs = time() - start_ts
+
+    # First of all, record the makespan (the total time elapsed)
+    write_line_to_csv(
+        baseline,
+        MAKESPAN_FILE_PREFIX,
+        num_vms,
+        None,
+        trace,
+        makespan_secs,
+    )
 
     # For granny we get the idle cores as we run the experiment, from the
     # planner (also, for the moment, we do not need these results for mpi-evict)
@@ -212,6 +225,7 @@ def _do_run(baseline, num_vms, trace, num_users):
                 baseline,
                 IDLE_CORES_FILE_PREFIX,
                 num_vms,
+                None,
                 trace,
                 time_step,
                 num_idle_cores_per_time_step[time_step],

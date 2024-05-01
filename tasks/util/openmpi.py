@@ -95,7 +95,8 @@ def run_kubectl_cmd(experiment_name, cmd, capture_stderr=False):
 def get_native_mpi_pods(experiment_name):
     # List all pods
     cmd_out = run_kubectl_cmd(
-        experiment_name, "get pods -o wide -l run=faasm-openmpi"
+        experiment_name,
+        "get pods -o wide -l run=faasm-openmpi"
     )
 
     # Split output into list of strings
@@ -112,6 +113,10 @@ def get_native_mpi_pods(experiment_name):
         pod_ips.append(line_parts[5])
 
     return pod_names, pod_ips
+
+
+def restart_native_mpi_pod(experiment_name, pod_name):
+    run_kubectl_cmd(experiment_name, "delete pod {}".format(pod_name))
 
 
 def get_native_mpi_pods_ip_to_vm(experiment_name):
@@ -155,7 +160,7 @@ def deploy_native_mpi(experiment_name, image_name, num_vms):
     )
 
     namespace = get_native_mpi_namespace(experiment_name)
-    wait_for_pods(namespace, "run=faasm-opnempi")
+    wait_for_pods(namespace, "run=faasm-openmpi", num_expected=num_vms)
 
 
 def delete_native_mpi(experiment_name, image_name, num_vms):

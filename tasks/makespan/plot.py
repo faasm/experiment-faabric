@@ -11,6 +11,10 @@ from tasks.util.eviction import (
         plot_eviction_results,
 )
 from tasks.util.plot import save_plot
+from tasks.util.spot import (
+    plot_spot_results,
+    read_spot_results,
+)
 
 
 @task
@@ -181,3 +185,49 @@ def eviction(ctx):
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "eviction")
+
+
+@task
+def spot(ctx):
+    """
+    Macro-benchmark showing the benefits of using Granny to run on SPOT VMs.
+    - LHS: makespan slowdown wrt not using SPOT VMs (makespan_spot / makespan_no_spot)
+    - RHS: cost savings of using SPOT VMs (price_spot / price_no_spot). We
+           use different savings percentages of using spot VMs from 90% (maximum
+           reported by Azure) to 25% (90, 75, 50, 25)
+    """
+    num_vms = [4] # , 8]
+    num_tasks = [10] # , 25]
+    num_cpus_per_vm = 8
+
+    results = {}
+    for (n_vms, n_tasks) in zip(num_vms, num_tasks):
+        results[n_vms] = read_spot_results(n_vms, n_tasks, num_cpus_per_vm)
+
+    fig, (ax1, ax2) = subplots(nrows=1, ncols=2, figsize=(6, 3))
+
+    # ----------
+    # Plot 1: makespan slowdown (spot / no spot)
+    # ----------
+
+    plot_spot_results(
+        "makespan",
+        results,
+        ax1,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+    )
+
+    # ----------
+    # Plot 2: stacked cost bar plot (spot) + real cost (no spot)
+    # ----------
+
+    plot_spot_results(
+        "cost",
+        results,
+        ax2,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "spot")
