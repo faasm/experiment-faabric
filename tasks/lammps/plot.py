@@ -32,7 +32,7 @@ def _read_results():
         grouped = results.groupby("WorldSize", as_index=False)
 
         result_dict[baseline][workload] = {
-            "world-size": results["WorldSize"].to_list(),
+            "world-size": grouped.mean()["WorldSize"].to_list(),
             "exec-time-mean": grouped.mean()["Time"].to_list(),
             "exec-time-sem": grouped.sem()["Time"].to_list(),
         }
@@ -87,6 +87,6 @@ def plot(ctx, plot_elapsed_times=True):
     ax.legend()
     ax.set_xlabel("# MPI Processes")
     ax.set_ylabel("Slowdown [{} / OpenMPI]".format(SYSTEM_NAME))
-    ax.set_title("Faasm Version ({})".format(get_faasm_version()))
+    # ax.set_title("Faasm Version ({})".format(get_faasm_version()))
 
     save_plot(fig, LAMMPS_PLOTS_DIR, "lammps_slowdown")
