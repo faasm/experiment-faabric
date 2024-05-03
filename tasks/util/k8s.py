@@ -22,11 +22,12 @@ def wait_for_pods(namespace, label, num_expected=1, quiet=False):
         )
         statuses = [o.strip() for o in output.split(" ") if o.strip()]
         statuses = [s == "True" for s in statuses]
-        if len(statuses) == num_expected and all(statuses):
+        true_statuses = [s for s in statuses if s]
+        if len(true_statuses) == num_expected and all(statuses):
             if not quiet:
                 print("All {} pods ready, continuing...".format(namespace))
             break
 
         if not quiet:
-            print("{} pods not ready, waiting ({}/{})".format(namespace, len(statuses), num_expected))
+            print("{} pods not ready, waiting ({}/{})".format(namespace, len(true_statuses), num_expected))
         sleep(5)

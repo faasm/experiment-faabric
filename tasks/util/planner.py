@@ -45,15 +45,15 @@ def get_num_available_slots_from_in_flight_apps(
 
         available_slots = sum([int(host.slots - host.usedSlots) for host in available_hosts.hosts])
 
-        next_evicted_vm_ip = ""
+        next_evicted_vm_ips = []
         try:
-            next_evicted_vm_ip = in_flight_apps.nextEvictedVmIp
+            next_evicted_vm_ips = in_flight_apps.nextEvictedVmIps
         except AttributeError:
             pass
 
         worker_occupation = {}
 
-        if len(next_evicted_vm_ip) > 0:
+        for next_evicted_vm_ip in next_evicted_vm_ips:
             worker_occupation[next_evicted_vm_ip] = int(num_cpus_per_vm)
             available_slots -= int(num_cpus_per_vm)
 

@@ -115,8 +115,8 @@ def get_native_mpi_pods(experiment_name):
     return pod_names, pod_ips
 
 
-def restart_native_mpi_pod(experiment_name, pod_name):
-    run_kubectl_cmd(experiment_name, "delete pod {}".format(pod_name))
+def restart_native_mpi_pod(experiment_name, pod_names):
+    run_kubectl_cmd(experiment_name, "delete pod {}".format(" ".join(pod_names)))
 
 
 def get_native_mpi_pods_ip_to_vm(experiment_name):

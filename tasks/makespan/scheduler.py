@@ -6,6 +6,7 @@ from faasmctl.util.flush import flush_workers
 from faasmctl.util.planner import (
     get_in_fligh_apps as planner_get_in_fligh_apps,
     set_next_evicted_host as planner_set_next_evicted_host,
+    wait_for_workers as planner_wait_for_workers,
 )
 from faasmctl.util.restart import replica as restart_faasm_replica
 from logging import (
@@ -15,7 +16,7 @@ from logging import (
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty as Queue_Empty
 from os.path import basename
-from random import randint
+from random import sample
 from subprocess import CalledProcessError
 from typing import Dict, List, Tuple, Union
 from tasks.makespan.data import (
@@ -100,8 +101,10 @@ def has_task_failed(result: ResultQueueItem):
 
 def fault_injection_thread(
     baseline,
+    num_vms,
     fault_injection_period_secs,
     host_grace_period_secs,
+    num_faults,
 ):
     """
     Thread used to periodically inject faults in a running cluster
@@ -111,22 +114,27 @@ def fault_injection_thread(
     FT period we make up. We could consider changing them but, for simplicity
     we keep them the same
     """
-    def get_next_evicted_host(baseline):
+    def get_next_evicted_host(baseline, num_hosts_to_evict):
         if baseline in GRANNY_BASELINES:
             vm_names = get_faasm_worker_names()
             vm_ips = get_faasm_worker_ips()
         else:
             vm_names, vm_ips = get_native_mpi_pods("makespan")
 
-        evicted_idx = randint(0, len(vm_names) - 1)
-        return vm_names[evicted_idx], vm_ips[evicted_idx]
+        assert len(vm_names) == num_vms, "Mismatch in FT thread picking next evicted host {} != {}".format(num_vms, len(vm_names))
+
+        evicted_idxs = sample(range(0, len(vm_names)), num_hosts_to_evict)
+        evicted_vm_names = [vm_names[evicted_idx] for evicted_idx in evicted_idxs]
+        evicted_vm_ips = [vm_ips[evicted_idx] for evicted_idx in evicted_idxs]
+
+        return evicted_vm_names, evicted_vm_ips
 
     # Main fault-injection loop. We have two periods that determine the loop:
     # (i) how often we inject a fault, and (ii) how much heads-up we give the
     # batch-scheduler (grace period). In the loop, we first sleep for (i) -
     # (ii) and then for (ii)
     while True:
-        next_evicted_host, next_evicted_ip = get_next_evicted_host(baseline)
+        next_evicted_hosts, next_evicted_ips = get_next_evicted_host(baseline, num_faults)
 
         # First, sleep until we need to give the grace period
         sleep(fault_injection_period_secs - host_grace_period_secs)
@@ -134,16 +142,19 @@ def fault_injection_thread(
         # Then, notify that the host will be evicted (only Granny understands
         # this)
         if baseline in GRANNY_BASELINES:
-            planner_set_next_evicted_host(next_evicted_ip)
+            planner_set_next_evicted_host(next_evicted_ips)
 
         # Now sleep for the grace period
         sleep(host_grace_period_secs)
 
         # Finally, restart the host to simulate a spot VM eviction (aka fault)
         if baseline in GRANNY_BASELINES:
-            restart_faasm_replica(next_evicted_host)
+            restart_faasm_replica(next_evicted_hosts)
+
+            # Wait for workers to be ready
+            planner_wait_for_workers(num_vms)
         else:
-            restart_native_mpi_pod("makespan", next_evicted_host)
+            restart_native_mpi_pod("makespan", next_evicted_hosts)
 
 
 def dequeue_with_timeout(
@@ -754,14 +765,18 @@ class BatchScheduler:
             fault_injection_period_secs = 60
             # What grace period do we give hosts after notifying their eviction
             host_grace_period_secs = 60
+            # How many faults we are injecting
+            num_faults = int(num_vms / 4)
 
             self.fault_injection_daemon = Process(
                 target=fault_injection_thread,
                 daemon=True,
                 args=(
                     baseline,
+                    self.state.num_vms,
                     fault_injection_period_secs,
                     host_grace_period_secs,
+                    num_faults,
                 ),
             )
             self.fault_injection_daemon.start()
