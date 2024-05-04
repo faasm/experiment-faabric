@@ -196,8 +196,8 @@ def spot(ctx):
            use different savings percentages of using spot VMs from 90% (maximum
            reported by Azure) to 25% (90, 75, 50, 25)
     """
-    num_vms = [4] # , 8]
-    num_tasks = [10] # , 25]
+    num_vms = [4, 8]
+    num_tasks = [10, 25]
     num_cpus_per_vm = 8
 
     results = {}

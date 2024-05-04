@@ -437,6 +437,8 @@ class SchedulerState:
     num_tasks: int
     num_cpus_per_vm: int
     num_tasks_per_user: int
+    # Only for `mpi-spot`, number of faulty VMs
+    num_faults: int = 0
 
     # Total accounting of slots
     total_slots: int
@@ -767,6 +769,7 @@ class BatchScheduler:
             host_grace_period_secs = 60
             # How many faults we are injecting
             num_faults = int(num_vms / 4)
+            self.state.num_faults = num_faults
 
             self.fault_injection_daemon = Process(
                 target=fault_injection_thread,
@@ -849,7 +852,14 @@ class BatchScheduler:
                 return get_num_available_slots_from_in_flight_apps(
                     self.state.num_vms,
                     self.state.num_cpus_per_vm,
-                    get_user_id_from_task(self.state.num_tasks_per_user, task.task_id)
+                    user_id=get_user_id_from_task(self.state.num_tasks_per_user, task.task_id)
+                ) >= task.size
+
+            if self.state.workload == "mpi-spot" and self.state.baseline in GRANNY_FT_BASELINES:
+                return get_num_available_slots_from_in_flight_apps(
+                    self.state.num_vms,
+                    self.state.num_cpus_per_vm,
+                    num_evicted_vms=self.state.num_faults,
                 ) >= task.size
 
             return get_num_available_slots_from_in_flight_apps(

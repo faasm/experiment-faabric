@@ -51,6 +51,8 @@ def _do_plot_makespan(results, ax, **kwargs):
 
     if "tight" in kwargs:
         tight = kwargs["tight"]
+    else:
+        tight = False
 
     baselines = ["slurm", "batch", "granny"]
 
@@ -112,6 +114,8 @@ def _do_plot_cost(results, ax, **kwargs):
 
     if "tight" in kwargs:
         tight = kwargs["tight"]
+    else:
+        tight = False
 
     baselines = ["slurm", "batch", "granny"]
     # Put discounts in decreasing order so that we can stack values on top of
@@ -174,7 +178,7 @@ def _do_plot_cost(results, ax, **kwargs):
             )
 
         # Add disccount annotation
-        if len(num_vms) != 1:
+        if tight:
             ax.text(
                 xs[-2] * 0.92,
                 ys[discount][-2] + 0.001,
