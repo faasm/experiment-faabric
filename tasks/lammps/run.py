@@ -83,6 +83,7 @@ def wasm(ctx, w, repeats=1):
                     "cmdline": cmdline,
                     "mpi_world_size": int(nproc),
                     "input_data": get_lammps_migration_params(
+                        num_loops=3,
                         num_net_loops=workload_config["num_net_loops"],
                         chunk_size=workload_config["chunk_size"],
                     ),

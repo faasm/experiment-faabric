@@ -32,7 +32,7 @@ def _read_results():
         grouped = results.groupby("WorldSize", as_index=False)
 
         result_dict[baseline][workload] = {
-            "world-size": results["WorldSize"].to_list(),
+            "world-size": grouped.mean()["WorldSize"].to_list(),
             "exec-time-mean": grouped.mean()["Time"].to_list(),
             "exec-time-sem": grouped.sem()["Time"].to_list(),
         }
@@ -74,6 +74,7 @@ def plot(ctx, plot_elapsed_times=True):
             slowdown,
             width=width,
             label=workload,
+            edgecolor="black",
         )
 
     xmin = 0
