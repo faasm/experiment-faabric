@@ -187,10 +187,11 @@ def _do_plot_cost(results, ax, **kwargs):
             )
         else:
             ax.text(
-                xs[-1] * 0.92,
-                ys[discount][-1] + 0.001,
+                xs[-1] + 0.5,
+                ys[discount][-1] + 0.0001,
                 "{}% off".format(discount),
                 fontsize=6,
+                rotation=90,
             )
 
         bottom_ys = ys[discount]
