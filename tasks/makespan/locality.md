@@ -1,4 +1,4 @@
-# Makespan Experiment (SPOT VM version)
+# Makespan Experiment (Locality Version)
 
 In this experiment we study the benefits of using Granules to improve locality
 of execution while maintaining high cluster utilisation.
