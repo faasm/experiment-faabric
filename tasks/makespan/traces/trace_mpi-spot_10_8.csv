@@ -1,0 +1,11 @@
+TaskId,App,Size,InterArrivalTimeSecs
+0,mpi-migrate,6,0
+1,mpi-migrate,6,19
+2,mpi-migrate,2,12
+3,mpi-migrate,6,13
+4,mpi-migrate,15,2
+5,mpi-migrate,6,46
+6,mpi-migrate,3,4
+7,mpi-migrate,15,1
+8,mpi-migrate,9,1
+9,mpi-migrate,15,0
