@@ -34,7 +34,7 @@ getLogger("urllib3").setLevel(log_level_WARNING)
 def _get_workload_from_cmdline(workload):
     base_workloads = ["mpi", "omp", "mix"]
     exp_workloads = ["mpi-migrate"]
-    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-evict", "mpi-spot", "omp"]
+    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-evict", "mpi-spot", "omp", "omp-elastic"]
     if workload == "all":
         workload = all_workloads
     elif workload == "base":
