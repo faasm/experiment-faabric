@@ -32,23 +32,16 @@ getLogger("urllib3").setLevel(log_level_WARNING)
 
 
 def _get_workload_from_cmdline(workload):
-    base_workloads = ["mpi", "omp", "mix"]
-    exp_workloads = ["mpi-migrate"]
-    all_workloads = ["mix", "mpi", "mpi-migrate", "mpi-evict", "mpi-spot", "omp", "omp-elastic"]
-    if workload == "all":
-        workload = all_workloads
-    elif workload == "base":
-        workload = base_workloads
-    elif workload == "exp":
-        workload = exp_workloads
-    elif workload in all_workloads:
-        workload = [workload]
-    else:
+    # TODO: rename mpi-migrate to something like mpi-locality
+    all_workloads = ["mpi-evict", "mpi-migrate", "mpi-spot", "omp-elastic"]
+
+    if workload not in all_workloads:
         raise RuntimeError(
             "Unrecognised workload: {}. Must be one in: {}".format(
                 workload, all_workloads
             )
         )
+
     return workload
 
 
@@ -59,25 +52,33 @@ def granny(
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
+    # Optional flag for mpi-migrate workload to migrate to improve locality
     migrate=False,
+    # Optional flag for mpi-spot workload to inject faults
     fault=False,
+    # Optional flag for omp-elastic workload to elastically use idle CPUs
+    elastic=False,
+    # Mandatory flag for the mpi-evict workload (not in the paper)
     num_users=None,
 ):
     """
-    Run: `inv makespan.run.granny --workload [mpi-migrate,mpi-evict,omp]
+    Run: `inv makespan.run.granny --workload [mpi-migrate,mpi-spot,omp-elastic]
     """
     # Work-out the baseline name from the arguments
     baseline = "granny"
     if migrate:
+        assert workload == "mpi-migrate", "--migrate flag should only be used with mpi-migrate workload!"
         baseline = "granny-migrate"
     if fault:
+        assert workload == "mpi-spot", "--fault flag should only be used with mpi-spot workload!"
         baseline = "granny-ft"
+    if elastic:
+        assert workload == "omp-elastic", "--fault flag should only be used with omp-elastic workload!"
+        baseline = "granny-elastic"
 
     workload = _get_workload_from_cmdline(workload)
-    for wload in workload:
-        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(baseline, num_vms, trace, num_users)
-        sleep(5)
+    trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
+    _do_run(baseline, num_vms, trace, num_users)
 
 
 @task()
@@ -99,15 +100,13 @@ def native_slurm(
         baseline = "slurm-ft"
 
     workload = _get_workload_from_cmdline(workload)
-    for wload in workload:
-        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(
-            baseline,
-            num_vms,
-            trace,
-            num_users,
-        )
-        sleep(5)
+    trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
+    _do_run(
+        baseline,
+        num_vms,
+        trace,
+        num_users,
+    )
 
 
 @task()
@@ -129,15 +128,13 @@ def native_batch(
         baseline = "batch-ft"
 
     workload = _get_workload_from_cmdline(workload)
-    for wload in workload:
-        trace = get_trace_from_parameters(wload, num_tasks, num_cpus_per_vm)
-        _do_run(
-            baseline,
-            num_vms,
-            trace,
-            num_users,
-        )
-        sleep(5)
+    trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
+    _do_run(
+        baseline,
+        num_vms,
+        trace,
+        num_users,
+    )
 
 
 def _do_run(baseline, num_vms, trace, num_users):
@@ -169,6 +166,8 @@ def _do_run(baseline, num_vms, trace, num_users):
             set_planner_policy("bin-pack")
         elif job_workload == "mpi-spot":
             set_planner_policy("spot")
+        elif job_workload == "omp-elastic":
+            set_planner_policy("bin-pack")
 
     scheduler = BatchScheduler(
         baseline,

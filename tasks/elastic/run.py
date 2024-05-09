@@ -87,7 +87,7 @@ def wasm(ctx, num_threads=None, elastic=False, repeats=1):
                 "user": user,
                 "function": func,
                 "cmdline": cmdline,
-                "input_data": get_elastic_input_data(),
+                "input_data": get_elastic_input_data(num_loops=2),
                 "isOmp": True,
                 "ompNumThreads": nthread,
             }

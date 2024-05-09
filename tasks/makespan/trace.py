@@ -45,18 +45,14 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     inter_arrival_times.insert(0, 0)
 
     # Work out the possible different workloads
-    if workload == "mpi":
-        possible_workloads = ["mpi"]
-    elif workload == "mpi-migrate":
+    if workload == "mpi-migrate":
         possible_workloads = ["mpi-migrate"]
     elif workload == "mpi-evict":
         possible_workloads = ["mpi-migrate"]
     elif workload == "mpi-spot":
         possible_workloads = ["mpi-migrate"]
-    elif workload == "omp":
+    elif workload == "omp-elastic":
         possible_workloads = ["omp"]
-    elif workload == "mix":
-        possible_workloads = ["mpi", "omp"]
     else:
         raise RuntimeError("Unrecognised workload: {}".format(workload))
 

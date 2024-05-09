@@ -2,7 +2,6 @@ from faasmctl.util.config import (
     get_faasm_worker_ips,
     get_faasm_worker_names,
 )
-from faasmctl.util.flush import flush_workers
 from faasmctl.util.planner import (
     get_in_fligh_apps as planner_get_in_fligh_apps,
     set_next_evicted_host as planner_set_next_evicted_host,
@@ -25,17 +24,19 @@ from tasks.makespan.data import (
     TaskObject,
     WorkQueueItem,
 )
-from tasks.makespan.env import (
-    DGEMM_DOCKER_BINARY,
-    DGEMM_FAASM_FUNC,
-    DGEMM_FAASM_USER,
-    get_dgemm_cmdline,
+from tasks.util.elastic import (
+    ELASTIC_KERNEL,
+    OPENMP_ELASTIC_FUNCTION,
+    OPENMP_ELASTIC_NATIVE_BINARY,
+    OPENMP_ELASTIC_USER,
+    get_elastic_input_data,
 )
 from tasks.util.faasm import (
     get_faasm_exec_time_from_json,
     has_app_failed,
     post_async_msg_and_get_result_json,
 )
+from tasks.util.kernels import get_openmp_kernel_cmdline
 from tasks.util.k8s import wait_for_pods as wait_for_native_mpi_pods
 from tasks.util.lammps import (
     LAMMPS_FAASM_USER,
@@ -53,12 +54,14 @@ from tasks.util.makespan import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
+    GRANNY_ELASTIC_BASELINES,
     GRANNY_FT_BASELINES,
     GRANNY_MIGRATE_BASELINES,
     MPI_MIGRATE_WORKLOADS,
     MPI_WORKLOADS,
     NATIVE_BASELINES,
     NATIVE_FT_BASELINES,
+    OPENMP_WORKLOADS,
     SCHEDULING_INFO_FILE_PREFIX,
     get_num_cpus_per_vm_from_trace,
     get_user_id_from_task,
@@ -255,10 +258,7 @@ def thread_pool_thread(
 
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app in MPI_WORKLOADS:
-            # We always use the same LAMMPS benchmark ("compute-xl")
-            # TODO: FIXME: delete me!
-            data_file = get_faasm_benchmark("compute")["data"][0]
-            # data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
+            data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
 
         # Record the start timestamp
         start_ts = 0
@@ -301,13 +301,11 @@ def thread_pool_thread(
                     "su mpirun -c '{}'".format(mpirun_cmd),
                 ]
                 exec_cmd = " ".join(exec_cmd)
-            elif work_item.task.app == "omp":
-                # TODO(omp): should we set the parallelism level to be
-                # min(work_item.task.size, num_slots_per_vm) ? I.e. what will
-                # happen when we oversubscribe?
-                openmp_cmd = "bash -c '{} {}'".format(
-                    DGEMM_DOCKER_BINARY,
-                    get_dgemm_cmdline(work_item.task.size),
+            elif work_item.task.app in OPENMP_WORKLOADS:
+                openmp_cmd = "bash -c '{} {} {}'".format(
+                    get_elastic_input_data(native=True),
+                    OPENMP_ELASTIC_NATIVE_BINARY,
+                    get_openmp_kernel_cmdline(ELASTIC_KERNEL, work_item.task.size),
                 )
 
                 exec_cmd = [
@@ -358,7 +356,7 @@ def thread_pool_thread(
                     msg["input_data"] = get_lammps_migration_params(
                         check_every=check_every
                     )
-            elif work_item.task.app == "omp":
+            elif work_item.task.app in OPENMP_WORKLOADS:
                 if work_item.task.size > num_cpus_per_vm:
                     print(
                         "Requested OpenMP execution with more parallelism"
@@ -366,35 +364,32 @@ def thread_pool_thread(
                         "{} > {}".format(work_item.task.size, num_cpus_per_vm)
                     )
                     raise RuntimeError("Error in OpenMP task trace!")
-                user = DGEMM_FAASM_USER
-                func = "{}_{}".format(DGEMM_FAASM_FUNC, work_item.task.task_id)
+                user = OPENMP_ELASTIC_USER
+                func = OPENMP_ELASTIC_FUNCTION
                 msg = {
                     "user": user,
                     "function": func,
-                    # The input_data is the number of OMP threads
-                    "cmdline": get_dgemm_cmdline(work_item.task.size),
+                    "input_data": get_elastic_input_data(),
+                    "cmdline": get_openmp_kernel_cmdline(ELASTIC_KERNEL, work_item.task.size),
+                    "isOmp": True,
+                    "ompNumThreads": work_item.task.size,
                 }
 
                 req["user"] = user
                 req["function"] = func
+                req["singleHostHint"] = True
+                req["elasticScaleHint"] = baseline in GRANNY_ELASTIC_BASELINES
 
-            start_ts = time()
             # Post asynch request and wait for JSON result
-            try:
-                result_json = post_async_msg_and_get_result_json(msg, req_dict=req)
-                actual_time = int(get_faasm_exec_time_from_json(result_json))
-                has_failed = has_app_failed(result_json)
-                thread_print(
-                    "Finished executiong app {} (time: {})".format(
-                        result_json[0]["appId"], actual_time
-                    )
+            start_ts = time()
+            result_json = post_async_msg_and_get_result_json(msg, req_dict=req)
+            actual_time = int(get_faasm_exec_time_from_json(result_json))
+            has_failed = has_app_failed(result_json)
+            thread_print(
+                "Finished executiong app {} (time: {})".format(
+                    result_json[0]["appId"], actual_time
                 )
-            except RuntimeError:
-                print("WEE EVER HERE?? DELETE THIS CATCH")
-                actual_time = -1
-                sch_logger.error(
-                    "Error executing task {}".format(work_item.task.task_id)
-                )
+            )
 
         end_ts = time()
 
@@ -432,7 +427,7 @@ class SchedulerState:
     # number of cpus per vm
     trace_str: str
     # The workload indicates the type of application we are runing. It can
-    # either be `omp` or `mpi-migrate`, or `mpi-evict`
+    # either be `omp-elastic` or `mpi-migrate` or `mpi-evict` or `mpi-spot`
     workload: str
     num_tasks: int
     num_cpus_per_vm: int
@@ -833,9 +828,9 @@ class BatchScheduler:
     # Helper method to know if we have enough slots to schedule a task
     def have_enough_slots_for_task(self, task: TaskObject):
         if self.state.baseline in NATIVE_BASELINES:
-            # For `mpi-evict` we run a multi-tenant trace, and prevent apps
-            # from different users from running in the same VM
             if self.state.workload == "mpi-evict":
+                # For `mpi-evict` we run a multi-tenant trace, and prevent apps
+                # from different users from running in the same VM
                 sorted_vms = sorted(
                     self.state.vm_map.items(), key=lambda item: item[1], reverse=True
                 )
@@ -843,6 +838,15 @@ class BatchScheduler:
                 pruned_vms = self.prune_node_list_from_different_users(sorted_vms, task)
 
                 return self.num_available_slots_from_vm_list(pruned_vms) >= task.size
+            elif self.state.workload in OPENMP_WORKLOADS:
+                # For OpenMP workloads, we can only allocate them in one VM, so
+                # we compare the requested size with the largest capacity we
+                # have in one VM
+                sorted_vms = sorted(
+                    self.state.vm_map.items(), key=lambda item: item[1], reverse=True
+                )
+
+                return sorted_vms[0][1] >= task.size
             else:
                 return self.state.total_available_slots >= task.size
         else:
@@ -860,6 +864,13 @@ class BatchScheduler:
                     self.state.num_vms,
                     self.state.num_cpus_per_vm,
                     num_evicted_vms=self.state.num_faults,
+                ) >= task.size
+
+            if self.state.workload in OPENMP_WORKLOADS:
+                return get_num_available_slots_from_in_flight_apps(
+                    self.state.num_vms,
+                    self.state.num_cpus_per_vm,
+                    openmp=True,
                 ) >= task.size
 
             return get_num_available_slots_from_in_flight_apps(
@@ -898,10 +909,12 @@ class BatchScheduler:
         if self.state.workload == "mpi-evict":
             sorted_vms = self.prune_node_list_from_different_users(sorted_vms, task)
 
+        if self.state.workload in OPENMP_WORKLOADS:
+            sorted_vms = [sorted_vms[0]]
+
         # For GRANNY baselines we can skip the python-side accounting as the
         # planner has all the scheduling information
-        # TODO(omp): why should it be any different with OpenMP?
-        if self.state.baseline in NATIVE_BASELINES and task.app in MPI_WORKLOADS:
+        if self.state.baseline in NATIVE_BASELINES:
             for vm, num_slots in sorted_vms:
                 # Work out how many slots can we take up in this pod
                 if self.state.baseline == "batch":
@@ -935,36 +948,6 @@ class BatchScheduler:
                 raise RuntimeError(
                     "Scheduling error: inconsistent scheduler state"
                 )
-        """
-        elif task.app == "omp":
-            if len(sorted_vms) == 0:
-                # TODO: maybe we should raise an inconsistent state error here
-                return NOT_ENOUGH_SLOTS
-            vm, num_slots = sorted_vms[0]
-            if num_slots == 0:
-                # TODO: maybe we should raise an inconsistent state error here
-                return NOT_ENOUGH_SLOTS
-            if self.state.baseline in NATIVE_BASELINES:
-                if task.size > self.state.num_cpus_per_vm:
-                    print(
-                        "Overcomitting for task {} ({} > {})".format(
-                            task.task_id,
-                            task.size,
-                            self.state.num_cpus_per_vm,
-                        )
-                    )
-                num_on_this_vm = self.state.num_cpus_per_vm
-            else:
-                if num_slots < task.size:
-                    return NOT_ENOUGH_SLOTS
-                num_on_this_vm = task.size
-
-            scheduling_decision.append((vm, num_on_this_vm))
-            self.state.vm_map[vm] -= num_on_this_vm
-            # TODO: when we overcommit, do we substract the number of cores
-            # we occupy, or the ones we agree to run?
-            self.state.total_available_slots -= num_on_this_vm
-        """
 
         # Before returning, persist the scheduling decision to state
         self.state.in_flight_tasks[task.task_id] = scheduling_decision

@@ -31,14 +31,16 @@ MAKESPAN_FILE_PREFIX = "makespan"
 # - Slurm: native OpenMPI where we schedule jobs at CPU core granularity
 NATIVE_FT_BASELINES = ["batch-ft", "slurm-ft"]
 NATIVE_BASELINES = ["batch", "slurm"] + NATIVE_FT_BASELINES
+GRANNY_ELASTIC_BASELINES = ["granny-elastic"]
 GRANNY_FT_BASELINES = ["granny-ft"]
 GRANNY_MIGRATE_BASELINES = ["granny-migrate"]
-GRANNY_BASELINES = ["granny"] + GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES
+GRANNY_BASELINES = ["granny"] + GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES + GRANNY_ELASTIC_BASELINES
 ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
 # Workload/Migration related constants
 MPI_MIGRATE_WORKLOADS = ["mpi-migrate", "mpi-evict", "mpi-spot"]
 MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
+OPENMP_WORKLOADS = ["omp", "omp-elastic"]
 
 
 def cum_sum(ts, values):

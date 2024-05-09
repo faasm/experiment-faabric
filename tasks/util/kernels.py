@@ -44,7 +44,7 @@ OPENMP_KERNELS_RESULTS_DIR = join(RESULTS_DIR, "kernels-omp")
 
 def get_openmp_kernel_cmdline(kernel, num_threads):
     kernels_cmdline = {
-        # dgemm: iterations, matrix order, tile size (20 iterations fine, 100 long)
+        # dgemm: iterations, order, tile size (20 iterations fine, 100 long)
         "dgemm": "100 2048 32",
         # global: iterations, scramble string length
         # string length must be multiple of num_threads
@@ -68,5 +68,3 @@ def get_openmp_kernel_cmdline(kernel, num_threads):
     }
 
     return "{} {}".format(num_threads, kernels_cmdline[kernel])
-
-
