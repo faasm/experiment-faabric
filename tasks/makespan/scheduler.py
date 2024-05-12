@@ -318,7 +318,7 @@ def thread_pool_thread(
 
             start_ts = time()
             try:
-                run_kubectl_cmd("makespan", exec_cmd)
+                out = run_kubectl_cmd("makespan", exec_cmd)
             except CalledProcessError:
                 has_failed = True
             actual_time = int(time() - start_ts)

@@ -1,14 +1,19 @@
 from invoke import task
 from matplotlib.pyplot import subplots, subplot_mosaic
-# TODO: consider moving some of the migration to a different file
-from tasks.util.makespan import (
-    MAKESPAN_PLOTS_DIR,
-    do_makespan_plot,
-    read_makespan_results,
+from tasks.util.elastic import (
+    plot_elastic_results,
+    read_elastic_results,
 )
 from tasks.util.eviction import (
         read_eviction_results,
         plot_eviction_results,
+)
+# TODO: consider moving some of the migration to a different file (e.g.
+# tasks.util.locality)
+from tasks.util.makespan import (
+    MAKESPAN_PLOTS_DIR,
+    do_makespan_plot,
+    read_makespan_results,
 )
 from tasks.util.plot import save_plot
 from tasks.util.spot import (
@@ -90,7 +95,7 @@ def locality(ctx):
     # ----------
 
     do_makespan_plot(
-        "boxplot_vcpus",
+        "percentage_vcpus",
         results,
         ax["upper left"],
         num_vms,
@@ -227,3 +232,86 @@ def spot(ctx):
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "spot")
+
+
+@task
+def elastic(ctx):
+    """
+    Macro-benchmark showing the benefits of using Granny to elastically scale
+    up shared memory applications to use idle vCPU cores.
+    We want to show:
+    - Each job runs for shorter -> CDF of JCT
+    - Overall we run for shorter -> Makespan
+    - We have less idle vCPU cores -> same idle plot from locality
+    - We should also have a timeseries of the idle vCPU plots
+
+    Initial idea is to have four columns
+    """
+    # num_vms = [8, 16, 24, 32]
+    # num_tasks = [25, 50, 75, 100]
+    num_vms = [4, 8]
+    num_tasks = [10, 25]
+    num_cpus_per_vm = 8
+
+    # RHS: zoom in one of the bars
+    timeseries_num_vms = num_vms[-1]
+    timeseries_num_tasks = num_tasks[-1]
+    cdf_num_vms = timeseries_num_vms
+    cdf_num_tasks = timeseries_num_tasks
+
+    results = {}
+    for (n_vms, n_tasks) in zip(num_vms, num_tasks):
+        results[n_vms] = read_elastic_results(n_vms, n_tasks, num_cpus_per_vm)
+
+    fig, (ax1, ax2, ax3, ax4) = subplots(nrows=1, ncols=4, figsize=(12, 3))
+
+    # ----------
+    # Plot 1: makespan
+    # ----------
+
+    plot_elastic_results(
+        "makespan",
+        results,
+        ax1,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+    )
+
+    # ----------
+    # Plot 2: percentage of idle vCPUs
+    # ----------
+
+    plot_elastic_results(
+        "percentage_vcpus",
+        results,
+        ax2,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+        num_cpus_per_vm=num_cpus_per_vm,
+    )
+
+    # ----------
+    # Plot 3: CDF of the JCT (for one run)
+    # ----------
+
+    plot_elastic_results(
+        "cdf_jct",
+        results,
+        ax3,
+        cdf_num_vms=cdf_num_vms,
+        cdf_num_tasks=cdf_num_tasks
+    )
+
+    # ----------
+    # Plot 4: timeseries of % of idle CPU cores
+    # ----------
+
+    plot_elastic_results(
+        "ts_vcpus",
+        results,
+        ax4,
+        timeseries_num_vms=timeseries_num_vms,
+        timeseries_num_tasks=timeseries_num_tasks
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "elastic")

@@ -27,9 +27,9 @@ def get_num_idle_cpus_from_in_flight_apps(num_vms, num_cpus_per_vm, in_flight_ap
 def get_num_available_slots_from_in_flight_apps(
   num_vms,
   num_cpus_per_vm,
-  user_id = None,
-  num_evicted_vms = None,
-  openmp = False,
+  user_id=None,
+  num_evicted_vms=None,
+  openmp=False,
 ):
     """
     For Granny baselines, we cannot use static knowledge of the
@@ -44,7 +44,10 @@ def get_num_available_slots_from_in_flight_apps(
         available_ips = [host.ip for host in available_hosts.hosts]
 
         if len(available_ips) != num_vms:
-            print("Not enough slots registered. Retrying...")
+            print("Not enough hosts registered ({}/{}). Retrying...".format(
+                len(available_ips),
+                num_vms)
+            )
             sleep(short_sleep_secs)
             continue
 

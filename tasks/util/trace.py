@@ -1,9 +1,18 @@
+from dataclasses import dataclass
 from os import makedirs
 from os.path import join
-from tasks.makespan.data import TaskObject
 from tasks.util.env import PROJ_ROOT
 
 MAKESPAN_TRACES_DIR = join(PROJ_ROOT, "tasks", "makespan", "traces")
+
+# Copy this from tasks.makespan.data to prevent a circular import
+@dataclass
+class TaskObject:
+    task_id: int
+    app: str
+    size: int
+    inter_arrival_time: int
+
 
 def dump_task_trace_to_file(task_trace, workload, num_tasks, num_cores_per_vm):
     makedirs(MAKESPAN_TRACES_DIR, exist_ok=True)

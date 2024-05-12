@@ -1,14 +1,12 @@
 from glob import glob
 from matplotlib.patches import Patch
-from numpy import linspace
 from os.path import join
 from pandas import read_csv
-from scipy.interpolate import CubicSpline
 from tasks.util.env import (
     PLOTS_ROOT,
     RESULTS_DIR,
 )
-from tasks.util.plot import PLOT_COLORS
+from tasks.util.plot import get_color_for_baseline, get_label_for_baseline
 
 MAKESPAN_RESULTS_DIR = join(RESULTS_DIR, "makespan")
 MAKESPAN_PLOTS_DIR = join(PLOTS_ROOT, "makespan")
@@ -69,7 +67,10 @@ def _do_plot_makespan(results, ax, **kwargs):
             float(results[n_vms][baseline + "-ft"]["makespan"]) / float(results[n_vms][baseline]["makespan"])
             for baseline in baselines
         ]
-        colors += [PLOT_COLORS[la] for la in baselines]
+        colors += [
+            get_color_for_baseline("mpi-spot", baseline)
+            for baseline in baselines
+        ]
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
@@ -94,12 +95,12 @@ def _do_plot_makespan(results, ax, **kwargs):
     ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
     # Manually craft legend
-    legend_entries = []
-    for baseline in baselines:
-        legend_entries.append(
-            Patch(color=PLOT_COLORS[baseline], label=baseline)
-        )
-
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-spot", baseline),
+            label=get_label_for_baseline("mpi-spot", baseline)
+        ) for baseline in baselines
+    ]
     if tight:
         ax.legend(handles=legend_entries, ncols=1, fontsize=6, loc="lower center")
     else:
@@ -141,14 +142,14 @@ def _do_plot_cost(results, ax, **kwargs):
 
         for discount in discounts_pcnt:
             ys[discount] += [
-                float(results[n_vms][baseline + "-ft"]["makespan"]) * (1 - discount / 100) / 3600
+                (float(results[n_vms][baseline + "-ft"]["makespan"]) * (1 - discount / 100) / 3600) * n_vms
                 for baseline in baselines
             ]
             if ind != len(num_vms) - 1:
                 ys[discount].append(0)
 
-        nospot_ys += [results[n_vms][baseline]["makespan"] / 3600 for baseline in baselines]
-        colors += [PLOT_COLORS[la] for la in baselines]
+        nospot_ys += [(results[n_vms][baseline]["makespan"] / 3600) * n_vms for baseline in baselines]
+        colors += [get_color_for_baseline("mpi-spot", baseline) for baseline in baselines]
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
@@ -212,7 +213,7 @@ def _do_plot_cost(results, ax, **kwargs):
         ax.tick_params(axis='y', labelsize=6)
         ax.legend(fontsize=6)
     else:
-        ax.set_ylabel("Normalized Cost [Hours / $]")
+        ax.set_ylabel("Cost [VM Hours]")
         ax.legend(fontsize=8)
     ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 

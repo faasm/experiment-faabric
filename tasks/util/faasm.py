@@ -30,7 +30,13 @@ def get_faasm_version():
 
 
 def post_async_msg_and_get_result_json(msg, host_list=None, req_dict=None):
-    result = faasmctl_invoke_wasm(msg, dict_out=True, host_list=host_list, req_dict=req_dict)
+    result = faasmctl_invoke_wasm(
+        msg,
+        dict_out=True,
+        host_list=host_list,
+        req_dict=req_dict,
+        num_retries=1e5,
+    )
 
     return result["messageResults"]
 

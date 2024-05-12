@@ -1,6 +1,6 @@
 from glob import glob
 from math import ceil, floor
-from matplotlib.patches import Patch, Polygon
+from matplotlib.patches import Patch
 from numpy import linspace
 from os import makedirs
 from os.path import join
@@ -11,9 +11,14 @@ from tasks.util.env import (
     PLOTS_ROOT,
     RESULTS_DIR,
 )
+from tasks.util.math import cum_sum
 from tasks.util.planner import get_xvm_links_from_part
 from tasks.util.openmpi import get_native_mpi_pods_ip_to_vm
-from tasks.util.plot import PLOT_COLORS
+from tasks.util.plot import (
+    fix_hist_step_vertical_line_at_end,
+    get_color_for_baseline,
+    get_label_for_baseline,
+)
 
 # Directories
 MAKESPAN_RESULTS_DIR = join(RESULTS_DIR, "makespan")
@@ -41,27 +46,6 @@ ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 MPI_MIGRATE_WORKLOADS = ["mpi-migrate", "mpi-evict", "mpi-spot"]
 MPI_WORKLOADS = ["mpi"] + MPI_MIGRATE_WORKLOADS
 OPENMP_WORKLOADS = ["omp", "omp-elastic"]
-
-
-def cum_sum(ts, values):
-    """
-    Perform the cumulative sum of the values (i.e. integral) over the time
-    interval defined by ts
-    """
-    assert len(ts) == len(values), "Can't CumSum over different sizes!({} != {})".format(len(ts), len(values))
-
-    cum_sum = 0
-    prev_t = ts[0]
-    prev_val = values[0]
-    for i in range(1, len(ts)):
-        base = ts[i] - prev_t
-        cum_sum += base * prev_val
-
-        prev_t = ts[i]
-        prev_val = values[i]
-
-    # We discard the last value, but that is OK
-    return cum_sum
 
 
 def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
@@ -547,14 +531,6 @@ def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
     return result_dict
 
 
-def fix_hist_step_vertical_line_at_end(ax):
-    axpolygons = [
-        poly for poly in ax.get_children() if isinstance(poly, Polygon)
-    ]
-    for poly in axpolygons:
-        poly.set_xy(poly.get_xy()[:-1])
-
-
 def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
     """
     This method keeps track of all the different alternative plots we have
@@ -620,11 +596,6 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ):
                 x_bline_offset = ind
 
-                if "granny" in bline:
-                    color = PLOT_COLORS["granny"]
-                else:
-                    color = PLOT_COLORS[bline]
-
                 for subind, percentile in enumerate(percentiles):
                     x = (
                         x_vm_offset
@@ -639,7 +610,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
                     else:
                         index = int(percentile / 100 * num_jobs)
                         ys.append(slowdown[index])
-                    colors.append(color)
+                    colors.append(get_color_for_baseline("mpi-migrate", bline))
 
             # Add a vertical line at the end of each VM block
             xs_vlines.append(
@@ -704,14 +675,11 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
 
                 ys.append(results[num_vms][label]["exec-time"][index])
 
-            this_label = label
-            if label == "granny-migrate":
-                this_label = "granny"
-            elif label == "granny":
-                this_label = "granny-nomig"
-
             ax.plot(
-                percentiles, ys, label=this_label, color=PLOT_COLORS[label]
+                percentiles,
+                ys,
+                label=get_label_for_baseline("mpi-migrate", label),
+                color=get_color_for_baseline("mpi-migrate", label)
             )
             ax.set_xlabel("Job percentile [th]")
             ax.set_ylabel("Job completion time [s]")
@@ -742,7 +710,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ys, xs, patches = ax.hist(
                 results[num_vms][label]["jct"],
                 100,
-                color=PLOT_COLORS[label],
+                color=get_color_for_baseline("mpi-migrate", label),
                 histtype="step",
                 density=True,
                 cumulative=True,
@@ -776,7 +744,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             x_offset = ind * len(labels) + (ind + 1)
             xs += [x + x_offset for x in range(len(labels))]
             ys += [results[n_vms][la]["makespan"] for la in labels]
-            colors += [PLOT_COLORS[la] for la in labels]
+            colors += [get_color_for_baseline("mpi-migrate", la) for la in labels]
 
             # Add one tick and xlabel per VM size
             xticks.append(x_offset + len(labels) / 2)
@@ -795,20 +763,12 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
         # Manually craft legend
-        legend_entries = []
-        for label in labels:
-            if label == "granny":
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label="granny-nomig")
-                )
-            elif label == "granny-migrate":
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label="granny")
-                )
-            else:
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label=label)
-                )
+        legend_entries = [
+            Patch(
+                color=get_color_for_baseline("mpi-migrate", label),
+                label=get_label_for_baseline("mpi-migrate", label)
+            ) for label in labels
+        ]
         ax.legend(handles=legend_entries, ncols=2, fontsize=8)
 
     elif plot_name == "job_churn":
@@ -867,41 +827,22 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         # xs_granny = list(results[num_vms]["granny"]["ts_vcpus"].keys())
         xs_granny_migrate = list(results[num_vms]["granny-migrate"]["ts_vcpus"].keys())
 
-        ax.plot(
-            xs_slurm,
-            [results[num_vms]["slurm"]["ts_vcpus"][x] for x in xs_slurm],
-            label="slurm",
-            color=PLOT_COLORS["slurm"],
-        )
-        ax.plot(
-            xs_batch,
-            [results[num_vms]["batch"]["ts_vcpus"][x] for x in xs_batch],
-            label="batch",
-            color=PLOT_COLORS["batch"],
-        )
-        """
-        ax.plot(
-            xs_granny,
-            [results[num_vms]["granny"]["ts_vcpus"][x] for x in xs_granny],
-            label="granny",
-            color=PLOT_COLORS["granny"],
-        )
-        """
-        ax.plot(
-            xs_granny_migrate,
-            [
-                results[num_vms]["granny-migrate"]["ts_vcpus"][x]
-                for x in xs_granny_migrate
-            ],
-            label="granny-migrate",
-            color=PLOT_COLORS["granny-migrate"],
-        )
+        baselines = ["batch", "slurm", "granny", "granny-migrate"]
+        xlim = 0
+        for baseline in baselines:
+            if baseline in NATIVE_BASELINES:
+                xs = range(len(results[num_vms][baseline]["ts_vcpus"]))
+            else:
+                xs = list(results[num_vms][baseline]["ts_vcpus"].keys())
+            xlim = max(xlim, xs)
 
-        xlim = max(
-            xs_batch[-1],
-            xs_slurm[-1],
-            xs_granny_migrate[-1]
-        )
+            ax.plot(
+                xs,
+                [results[num_vms][baseline]["ts_vcpus"][x] for x in xs],
+                label=get_label_for_baseline("mpi-migrate", baseline),
+                color=get_color_for_baseline("mpi-migrate", baseline),
+            )
+
         ax.set_xlim(left=0, right=xlim)
         ax.set_ylim(bottom=0, top=100)
         ax.set_ylabel("% idle vCPUs")
@@ -930,13 +871,13 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             xs_slurm,
             [results[num_vms]["slurm"]["ts_xvm_links"][x] for x in xs_slurm],
             label="slurm",
-            color=PLOT_COLORS["slurm"],
+            color=get_color_for_baseline("mpi-migrate", "slurm"),
         )
         ax.plot(
             xs_batch,
             [results[num_vms]["batch"]["ts_xvm_links"][x] for x in xs_batch],
             label="batch",
-            color=PLOT_COLORS["batch"],
+            color=get_color_for_baseline("mpi-migrate", "batch"),
         )
         """
         ax.plot(
@@ -950,7 +891,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             new_xs_granny_migrate,
             spl_granny_migrate(new_xs_granny_migrate),
             label="granny-migrate",
-            color=PLOT_COLORS["granny-migrate"],
+            color=get_color_for_baseline("mpi-migrate", "granny-migrate"),
         )
 
         xlim = max(
@@ -985,14 +926,14 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.plot(
             xs_slurm,
             [(results[num_vms]["slurm"]["ts_idle_vms"][x] / num_vms) * 100 for x in xs_slurm],
-            label="slurm",
-            color=PLOT_COLORS["slurm"],
+            label=get_label_for_baseline("mpi-migrate", "slurm"),
+            color=get_color_for_baseline("mpi-migrate", "slurm"),
         )
         ax.plot(
             xs_batch,
             [(results[num_vms]["batch"]["ts_idle_vms"][x] / num_vms) * 100 for x in xs_batch],
-            label="batch",
-            color=PLOT_COLORS["batch"],
+            label=get_label_for_baseline("mpi-migrate", "batch"),
+            color=get_color_for_baseline("mpi-migrate", "batch"),
         )
         """
         ax.plot(
@@ -1006,8 +947,8 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.plot(
             new_xs_granny_migrate,
             spl_granny_migrate(new_xs_granny_migrate),
-            label="granny-migrate",
-            color=PLOT_COLORS["granny-migrate"],
+            label=get_label_for_baseline("mpi-migrate", "granny-migrate"),
+            color=get_color_for_baseline("mpi-migrate", "granny-migrate"),
         )
 
         xlim = max(
@@ -1019,13 +960,12 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.set_ylim(bottom=0, top=100)
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Idle VMs [%]")
-    elif plot_name == "boxplot_vcpus":
+    elif plot_name == "percentage_vcpus":
         labels = ["slurm", "batch", "granny", "granny-migrate"]
 
         xs = []
         ys = []
         colors = []
-        alphas = []
         xticks = []
         xticklabels = []
 
@@ -1061,10 +1001,10 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ax.plot(
                 xs,
                 ys,
-                color=PLOT_COLORS[la],
+                color=get_color_for_baseline("mpi-migrate", la),
                 linestyle="-",
                 marker=".",
-                label=la,
+                label=get_label_for_baseline("mpi-migrate", la),
             )
 
         ax.set_ylim(bottom=0)
@@ -1112,10 +1052,10 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ax.plot(
                 xs,
                 ys,
-                color=PLOT_COLORS[la],
+                label=get_label_for_baseline("mpi-migrate", la),
+                color=get_color_for_baseline("mpi-migrate", la),
                 linestyle="-",
                 marker=".",
-                label=la,
             )
 
         ax.set_ylim(bottom=0)
@@ -1146,7 +1086,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ys += [list(results[n_vms][la]["ts_xvm_links"].values()) for la in labels]
 
             # Color and alpha for each box
-            colors += [PLOT_COLORS[la] for la in labels]
+            colors += [get_color_for_baseline("mpi-migrate", la) for la in labels]
 
             # Add one tick and xlabel per VM size
             xticks.append(x_offset + len(labels) / 2)
@@ -1172,20 +1112,12 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
         # Manually craft legend
-        legend_entries = []
-        for label in labels:
-            if label == "granny":
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label="granny-nomig")
-                )
-            elif label == "granny-migrate":
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label="granny")
-                )
-            else:
-                legend_entries.append(
-                    Patch(color=PLOT_COLORS[label], label=label)
-                )
+        legend_entries = [
+            Patch(
+                color=get_color_for_baseline("mpi-migrate", label),
+                label=get_label_for_baseline("mpi-migrate", label)
+            ) for label in labels
+        ]
         ax.legend(handles=legend_entries, ncols=2, fontsize=8)
     elif plot_name == "used_vmsecs":
         # TODO: FIXME: move to granny-evict
@@ -1228,10 +1160,10 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             ax.plot(
                 xs,
                 ys,
-                color=PLOT_COLORS[la],
+                color=get_color_for_baseline("mpi-migrate", la),
+                label=get_label_for_baseline("mpi-migrate", la),
                 linestyle="-",
                 marker=".",
-                label=la,
             )
 
         ax.set_ylim(bottom=0)
