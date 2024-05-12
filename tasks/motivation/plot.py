@@ -1,25 +1,28 @@
 from invoke import task
+from matplotlib.patches import Patch
 from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from tasks.util.env import PLOTS_ROOT
 from tasks.util.makespan import do_makespan_plot, read_makespan_results
-from tasks.util.plot import save_plot
+from tasks.util.plot import (
+    get_color_for_baseline,
+    get_label_for_baseline,
+    save_plot,
+)
 from tasks.util.spot import plot_spot_results, read_spot_results
 
 MOTIVATION_PLOTS_DIR = join(PLOTS_ROOT, "motivation")
 
 
 @task(default=True)
-def plot(ctx):
+def locality(ctx):
     """
     Plot the motivation figure illustrating the trade-off between locality and
     utilisation
     """
-    # num_vms = [16, 24, 32, 48, 64]
-    # num_tasks = [50, 75, 100, 150, 200]
-    num_vms = 16
-    num_tasks = 100
+    num_vms = 32
+    num_tasks = 200
     num_cpus_per_vm = 8
 
     results = {}
@@ -32,7 +35,22 @@ def plot(ctx):
 
     fig, ax1 = subplots(figsize=(6, 2))
     do_makespan_plot("ts_vcpus", results, ax1, num_vms, num_tasks)
-    ax1.legend()
+
+    # Manually craft the legend
+    baselines = ["slurm", "batch", "granny-migrate"]
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-migrate", baseline),
+            label=get_label_for_baseline("mpi-migrate", baseline)
+        ) for baseline in baselines
+    ]
+    fig.legend(
+        handles=legend_entries,
+        loc="upper center",
+        ncols=len(baselines),
+        bbox_to_anchor=(0.52, 1.07)
+    )
+
     save_plot(fig, MOTIVATION_PLOTS_DIR, "motivation_vcpus")
 
     # ----------

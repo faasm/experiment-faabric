@@ -822,12 +822,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         """
         This plot presents a timeseries of the % of idle vCPUs over time
         """
-        xs_slurm = range(len(results[num_vms]["slurm"]["ts_vcpus"]))
-        xs_batch = range(len(results[num_vms]["batch"]["ts_vcpus"]))
-        # xs_granny = list(results[num_vms]["granny"]["ts_vcpus"].keys())
-        xs_granny_migrate = list(results[num_vms]["granny-migrate"]["ts_vcpus"].keys())
-
-        baselines = ["batch", "slurm", "granny", "granny-migrate"]
+        baselines = ["batch", "slurm", "granny-migrate"]
         xlim = 0
         for baseline in baselines:
             if baseline in NATIVE_BASELINES:
@@ -1011,7 +1006,6 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.set_xlim(left=-0.25)
         ax.set_ylabel("Idle CPU-seconds /\n Total CPU-seconds [%]", fontsize=8)
         ax.set_xticks(xs, labels=xticklabels, fontsize=6)
-        ax.legend(fontsize=6, ncols=2)
 
     elif plot_name == "percentage_xvm":
         labels = ["slurm", "batch", "granny", "granny-migrate"]
@@ -1062,8 +1056,6 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         ax.set_xlim(left=-0.25)
         ax.set_ylabel("Total cross-VM / Optimal cross-VM links", fontsize=8)
         ax.set_xticks(xs, labels=xticklabels, fontsize=6)
-        # ax.ticklabel_format(axis="y", style="sci", scilimits=(5, 5))
-        ax.legend(fontsize=6, ncols=2)
 
     # TODO: delete me
     elif plot_name == "boxplot_xvm":

@@ -1,4 +1,5 @@
 from invoke import task
+from matplotlib.patches import Patch
 from matplotlib.pyplot import subplots, subplot_mosaic
 from tasks.util.elastic import (
     plot_elastic_results,
@@ -15,7 +16,11 @@ from tasks.util.makespan import (
     do_makespan_plot,
     read_makespan_results,
 )
-from tasks.util.plot import save_plot
+from tasks.util.plot import (
+    get_color_for_baseline,
+    get_label_for_baseline,
+    save_plot,
+)
 from tasks.util.spot import (
     plot_spot_results,
     read_spot_results,
@@ -78,8 +83,8 @@ def locality(ctx):
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
-    timeseries_num_vms = 16
-    timeseries_num_tasks = 100
+    timeseries_num_vms = 32
+    timeseries_num_tasks = 200
 
     # WARN: this assumes that we never repeat num_vms with different numbers of
     # num_tasks (fair at this point)
@@ -87,8 +92,7 @@ def locality(ctx):
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
         results[n_vms] = read_makespan_results(n_vms, n_tasks, num_cpus_per_vm)
 
-    fig, ax = subplot_mosaic([['upper left', 'upper right'],
-                              ['lower left', 'lower right']])
+    fig, (ax1, ax2, ax3, ax4) = subplots(nrows=1, ncols=4, figsize=(12, 3))
 
     # ----------
     # Plot 1: boxplot of idle vCPUs and num xVM links for various cluster sizes
@@ -97,7 +101,7 @@ def locality(ctx):
     do_makespan_plot(
         "percentage_vcpus",
         results,
-        ax["upper left"],
+        ax1,
         num_vms,
         num_tasks
     )
@@ -105,7 +109,7 @@ def locality(ctx):
     do_makespan_plot(
         "percentage_xvm",
         results,
-        ax["lower left"],
+        ax2,
         num_vms,
         num_tasks
     )
@@ -117,7 +121,7 @@ def locality(ctx):
     do_makespan_plot(
         "ts_vcpus",
         results,
-        ax["upper right"],
+        ax3,
         timeseries_num_vms,
         timeseries_num_tasks
     )
@@ -125,13 +129,27 @@ def locality(ctx):
     do_makespan_plot(
         "ts_xvm_links",
         results,
-        ax["lower right"],
+        ax4,
         timeseries_num_vms,
         timeseries_num_tasks
     )
 
-    # ax[0][0].legend()
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "resource_usage")
+    # Manually craft the legend
+    baselines = ["slurm", "batch", "granny", "granny-migrate"]
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-migrate", baseline),
+            label=get_label_for_baseline("mpi-migrate", baseline)
+        ) for baseline in baselines
+    ]
+    fig.legend(
+        handles=legend_entries,
+        loc="upper center",
+        ncols=len(baselines),
+        bbox_to_anchor=(0.52, 1.07)
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality")
 
 
 @task
