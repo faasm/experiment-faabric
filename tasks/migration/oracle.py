@@ -24,6 +24,7 @@ from tasks.util.lammps import (
     get_lammps_data_file,
     get_lammps_migration_params,
 )
+from tasks.util.plot import save_plot
 from time import sleep
 
 
@@ -54,14 +55,14 @@ def calculate_cross_vm_links(part):
 
 
 @task()
-def run(ctx, workload="network", nprocs=None):
+def run(ctx, workload="very-network", nprocs=None):
     """
     Experiment to measure the benefits of migration in isolation
     """
     # Work out the number of processes to run with
-    num_procs = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    num_procs = [2, 3, 4, 5, 6, 7, 8] # , 9, 10, 11, 12, 13, 14, 15, 16]
     num_cpus_per_vm = 8
-    num_vms = 16
+    num_vms = 8 # 16
     if nprocs is not None:
         num_procs = [int(nprocs)]
 
@@ -160,12 +161,9 @@ def run(ctx, workload="network", nprocs=None):
 
 
 @task
-def plot(ctx):
+def plot(ctx, workload="very-network"):
     plots_dir = join(PLOTS_ROOT, "migration")
     makedirs(plots_dir, exist_ok=True)
-    out_file = join(
-        plots_dir, "migration_oracle_{}.pdf".format(LAMMPS_SIM_WORKLOAD)
-    )
 
     results_dir = join(PROJ_ROOT, "results", "migration")
     result_dict = {}
@@ -173,7 +171,7 @@ def plot(ctx):
     for csv in glob(
         join(
             results_dir,
-            "migration_oracle_{}_*.csv".format(LAMMPS_SIM_WORKLOAD),
+            "migration_oracle_{}_*.csv".format(workload),
         )
     ):
         num_procs = csv.split("_")[-1].split(".")[0]
@@ -193,13 +191,12 @@ def plot(ctx):
                     float(line.split(",")[-1])
                 )
 
-    print(result_dict)
     num_plots = len(result_dict)
     num_cols = 4
     num_rows = ceil(num_plots / num_cols)
     fig, axes = subplots(nrows=num_rows, ncols=num_cols)
     fig.suptitle(
-        "Correlation between execution time (Y) and x-VM links (X)\n(wload: compute)"
+        "Correlation between execution time (Y) and x-VM links (X)\n(wload: {})".format(workload)
     )
 
     def do_plot(ax, results, num_procs):
@@ -213,6 +210,4 @@ def plot(ctx):
             axes[int(i / 4)][int(i % 4)], result_dict[num_procs], num_procs
         )
 
-    fig.tight_layout()
-    savefig(out_file, format="pdf")  # , bbox_inches="tight")
-    print("Plot saved to: {}".format(out_file))
+    save_plot(fig, join(PLOTS_ROOT, "migration"), "migration_oracle_{}".format(workload))

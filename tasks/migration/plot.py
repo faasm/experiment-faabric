@@ -9,7 +9,7 @@ from tasks.util.migration import MIGRATION_PLOTS_DIR
 from tasks.util.plot import save_plot
 
 
-ALL_WORKLOADS = ["compute", "network"]
+ALL_WORKLOADS = ["all-to-all", "compute", "network", "og-network", "very-network"]
 
 
 def _read_results():
@@ -43,8 +43,11 @@ def plot(ctx):
     """
     migration_results = _read_results()
 
+    do_plot("all-to-all", migration_results)
     do_plot("compute", migration_results)
     do_plot("network", migration_results)
+    do_plot("very-network", migration_results)
+    do_plot("og-network", migration_results)
 
 
 def do_plot(workload, migration_results):
