@@ -834,7 +834,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
                 xs = range(len(results[num_vms][baseline]["ts_vcpus"]))
             else:
                 xs = list(results[num_vms][baseline]["ts_vcpus"].keys())
-            xlim = max(xlim, xs)
+            xlim = max(xlim, max(xs))
 
             ax.plot(
                 xs,
