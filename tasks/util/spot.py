@@ -28,7 +28,9 @@ def read_spot_results(num_vms, num_tasks, num_cpus_per_vm):
         # -----
 
         makespan_s = results["MakespanSecs"].to_list()
-        assert len(makespan_s) == 1, "Too many rows: expected 1, got {}!".format(len(makespan_s))
+        assert (
+            len(makespan_s) == 1
+        ), "Too many rows: expected 1, got {}!".format(len(makespan_s))
         makespan_s = makespan_s[0]
         result_dict[baseline]["makespan"] = makespan_s
 
@@ -64,7 +66,8 @@ def _do_plot_makespan(results, ax, **kwargs):
         x_offset = ind * len(baselines) + (ind + 1)
         xs += [x + x_offset for x in range(len(baselines))]
         ys += [
-            float(results[n_vms][baseline + "-ft"]["makespan"]) / float(results[n_vms][baseline]["makespan"])
+            float(results[n_vms][baseline + "-ft"]["makespan"])
+            / float(results[n_vms][baseline]["makespan"])
             for baseline in baselines
         ]
         colors += [
@@ -74,9 +77,7 @@ def _do_plot_makespan(results, ax, **kwargs):
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
-        xticklabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind])
-        )
+        xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind]))
 
         # Add spacing between vms
         if ind != len(num_vms) - 1:
@@ -88,7 +89,7 @@ def _do_plot_makespan(results, ax, **kwargs):
     ax.set_ylim(bottom=0)
     if tight:
         ax.set_ylabel("Slowdown [Spot / No Spot]", fontsize=6)
-        ax.tick_params(axis='y', labelsize=6)
+        ax.tick_params(axis="y", labelsize=6)
     else:
         ax.set_ylabel("Makespan Slowdown \n [Spot VMs / No Spot VMs]")
 
@@ -96,10 +97,13 @@ def _do_plot_makespan(results, ax, **kwargs):
         legend_entries = [
             Patch(
                 color=get_color_for_baseline("mpi-spot", baseline),
-                label=get_label_for_baseline("mpi-spot", baseline)
-            ) for baseline in baselines
+                label=get_label_for_baseline("mpi-spot", baseline),
+            )
+            for baseline in baselines
         ]
-        ax.legend(handles=legend_entries, ncols=1, fontsize=6, loc="lower center")
+        ax.legend(
+            handles=legend_entries, ncols=1, fontsize=6, loc="lower center"
+        )
 
     if tight:
         ax.set_xticks([])
@@ -142,20 +146,29 @@ def _do_plot_cost(results, ax, **kwargs):
 
         for discount in discounts_pcnt:
             ys[discount] += [
-                (float(results[n_vms][baseline + "-ft"]["makespan"]) * (1 - discount / 100) / 3600) * n_vms
+                (
+                    float(results[n_vms][baseline + "-ft"]["makespan"])
+                    * (1 - discount / 100)
+                    / 3600
+                )
+                * n_vms
                 for baseline in baselines
             ]
             if ind != len(num_vms) - 1:
                 ys[discount].append(0)
 
-        nospot_ys += [(results[n_vms][baseline]["makespan"] / 3600) * n_vms for baseline in baselines]
-        colors += [get_color_for_baseline("mpi-spot", baseline) for baseline in baselines]
+        nospot_ys += [
+            (results[n_vms][baseline]["makespan"] / 3600) * n_vms
+            for baseline in baselines
+        ]
+        colors += [
+            get_color_for_baseline("mpi-spot", baseline)
+            for baseline in baselines
+        ]
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
-        xticklabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind])
-        )
+        xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind]))
 
         # Add spacing between vms
         if ind != len(num_vms) - 1:
@@ -167,7 +180,9 @@ def _do_plot_cost(results, ax, **kwargs):
         if ind == 0:
             ax.bar(xs, ys[discount], color=colors, edgecolor="black", width=1)
         else:
-            this_ys = [y - bottom_y for y, bottom_y in zip(ys[discount], bottom_ys)]
+            this_ys = [
+                y - bottom_y for y, bottom_y in zip(ys[discount], bottom_ys)
+            ]
             ax.bar(
                 xs,
                 this_ys,
@@ -175,7 +190,7 @@ def _do_plot_cost(results, ax, **kwargs):
                 color=colors,
                 edgecolor="black",
                 alpha=float(discount / 100.0),
-                width=1
+                width=1,
             )
 
         # Add disccount annotation
@@ -210,7 +225,7 @@ def _do_plot_cost(results, ax, **kwargs):
     ax.set_ylim(bottom=0)
     if tight:
         ax.set_ylabel("Cost [VM Hours]", fontsize=6)
-        ax.tick_params(axis='y', labelsize=6)
+        ax.tick_params(axis="y", labelsize=6)
         ax.legend(fontsize=6)
         ax.set_xticks([])
     else:

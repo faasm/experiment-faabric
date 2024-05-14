@@ -5,6 +5,7 @@ from tasks.util.env import PROJ_ROOT
 
 MAKESPAN_TRACES_DIR = join(PROJ_ROOT, "tasks", "makespan", "traces")
 
+
 # Copy this from tasks.makespan.data to prevent a circular import
 @dataclass
 class TaskObject:

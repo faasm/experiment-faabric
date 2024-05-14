@@ -70,13 +70,16 @@ def wasm(ctx, num_threads=None, elastic=False, repeats=1):
 
     reset_planner(num_vms)
 
-    csv_name = "openmp_{}_granny.csv".format("elastic" if elastic else "no-elastic")
+    csv_name = "openmp_{}_granny.csv".format(
+        "elastic" if elastic else "no-elastic"
+    )
     _init_csv_file(csv_name)
 
     for nthread in num_threads:
         for r in range(int(repeats)):
             print(
-                "Running OpenMP elastic experiment with {} threads (elastic: {} - repeat: {}/{})".format(
+                "Running OpenMP elastic experiment with {} threads"
+                " (elastic: {} - repeat: {}/{})".format(
                     nthread, elastic, r + 1, repeats
                 )
             )

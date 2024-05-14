@@ -46,7 +46,11 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
             if color:
                 return _PLOT_COLORS[this_label]
 
-        raise RuntimeError("Unrecognised baseline ({}) for workload: {}".format(baseline, workload))
+        raise RuntimeError(
+            "Unrecognised baseline ({}) for workload: {}".format(
+                baseline, workload
+            )
+        )
 
     if workload == "mpi-migrate":
         if baseline == "granny":
@@ -68,7 +72,11 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
             if color:
                 return _PLOT_COLORS[this_label]
 
-        raise RuntimeError("Unrecognised baseline ({}) for workload: {}".format(baseline, workload))
+        raise RuntimeError(
+            "Unrecognised baseline ({}) for workload: {}".format(
+                baseline, workload
+            )
+        )
 
     if workload == "mpi-spot":
         if baseline == "granny":
@@ -84,7 +92,11 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
             if color:
                 return _PLOT_COLORS[this_label]
 
-        raise RuntimeError("Unrecognised baseline ({}) for workload: {}".format(baseline, workload))
+        raise RuntimeError(
+            "Unrecognised baseline ({}) for workload: {}".format(
+                baseline, workload
+            )
+        )
 
 
 def get_color_for_baseline(workload, baseline):
@@ -93,6 +105,7 @@ def get_color_for_baseline(workload, baseline):
 
 def get_label_for_baseline(workload, baseline):
     return _do_get_for_baseline(workload, baseline, label=True)
+
 
 def save_plot(fig, plot_dir, plot_name):
     fig.tight_layout()

@@ -26,7 +26,9 @@ def locality(ctx):
     num_cpus_per_vm = 8
 
     results = {}
-    results[num_vms] = read_makespan_results(num_vms, num_tasks, num_cpus_per_vm)
+    results[num_vms] = read_makespan_results(
+        num_vms, num_tasks, num_cpus_per_vm
+    )
     makedirs(MOTIVATION_PLOTS_DIR, exist_ok=True)
 
     # ----------
@@ -41,14 +43,15 @@ def locality(ctx):
     legend_entries = [
         Patch(
             color=get_color_for_baseline("mpi-migrate", baseline),
-            label=get_label_for_baseline("mpi-migrate", baseline)
-        ) for baseline in baselines
+            label=get_label_for_baseline("mpi-migrate", baseline),
+        )
+        for baseline in baselines
     ]
     fig.legend(
         handles=legend_entries,
         loc="upper center",
         ncols=len(baselines),
-        bbox_to_anchor=(0.52, 1.07)
+        bbox_to_anchor=(0.52, 1.07),
     )
 
     save_plot(fig, MOTIVATION_PLOTS_DIR, "motivation_vcpus")

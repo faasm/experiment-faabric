@@ -117,6 +117,7 @@ def fault_injection_thread(
     FT period we make up. We could consider changing them but, for simplicity
     we keep them the same
     """
+
     def get_next_evicted_host(baseline, num_hosts_to_evict):
         if baseline in GRANNY_BASELINES:
             vm_names = get_faasm_worker_names()
@@ -124,10 +125,16 @@ def fault_injection_thread(
         else:
             vm_names, vm_ips = get_native_mpi_pods("makespan")
 
-        assert len(vm_names) == num_vms, "Mismatch in FT thread picking next evicted host {} != {}".format(num_vms, len(vm_names))
+        assert (
+            len(vm_names) == num_vms
+        ), "Mismatch in FT thread picking next evicted host {} != {}".format(
+            num_vms, len(vm_names)
+        )
 
         evicted_idxs = sample(range(0, len(vm_names)), num_hosts_to_evict)
-        evicted_vm_names = [vm_names[evicted_idx] for evicted_idx in evicted_idxs]
+        evicted_vm_names = [
+            vm_names[evicted_idx] for evicted_idx in evicted_idxs
+        ]
         evicted_vm_ips = [vm_ips[evicted_idx] for evicted_idx in evicted_idxs]
 
         return evicted_vm_names, evicted_vm_ips
@@ -137,7 +144,9 @@ def fault_injection_thread(
     # batch-scheduler (grace period). In the loop, we first sleep for (i) -
     # (ii) and then for (ii)
     while True:
-        next_evicted_hosts, next_evicted_ips = get_next_evicted_host(baseline, num_faults)
+        next_evicted_hosts, next_evicted_ips = get_next_evicted_host(
+            baseline, num_faults
+        )
 
         # First, sleep until we need to give the grace period
         sleep(fault_injection_period_secs - host_grace_period_secs)
@@ -161,7 +170,11 @@ def fault_injection_thread(
 
 
 def dequeue_with_timeout(
-        queue: Queue, queue_str: str, silent: bool = False, throw: bool = False, timeout_s: int = QUEUE_TIMEOUT_SEC,
+    queue: Queue,
+    queue_str: str,
+    silent: bool = False,
+    throw: bool = False,
+    timeout_s: int = QUEUE_TIMEOUT_SEC,
 ) -> Union[ResultQueueItem, WorkQueueItem]:
     while True:
         try:
@@ -305,7 +318,9 @@ def thread_pool_thread(
                 openmp_cmd = "bash -c '{} {} {}'".format(
                     get_elastic_input_data(native=True),
                     OPENMP_ELASTIC_NATIVE_BINARY,
-                    get_openmp_kernel_cmdline(ELASTIC_KERNEL, work_item.task.size),
+                    get_openmp_kernel_cmdline(
+                        ELASTIC_KERNEL, work_item.task.size
+                    ),
                 )
 
                 exec_cmd = [
@@ -318,7 +333,7 @@ def thread_pool_thread(
 
             start_ts = time()
             try:
-                out = run_kubectl_cmd("makespan", exec_cmd)
+                run_kubectl_cmd("makespan", exec_cmd)
             except CalledProcessError:
                 has_failed = True
             actual_time = int(time() - start_ts)
@@ -335,7 +350,9 @@ def thread_pool_thread(
                 req["user"] = user
                 req["function"] = func
                 if get_workload_from_trace(trace_str) == "mpi-evict":
-                    req["subType"] = get_user_id_from_task(num_tasks_per_user, work_item.task.task_id)
+                    req["subType"] = get_user_id_from_task(
+                        num_tasks_per_user, work_item.task.task_id
+                    )
 
                 msg = {
                     "user": user,
@@ -346,7 +363,9 @@ def thread_pool_thread(
                 }
 
                 # If attempting to migrate, add migration parameters
-                baselines_with_migration = GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES
+                baselines_with_migration = (
+                    GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES
+                )
                 if work_item.task.app in MPI_MIGRATE_WORKLOADS:
                     check_every = (
                         1
@@ -370,7 +389,9 @@ def thread_pool_thread(
                     "user": user,
                     "function": func,
                     "input_data": get_elastic_input_data(),
-                    "cmdline": get_openmp_kernel_cmdline(ELASTIC_KERNEL, work_item.task.size),
+                    "cmdline": get_openmp_kernel_cmdline(
+                        ELASTIC_KERNEL, work_item.task.size
+                    ),
                     "isOmp": True,
                     "ompNumThreads": work_item.task.size,
                 }
@@ -394,7 +415,9 @@ def thread_pool_thread(
         end_ts = time()
 
         if has_failed:
-            sch_logger.error("Error executing task {}".format(work_item.task.task_id))
+            sch_logger.error(
+                "Error executing task {}".format(work_item.task.task_id)
+            )
             result_queue.put(
                 ResultQueueItem(
                     work_item.task.task_id,
@@ -519,7 +542,9 @@ class SchedulerState:
 
     def update_vm_list(self):
         if self.baseline not in NATIVE_BASELINES:
-            raise RuntimeError("This method should only be used in native baselines!")
+            raise RuntimeError(
+                "This method should only be used in native baselines!"
+            )
 
         wait_for_native_mpi_pods(
             get_native_mpi_namespace("makespan"),
@@ -796,7 +821,9 @@ class BatchScheduler:
     # In a multi-tenant setting, we want to _not_ consider for scheduling nodes
     # that are already running tasks for different users
     def prune_node_list_from_different_users(self, nodes, this_task):
-        this_task_id = get_user_id_from_task(self.state.num_tasks_per_user, this_task.task_id)
+        this_task_id = get_user_id_from_task(
+            self.state.num_tasks_per_user, this_task.task_id
+        )
 
         def get_indx_in_list(node_list, host_ip):
             for idx, pair in enumerate(node_list):
@@ -806,7 +833,10 @@ class BatchScheduler:
             return -1
 
         for task_id in self.state.in_flight_tasks:
-            if get_user_id_from_task(self.state.num_tasks_per_user, task_id) == this_task_id:
+            if (
+                get_user_id_from_task(self.state.num_tasks_per_user, task_id)
+                == this_task_id
+            ):
                 continue
 
             sched_decision = self.state.in_flight_tasks[task_id]
@@ -832,18 +862,27 @@ class BatchScheduler:
                 # For `mpi-evict` we run a multi-tenant trace, and prevent apps
                 # from different users from running in the same VM
                 sorted_vms = sorted(
-                    self.state.vm_map.items(), key=lambda item: item[1], reverse=True
+                    self.state.vm_map.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
                 )
 
-                pruned_vms = self.prune_node_list_from_different_users(sorted_vms, task)
+                pruned_vms = self.prune_node_list_from_different_users(
+                    sorted_vms, task
+                )
 
-                return self.num_available_slots_from_vm_list(pruned_vms) >= task.size
+                return (
+                    self.num_available_slots_from_vm_list(pruned_vms)
+                    >= task.size
+                )
             elif self.state.workload in OPENMP_WORKLOADS:
                 # For OpenMP workloads, we can only allocate them in one VM, so
                 # we compare the requested size with the largest capacity we
                 # have in one VM
                 sorted_vms = sorted(
-                    self.state.vm_map.items(), key=lambda item: item[1], reverse=True
+                    self.state.vm_map.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
                 )
 
                 return sorted_vms[0][1] >= task.size
@@ -853,30 +892,46 @@ class BatchScheduler:
             # For Granny, we can always rely on the planner to let us know
             # how many slots we can use
             if self.state.workload == "mpi-evict":
-                return get_num_available_slots_from_in_flight_apps(
-                    self.state.num_vms,
-                    self.state.num_cpus_per_vm,
-                    user_id=get_user_id_from_task(self.state.num_tasks_per_user, task.task_id)
-                ) >= task.size
+                return (
+                    get_num_available_slots_from_in_flight_apps(
+                        self.state.num_vms,
+                        self.state.num_cpus_per_vm,
+                        user_id=get_user_id_from_task(
+                            self.state.num_tasks_per_user, task.task_id
+                        ),
+                    )
+                    >= task.size
+                )
 
-            if self.state.workload == "mpi-spot" and self.state.baseline in GRANNY_FT_BASELINES:
-                return get_num_available_slots_from_in_flight_apps(
-                    self.state.num_vms,
-                    self.state.num_cpus_per_vm,
-                    num_evicted_vms=self.state.num_faults,
-                ) >= task.size
+            if (
+                self.state.workload == "mpi-spot"
+                and self.state.baseline in GRANNY_FT_BASELINES
+            ):
+                return (
+                    get_num_available_slots_from_in_flight_apps(
+                        self.state.num_vms,
+                        self.state.num_cpus_per_vm,
+                        num_evicted_vms=self.state.num_faults,
+                    )
+                    >= task.size
+                )
 
             if self.state.workload in OPENMP_WORKLOADS:
-                return get_num_available_slots_from_in_flight_apps(
-                    self.state.num_vms,
-                    self.state.num_cpus_per_vm,
-                    openmp=True,
-                ) >= task.size
+                return (
+                    get_num_available_slots_from_in_flight_apps(
+                        self.state.num_vms,
+                        self.state.num_cpus_per_vm,
+                        openmp=True,
+                    )
+                    >= task.size
+                )
 
-            return get_num_available_slots_from_in_flight_apps(
-                self.state.num_vms,
-                self.state.num_cpus_per_vm
-            ) >= task.size
+            return (
+                get_num_available_slots_from_in_flight_apps(
+                    self.state.num_vms, self.state.num_cpus_per_vm
+                )
+                >= task.size
+            )
 
     def schedule_task_to_vm(
         self, task: TaskObject
@@ -907,7 +962,9 @@ class BatchScheduler:
         )
 
         if self.state.workload == "mpi-evict":
-            sorted_vms = self.prune_node_list_from_different_users(sorted_vms, task)
+            sorted_vms = self.prune_node_list_from_different_users(
+                sorted_vms, task
+            )
 
         if self.state.workload in OPENMP_WORKLOADS:
             sorted_vms = [sorted_vms[0]]
@@ -991,7 +1048,10 @@ class BatchScheduler:
                     # In the MPI evict baseline we want to query often about being
                     # able to schedule, as some planner migrations may unblock
                     # scheduling
-                    if self.state.workload == "mpi-evict" and self.state.baseline in GRANNY_BASELINES:
+                    if (
+                        self.state.workload == "mpi-evict"
+                        and self.state.baseline in GRANNY_BASELINES
+                    ):
                         # If there are not enough slots, first try to deque
                         try:
                             result = dequeue_with_timeout(
@@ -1056,7 +1116,9 @@ class BatchScheduler:
             # we will go back to the beginning
             self.state.next_task_in_queue = None
             while self.state.executed_task_count < len(tasks):
-                result = dequeue_with_timeout(self.result_queue, "result queue")
+                result = dequeue_with_timeout(
+                    self.result_queue, "result queue"
+                )
 
                 # Update our local records according to result
                 self.state.update_records_from_result(result)

@@ -115,7 +115,9 @@ def wasm(ctx, kernel=None, num_threads=None, repeats=1):
                     "singleHostHint": True,
                 }
 
-                result_json = post_async_msg_and_get_result_json(msg, req_dict=req)
+                result_json = post_async_msg_and_get_result_json(
+                    msg, req_dict=req
+                )
                 actual_time = get_faasm_exec_time_from_json(
                     result_json, check=True
                 )

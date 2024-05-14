@@ -22,8 +22,10 @@ def read_eviction_results(num_vms, num_users, num_tasks, num_cpus_per_vm):
     result_dict = {}
 
     num_tasks_per_user = int(num_tasks / num_users)
-    glob_str = "makespan_exec-task-info_*_{}vms_{}tpusr_mpi-evict_{}_{}.csv".format(
-        num_vms, num_tasks_per_user, num_tasks, num_cpus_per_vm
+    glob_str = (
+        "makespan_exec-task-info_*_{}vms_{}tpusr_mpi-evict_{}_{}.csv".format(
+            num_vms, num_tasks_per_user, num_tasks, num_cpus_per_vm
+        )
     )
     for csv in glob(join(MAKESPAN_RESULTS_DIR, glob_str)):
         baseline = csv.split("_")[2]
@@ -39,7 +41,8 @@ def read_eviction_results(num_vms, num_users, num_tasks, num_cpus_per_vm):
         time_elapsed_secs = int(end_ts - start_ts)
         result_dict[baseline]["makespan"] = time_elapsed_secs
         print(
-            "Num VMs: {} - Num Users: {} - Num Tasks: {} - Baseline: {} - Makespan: {}s".format(
+            "Num VMs: {} - Num Users: {} - Num Tasks: {} -"
+            " Baseline: {} - Makespan: {}s".format(
                 num_vms, num_users, num_tasks, baseline, time_elapsed_secs
             )
         )
@@ -67,11 +70,16 @@ def read_eviction_results(num_vms, num_users, num_tasks, num_cpus_per_vm):
             start_slot = int(row["StartTimeStamp"] - start_ts)
             end_slot = int(row["EndTimeStamp"] - start_ts)
             for ind in range(start_slot, end_slot):
-                if user_id not in result_dict[baseline]["tasks_per_user_per_ts"]:
+                if (
+                    user_id
+                    not in result_dict[baseline]["tasks_per_user_per_ts"]
+                ):
                     print("User {} not registered in results!".format(user_id))
                     raise RuntimeError("User not registered!")
 
-                result_dict[baseline]["tasks_per_user_per_ts"][ind][user_id] += 1
+                result_dict[baseline]["tasks_per_user_per_ts"][ind][
+                    user_id
+                ] += 1
 
     return result_dict
 
@@ -103,7 +111,9 @@ def _do_plot_makespan(results, ax, **kwargs):
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(labels) / 2)
         xticklabels.append(
-            "{} VMs\n({} Jobs - {} Users)".format(n_vms, num_tasks[ind], num_users[ind])
+            "{} VMs\n({} Jobs - {} Users)".format(
+                n_vms, num_tasks[ind], num_users[ind]
+            )
         )
 
         # Add spacing between vms
@@ -120,8 +130,9 @@ def _do_plot_makespan(results, ax, **kwargs):
     legend_entries = [
         Patch(
             color=get_color_for_baseline("mpi-migrate", label),
-            label=get_label_for_baseline("mpi-migrate", label)
-        ) for label in labels
+            label=get_label_for_baseline("mpi-migrate", label),
+        )
+        for label in labels
     ]
     ax.legend(handles=legend_entries, ncols=2, fontsize=8)
 
@@ -142,13 +153,18 @@ def _do_plot_tasks_per_user(results, ax, **kwargs):
     baselines = ["slurm", "batch", "granny-migrate"]
     xs = {}
     for baseline in baselines:
-        xs[baseline] = list(results[num_vms][baseline]["tasks_per_user_per_ts"].keys())
+        xs[baseline] = list(
+            results[num_vms][baseline]["tasks_per_user_per_ts"].keys()
+        )
 
     # For each baseline, for each user id, plot the timeseries of active jobs
     num_points_spline = 500
     for baseline in baselines:
         for user_id in range(num_users):
-            ys = [results[num_vms][baseline]["tasks_per_user_per_ts"][x][user_id] for x in xs[baseline]]
+            ys = [
+                results[num_vms][baseline]["tasks_per_user_per_ts"][x][user_id]
+                for x in xs[baseline]
+            ]
             ax.plot(
                 xs[baseline],
                 ys,

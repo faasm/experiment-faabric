@@ -5,7 +5,6 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.elastic import ELASTIC_PLOTS_DIR, ELASTIC_RESULTS_DIR
-from tasks.util.env import SYSTEM_NAME
 from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
 
 
@@ -42,7 +41,11 @@ def plot(ctx):
     makedirs(ELASTIC_PLOTS_DIR, exist_ok=True)
     fig, ax = subplots(figsize=SINGLE_COL_FIGSIZE)
 
-    assert len(results["elastic"]) == len(results["no-elastic"]), "Results mismatch! (elastic: {} - no-elastic: {})".format(len(results["elastic"]), len(results["no-elastic"]))
+    assert len(results["elastic"]) == len(
+        results["no-elastic"]
+    ), "Results mismatch! (elastic: {} - no-elastic: {})".format(
+        len(results["elastic"]), len(results["no-elastic"])
+    )
 
     xs = list(results["elastic"].keys())
     ys = [
