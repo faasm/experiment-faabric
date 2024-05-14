@@ -29,5 +29,9 @@ def wait_for_pods(namespace, label, num_expected=1, quiet=False):
             break
 
         if not quiet:
-            print("{} pods not ready, waiting ({}/{})".format(namespace, len(true_statuses), num_expected))
+            print(
+                "{} pods not ready, waiting ({}/{})".format(
+                    namespace, len(true_statuses), num_expected
+                )
+            )
         sleep(5)

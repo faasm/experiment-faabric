@@ -23,7 +23,7 @@ from tasks.util.makespan import (
     write_line_to_csv,
 )
 from tasks.util.trace import load_task_trace_from_file
-from time import sleep, time
+from time import time
 from typing import Dict
 
 # Configure the logging settings globally
@@ -67,13 +67,19 @@ def granny(
     # Work-out the baseline name from the arguments
     baseline = "granny"
     if migrate:
-        assert workload == "mpi-migrate", "--migrate flag should only be used with mpi-migrate workload!"
+        assert (
+            workload == "mpi-migrate"
+        ), "--migrate flag should only be used with mpi-migrate workload!"
         baseline = "granny-migrate"
     if fault:
-        assert workload == "mpi-spot", "--fault flag should only be used with mpi-spot workload!"
+        assert (
+            workload == "mpi-spot"
+        ), "--fault flag should only be used with mpi-spot workload!"
         baseline = "granny-ft"
     if elastic:
-        assert workload == "omp-elastic", "--fault flag should only be used with omp-elastic workload!"
+        assert (
+            workload == "omp-elastic"
+        ), "--fault flag should only be used with omp-elastic workload!"
         baseline = "granny-elastic"
 
     workload = _get_workload_from_cmdline(workload)

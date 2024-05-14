@@ -1,11 +1,10 @@
 from glob import glob
 from invoke import task
-from matplotlib.pyplot import hlines, savefig, subplots
+from matplotlib.pyplot import hlines, subplots
 from numpy import arange
-from os import makedirs
 from os.path import join
 from pandas import read_csv
-from tasks.util.env import PLOTS_ROOT, PROJ_ROOT
+from tasks.util.env import PROJ_ROOT
 from tasks.util.migration import MIGRATION_PLOTS_DIR
 from tasks.util.plot import save_plot
 
@@ -100,4 +99,6 @@ def do_plot(workload, migration_results):
 
     hlines(1, xlim_left, xlim_right, linestyle="dashed", colors="red")
 
-    save_plot(fig, MIGRATION_PLOTS_DIR, "migration_speedup_{}".format(workload))
+    save_plot(
+        fig, MIGRATION_PLOTS_DIR, "migration_speedup_{}".format(workload)
+    )

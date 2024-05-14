@@ -116,9 +116,7 @@ def generate_partitions(ctx, max_num_partitions=5):
         partitions = [
             part for part in partitions if max(part) <= NUM_CORES_PER_CTR
         ]
-        partitions = [
-            part for part in partitions if len(part) <= num_vms
-        ]
+        partitions = [part for part in partitions if len(part) <= num_vms]
         if len(partitions) > max_num_partitions:
             links = [
                 (ind, get_xvm_links_from_part(p))
@@ -181,7 +179,7 @@ EXP_CONFIG = {
             "num_loops": 3,
             "num_net_loops": 1e6,
             "chunk_size": 1e1,
-        }
+        },
     },
     "conf2": {
         "data_file": "examples/controller/in.controller.wall",
@@ -189,7 +187,7 @@ EXP_CONFIG = {
             "num_loops": 1,
             "num_net_loops": 0,
             "chunk_size": 1e1,
-        }
+        },
     },
 }
 
@@ -203,7 +201,8 @@ def do_run(native):
     conf = EXP_CONFIG["conf2"]
     for part in partitions:
         print(
-            "Running LAMMPS ({}) with {} MPI procs (data file: {}, params: {}, part: {}, xvm: {})".format(
+            "Running LAMMPS ({}) with {} MPI procs (data file: {},"
+            " params: {}, part: {}, xvm: {})".format(
                 "native" if native else "wasm",
                 get_nproc_from_part(part),
                 conf["data_file"],
@@ -217,7 +216,9 @@ def do_run(native):
             actual_time = run_native(part, conf)
         else:
             actual_time = run_wasm(part, conf)
-        write_csv_line(csv_name, part, get_xvm_links_from_part(part), actual_time)
+        write_csv_line(
+            csv_name, part, get_xvm_links_from_part(part), actual_time
+        )
 
 
 def run_wasm(part, config):

@@ -3,7 +3,11 @@ def cum_sum(ts, values):
     Perform the cumulative sum of the values (i.e. integral) over the time
     interval defined by ts
     """
-    assert len(ts) == len(values), "Can't CumSum over different sizes!({} != {})".format(len(ts), len(values))
+    assert len(ts) == len(
+        values
+    ), "Can't CumSum over different sizes!({} != {})".format(
+        len(ts), len(values)
+    )
 
     cum_sum = 0
     prev_t = ts[0]

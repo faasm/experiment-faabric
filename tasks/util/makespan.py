@@ -39,7 +39,12 @@ NATIVE_BASELINES = ["batch", "slurm"] + NATIVE_FT_BASELINES
 GRANNY_ELASTIC_BASELINES = ["granny-elastic"]
 GRANNY_FT_BASELINES = ["granny-ft"]
 GRANNY_MIGRATE_BASELINES = ["granny-migrate"]
-GRANNY_BASELINES = ["granny"] + GRANNY_MIGRATE_BASELINES + GRANNY_FT_BASELINES + GRANNY_ELASTIC_BASELINES
+GRANNY_BASELINES = (
+    ["granny"]
+    + GRANNY_MIGRATE_BASELINES
+    + GRANNY_FT_BASELINES
+    + GRANNY_ELASTIC_BASELINES
+)
 ALLOWED_BASELINES = NATIVE_BASELINES + GRANNY_BASELINES
 
 # Workload/Migration related constants
@@ -55,7 +60,9 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
     csv_name_ic = "makespan_{}_{}_{}_{}".format(
         IDLE_CORES_FILE_PREFIX,
         baseline,
-        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+        num_vms
+        if num_tasks_per_user is None
+        else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     ic_file = join(MAKESPAN_RESULTS_DIR, csv_name_ic)
@@ -66,7 +73,9 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
     csv_name = "makespan_{}_{}_{}_{}".format(
         EXEC_TASK_INFO_FILE_PREFIX,
         baseline,
-        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+        num_vms
+        if num_tasks_per_user is None
+        else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -80,7 +89,9 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
     csv_name = "makespan_{}_{}_{}_{}".format(
         SCHEDULING_INFO_FILE_PREFIX,
         baseline,
-        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+        num_vms
+        if num_tasks_per_user is None
+        else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -92,7 +103,9 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
             out_file.write(",".join(ip_to_vm) + "\n")
     else:
         with open(csv_file, "w") as out_file:
-            out_file.write("TimeStampSecs,NumIdleVms,NumIdleCpus,NumCrossVmLinks\n")
+            out_file.write(
+                "TimeStampSecs,NumIdleVms,NumIdleCpus,NumCrossVmLinks\n"
+            )
             out_file.write
 
     # Makespan file
@@ -102,7 +115,9 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
     csv_name = "makespan_{}_{}_{}_{}".format(
         MAKESPAN_FILE_PREFIX,
         baseline,
-        num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+        num_vms
+        if num_tasks_per_user is None
+        else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
         get_trace_ending(trace_str),
     )
     csv_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -110,12 +125,16 @@ def init_csv_file(baseline, num_vms, trace_str, num_tasks_per_user=None):
         out_file.write("MakespanSecs\n")
 
 
-def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str, *args):
+def write_line_to_csv(
+    baseline, exp_key, num_vms, num_tasks_per_user, trace_str, *args
+):
     if exp_key == IDLE_CORES_FILE_PREFIX:
         csv_name = "makespan_{}_{}_{}_{}".format(
             IDLE_CORES_FILE_PREFIX,
             baseline,
-            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+            num_vms
+            if num_tasks_per_user is None
+            else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -125,7 +144,9 @@ def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str,
         csv_name = "makespan_{}_{}_{}_{}".format(
             EXEC_TASK_INFO_FILE_PREFIX,
             baseline,
-            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+            num_vms
+            if num_tasks_per_user is None
+            else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -135,7 +156,9 @@ def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str,
         csv_name = "makespan_{}_{}_{}_{}".format(
             SCHEDULING_INFO_FILE_PREFIX,
             baseline,
-            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+            num_vms
+            if num_tasks_per_user is None
+            else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -152,7 +175,9 @@ def write_line_to_csv(baseline, exp_key, num_vms, num_tasks_per_user, trace_str,
         csv_name = "makespan_{}_{}_{}_{}".format(
             MAKESPAN_FILE_PREFIX,
             baseline,
-            num_vms if num_tasks_per_user is None else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
+            num_vms
+            if num_tasks_per_user is None
+            else "{}vms_{}tpusr".format(num_vms, num_tasks_per_user),
             get_trace_ending(trace_str),
         )
         makespan_file = join(MAKESPAN_RESULTS_DIR, csv_name)
@@ -282,9 +307,11 @@ def get_idle_core_count_from_task_info(
 
     return num_idle_cores_per_time_step
 
+
 # ----------------------------
 # Plotting utilities
 # ----------------------------
+
 
 def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
     workload = "mpi-migrate"
@@ -371,7 +398,7 @@ def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
         # -----
 
         sched_info_csv = "makespan_sched-info_{}_{}_{}_{}_{}.csv".format(
-                baseline, num_vms, workload, num_tasks, num_cpus_per_vm
+            baseline, num_vms, workload, num_tasks, num_cpus_per_vm
         )
         if baseline not in GRANNY_BASELINES:
             result_dict[baseline]["task_scheduling"] = {}
@@ -379,7 +406,9 @@ def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
             # We identify VMs by numbers, not IPs
             ip_to_vm = {}
             vm_to_id = {}
-            with open(join(MAKESPAN_RESULTS_DIR, sched_info_csv), "r") as sched_fd:
+            with open(
+                join(MAKESPAN_RESULTS_DIR, sched_info_csv), "r"
+            ) as sched_fd:
                 # Process the file line by line, as each line will be different in
                 # length
                 for num, line in enumerate(sched_fd):
@@ -466,23 +495,33 @@ def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
 
                     # In addition, for each task in flight, add the tasks's IPs
                     # to the host set
-                    for vm_id in result_dict[baseline]["task_scheduling"][str(int(t))]:
+                    for vm_id in result_dict[baseline]["task_scheduling"][
+                        str(int(t))
+                    ]:
                         result_dict[baseline]["ts_idle_vms"][ts].add(vm_id)
 
             # Third, express the results as percentages, and the number of
             # idle VMs as a number (not as a set)
             for ts in result_dict[baseline]["ts_vcpus"]:
                 result_dict[baseline]["ts_vcpus"][ts] = (
-                    result_dict[baseline]["ts_vcpus"][ts] / total_available_vcpus
+                    result_dict[baseline]["ts_vcpus"][ts]
+                    / total_available_vcpus
                 ) * 100
 
-                result_dict[baseline]["ts_idle_vms"][ts] = num_vms - len(result_dict[baseline]["ts_idle_vms"][ts])
+                result_dict[baseline]["ts_idle_vms"][ts] = num_vms - len(
+                    result_dict[baseline]["ts_idle_vms"][ts]
+                )
         else:
             # For Granny, the idle vCPUs results are directly available in
             # the file
             sch_info_csv = read_csv(join(MAKESPAN_RESULTS_DIR, sched_info_csv))
-            idle_cpus = (sch_info_csv["NumIdleCpus"] / total_available_vcpus * 100).to_list()
-            tss = (sch_info_csv["TimeStampSecs"] - sch_info_csv["TimeStampSecs"][0]).to_list()
+            idle_cpus = (
+                sch_info_csv["NumIdleCpus"] / total_available_vcpus * 100
+            ).to_list()
+            tss = (
+                sch_info_csv["TimeStampSecs"]
+                - sch_info_csv["TimeStampSecs"][0]
+            ).to_list()
 
             # Idle vCPUs
             for (idle_cpu, ts) in zip(idle_cpus, tss):
@@ -518,7 +557,9 @@ def read_makespan_results(num_vms, num_tasks, num_cpus_per_vm):
                             continue
 
                         # Add the accumulated to the total tally
-                        result_dict[baseline]["ts_xvm_links"][ts] += get_xvm_links_from_part(list(sched.values()))
+                        result_dict[baseline]["ts_xvm_links"][
+                            ts
+                        ] += get_xvm_links_from_part(list(sched.values()))
                     elif baseline == "batch":
                         # Batch baseline is optimal in terms of cross-vm links
                         task_size = task_trace[int(t)].size
@@ -679,7 +720,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
                 percentiles,
                 ys,
                 label=get_label_for_baseline("mpi-migrate", label),
-                color=get_color_for_baseline("mpi-migrate", label)
+                color=get_color_for_baseline("mpi-migrate", label),
             )
             ax.set_xlabel("Job percentile [th]")
             ax.set_ylabel("Job completion time [s]")
@@ -744,7 +785,9 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             x_offset = ind * len(labels) + (ind + 1)
             xs += [x + x_offset for x in range(len(labels))]
             ys += [results[n_vms][la]["makespan"] for la in labels]
-            colors += [get_color_for_baseline("mpi-migrate", la) for la in labels]
+            colors += [
+                get_color_for_baseline("mpi-migrate", la) for la in labels
+            ]
 
             # Add one tick and xlabel per VM size
             xticks.append(x_offset + len(labels) / 2)
@@ -766,8 +809,9 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         legend_entries = [
             Patch(
                 color=get_color_for_baseline("mpi-migrate", label),
-                label=get_label_for_baseline("mpi-migrate", label)
-            ) for label in labels
+                label=get_label_for_baseline("mpi-migrate", label),
+            )
+            for label in labels
         ]
         ax.legend(handles=legend_entries, ncols=2, fontsize=8)
 
@@ -857,10 +901,17 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         # spl_granny = CubicSpline(xs_granny, ys_granny)
         # new_xs_granny = linspace(0, max(xs_granny), num=num_points)
 
-        xs_granny_migrate = list(results[num_vms]["granny-migrate"]["ts_xvm_links"].keys())
-        ys_granny_migrate = [results[num_vms]["granny-migrate"]["ts_xvm_links"][x] for x in xs_granny_migrate]
+        xs_granny_migrate = list(
+            results[num_vms]["granny-migrate"]["ts_xvm_links"].keys()
+        )
+        ys_granny_migrate = [
+            results[num_vms]["granny-migrate"]["ts_xvm_links"][x]
+            for x in xs_granny_migrate
+        ]
         spl_granny_migrate = CubicSpline(xs_granny_migrate, ys_granny_migrate)
-        new_xs_granny_migrate = linspace(0, max(xs_granny_migrate), num=num_points)
+        new_xs_granny_migrate = linspace(
+            0, max(xs_granny_migrate), num=num_points
+        )
 
         ax.plot(
             xs_slurm,
@@ -889,11 +940,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             color=get_color_for_baseline("mpi-migrate", "granny-migrate"),
         )
 
-        xlim = max(
-            xs_batch[-1],
-            xs_slurm[-1],
-            new_xs_granny_migrate[-1]
-        )
+        xlim = max(xs_batch[-1], xs_slurm[-1], new_xs_granny_migrate[-1])
         ax.set_xlim(left=0, right=xlim)
         ax.set_ylim(bottom=0)
         ax.set_xlabel("Time [s]")
@@ -913,20 +960,34 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         # new_xs_granny = linspace(0, max(xs_granny), num=num_points)
 
         # TODO: FIXME: move from granny-migrate to granny-evict!
-        xs_granny_migrate = list(results[num_vms]["granny-migrate"]["ts_idle_vms"].keys())
-        ys_granny_migrate = [(results[num_vms]["granny-migrate"]["ts_idle_vms"][x] / num_vms) * 100 for x in xs_granny_migrate]
+        xs_granny_migrate = list(
+            results[num_vms]["granny-migrate"]["ts_idle_vms"].keys()
+        )
+        ys_granny_migrate = [
+            (results[num_vms]["granny-migrate"]["ts_idle_vms"][x] / num_vms)
+            * 100
+            for x in xs_granny_migrate
+        ]
         spl_granny_migrate = CubicSpline(xs_granny_migrate, ys_granny_migrate)
-        new_xs_granny_migrate = linspace(0, max(xs_granny_migrate), num=num_points)
+        new_xs_granny_migrate = linspace(
+            0, max(xs_granny_migrate), num=num_points
+        )
 
         ax.plot(
             xs_slurm,
-            [(results[num_vms]["slurm"]["ts_idle_vms"][x] / num_vms) * 100 for x in xs_slurm],
+            [
+                (results[num_vms]["slurm"]["ts_idle_vms"][x] / num_vms) * 100
+                for x in xs_slurm
+            ],
             label=get_label_for_baseline("mpi-migrate", "slurm"),
             color=get_color_for_baseline("mpi-migrate", "slurm"),
         )
         ax.plot(
             xs_batch,
-            [(results[num_vms]["batch"]["ts_idle_vms"][x] / num_vms) * 100 for x in xs_batch],
+            [
+                (results[num_vms]["batch"]["ts_idle_vms"][x] / num_vms) * 100
+                for x in xs_batch
+            ],
             label=get_label_for_baseline("mpi-migrate", "batch"),
             color=get_color_for_baseline("mpi-migrate", "batch"),
         )
@@ -946,11 +1007,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             color=get_color_for_baseline("mpi-migrate", "granny-migrate"),
         )
 
-        xlim = max(
-            xs_batch[-1],
-            xs_slurm[-1],
-            new_xs_granny_migrate[-1]
-        )
+        xlim = max(xs_batch[-1], xs_slurm[-1], new_xs_granny_migrate[-1])
         ax.set_xlim(left=0, right=xlim)
         ax.set_ylim(bottom=0, top=100)
         ax.set_xlabel("Time [s]")
@@ -974,11 +1031,20 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
 
             for n_vms in num_vms:
                 timestamps = list(results[n_vms][la]["ts_vcpus"].keys())
-                total_cpusecs = (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
+                total_cpusecs = (
+                    (timestamps[-1] - timestamps[0])
+                    * num_cpus_per_vm
+                    * int(n_vms)
+                )
 
                 cumsum = cum_sum(
                     timestamps,
-                    [res * num_cpus_per_vm * int(n_vms) / 100 for res in list(results[n_vms][la]["ts_vcpus"].values())],
+                    [
+                        res * num_cpus_per_vm * int(n_vms) / 100
+                        for res in list(
+                            results[n_vms][la]["ts_vcpus"].values()
+                        )
+                    ],
                 )
 
                 # Record both the total idle CPUsecs and the percentage
@@ -988,9 +1054,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         xticklabels = []
 
         for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-            xticklabels.append(
-                "{} VMs\n({} Jobs)".format(n_vms, n_tasks)
-            )
+            xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
         for la in labels:
             ys = [cumsum_ys[la][n_vms][1] for n_vms in num_vms]
             ax.plot(
@@ -1025,11 +1089,20 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
 
             for n_vms in num_vms:
                 timestamps = list(results[n_vms][la]["ts_xvm_links"].keys())
-                total_cpusecs = (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
+                total_cpusecs = (
+                    (timestamps[-1] - timestamps[0])
+                    * num_cpus_per_vm
+                    * int(n_vms)
+                )
 
                 cumsum = cum_sum(
                     timestamps,
-                    [res for res in list(results[n_vms][la]["ts_xvm_links"].values())],
+                    [
+                        res
+                        for res in list(
+                            results[n_vms][la]["ts_xvm_links"].values()
+                        )
+                    ],
                 )
 
                 cumsum_ys[la][n_vms] = cumsum
@@ -1038,11 +1111,12 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         xs = [ind for ind in range(len(num_vms))]
         xticklabels = []
         for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-            xticklabels.append(
-                "{} VMs\n({} Jobs)".format(n_vms, n_tasks)
-            )
+            xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
         for la in labels:
-            ys = [cumsum_ys[la][n_vms] / cumsum_ys["batch"][n_vms] for n_vms in num_vms]
+            ys = [
+                cumsum_ys[la][n_vms] / cumsum_ys["batch"][n_vms]
+                for n_vms in num_vms
+            ]
             ax.plot(
                 xs,
                 ys,
@@ -1075,10 +1149,15 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
 
             # Number of cross-VM links
             xs += [x + x_offset for x in range(len(labels))]
-            ys += [list(results[n_vms][la]["ts_xvm_links"].values()) for la in labels]
+            ys += [
+                list(results[n_vms][la]["ts_xvm_links"].values())
+                for la in labels
+            ]
 
             # Color and alpha for each box
-            colors += [get_color_for_baseline("mpi-migrate", la) for la in labels]
+            colors += [
+                get_color_for_baseline("mpi-migrate", la) for la in labels
+            ]
 
             # Add one tick and xlabel per VM size
             xticks.append(x_offset + len(labels) / 2)
@@ -1095,7 +1174,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
             widths=0.5,
         )
 
-        for (box, color) in zip(bplot['boxes'], colors):
+        for (box, color) in zip(bplot["boxes"], colors):
             box.set_facecolor(color)
             box.set_edgecolor("black")
 
@@ -1107,8 +1186,9 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         legend_entries = [
             Patch(
                 color=get_color_for_baseline("mpi-migrate", label),
-                label=get_label_for_baseline("mpi-migrate", label)
-            ) for label in labels
+                label=get_label_for_baseline("mpi-migrate", label),
+            )
+            for label in labels
         ]
         ax.legend(handles=legend_entries, ncols=2, fontsize=8)
     elif plot_name == "used_vmsecs":
@@ -1128,15 +1208,29 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
 
             for n_vms in num_vms:
                 timestamps = list(results[n_vms][la]["ts_idle_vms"].keys())
-                # total_cpusecs = (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
 
                 cumsum = cum_sum(
                     timestamps,
-                    [(n_vms - res) for res in list(results[n_vms][la]["ts_idle_vms"].values())],
+                    [
+                        (n_vms - res)
+                        for res in list(
+                            results[n_vms][la]["ts_idle_vms"].values()
+                        )
+                    ],
                 )
                 # TODO: delete me
                 if n_vms == 16:
-                    print(n_vms, la, cumsum, [res for res in list(results[n_vms][la]["ts_idle_vms"].values())])
+                    print(
+                        n_vms,
+                        la,
+                        cumsum,
+                        [
+                            res
+                            for res in list(
+                                results[n_vms][la]["ts_idle_vms"].values()
+                            )
+                        ],
+                    )
 
                 cumsum_ys[la][n_vms] = cumsum
 
@@ -1144,9 +1238,7 @@ def do_makespan_plot(plot_name, results, ax, num_vms, num_tasks):
         xs = [ind for ind in range(len(num_vms))]
         xticklabels = []
         for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-            xticklabels.append(
-                "{} VMs\n({} Jobs)".format(n_vms, n_tasks)
-            )
+            xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
         for la in labels:
             ys = [cumsum_ys[la][n_vms] for n_vms in num_vms]
             ax.plot(

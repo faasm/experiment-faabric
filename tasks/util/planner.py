@@ -4,8 +4,11 @@ from faasmctl.util.planner import (
 )
 from time import sleep
 
+
 # This method also returns the number of used VMs
-def get_num_idle_cpus_from_in_flight_apps(num_vms, num_cpus_per_vm, in_flight_apps):
+def get_num_idle_cpus_from_in_flight_apps(
+    num_vms, num_cpus_per_vm, in_flight_apps
+):
     total_cpus = int(num_vms) * int(num_cpus_per_vm)
 
     worker_occupation = {}
@@ -25,11 +28,11 @@ def get_num_idle_cpus_from_in_flight_apps(num_vms, num_cpus_per_vm, in_flight_ap
 
 
 def get_num_available_slots_from_in_flight_apps(
-  num_vms,
-  num_cpus_per_vm,
-  user_id=None,
-  num_evicted_vms=None,
-  openmp=False,
+    num_vms,
+    num_cpus_per_vm,
+    user_id=None,
+    num_evicted_vms=None,
+    openmp=False,
 ):
     """
     For Granny baselines, we cannot use static knowledge of the
@@ -44,14 +47,20 @@ def get_num_available_slots_from_in_flight_apps(
         available_ips = [host.ip for host in available_hosts.hosts]
 
         if len(available_ips) != num_vms:
-            print("Not enough hosts registered ({}/{}). Retrying...".format(
-                len(available_ips),
-                num_vms)
+            print(
+                "Not enough hosts registered ({}/{}). Retrying...".format(
+                    len(available_ips), num_vms
+                )
             )
             sleep(short_sleep_secs)
             continue
 
-        available_slots = sum([int(host.slots - host.usedSlots) for host in available_hosts.hosts])
+        available_slots = sum(
+            [
+                int(host.slots - host.usedSlots)
+                for host in available_hosts.hosts
+            ]
+        )
 
         next_evicted_vm_ips = []
         try:
@@ -59,7 +68,10 @@ def get_num_available_slots_from_in_flight_apps(
         except AttributeError:
             pass
 
-        if num_evicted_vms is not None and len(next_evicted_vm_ips) != num_evicted_vms:
+        if (
+            num_evicted_vms is not None
+            and len(next_evicted_vm_ips) != num_evicted_vms
+        ):
             print("Not enough evicted VMs registered. Retrying...")
             sleep(short_sleep_secs)
             continue
@@ -84,7 +96,11 @@ def get_num_available_slots_from_in_flight_apps(
         must_hold_back = False
         for app in in_flight_apps.apps:
             if any([ip in next_evicted_vm_ips for ip in app.hostIps]):
-                print("Detected app {} scheduled in to-be evicted VM. Retrying...".format(app.appId))
+                print(
+                    "Detected app {} scheduled in to-be evicted VM. Retrying...".format(
+                        app.appId
+                    )
+                )
                 must_hold_back = True
                 break
 
@@ -123,16 +139,27 @@ def get_num_available_slots_from_in_flight_apps(
             if num_vms > len(list(worker_occupation.keys())):
                 return num_cpus_per_vm
 
-            return max([num_cpus_per_vm - worker_occupation[ip] for ip in worker_occupation])
+            return max(
+                [
+                    num_cpus_per_vm - worker_occupation[ip]
+                    for ip in worker_occupation
+                ]
+            )
 
-        num_available_slots = (num_vms - len(list(worker_occupation.keys()))) * num_cpus_per_vm
+        num_available_slots = (
+            num_vms - len(list(worker_occupation.keys()))
+        ) * num_cpus_per_vm
         for ip in worker_occupation:
             num_available_slots += num_cpus_per_vm - worker_occupation[ip]
 
         # Double-check the number of available slots with our other source of truth
         if user_id is not None and num_available_slots != available_slots:
             print(
-              "WARNING: inconsistency in the number of available slots (in flight: {} - registered: {})".format(num_available_slots, available_slots))
+                "WARNING: inconsistency in the number of available slots"
+                " (in flight: {} - registered: {})".format(
+                    num_available_slots, available_slots
+                )
+            )
             sleep(short_sleep_secs)
             continue
 
@@ -142,7 +169,11 @@ def get_num_available_slots_from_in_flight_apps(
     # If we have any frozen apps, we want to un-FREEZE them to prevent building
     # up a buffer in the planner
     if len(in_flight_apps.frozenApps) > 0:
-        print("Detected frozen apps, so returning 0 slots: {}".format(in_flight_apps.frozenApps))
+        print(
+            "Detected frozen apps, so returning 0 slots: {}".format(
+                in_flight_apps.frozenApps
+            )
+        )
         return 0
 
     return num_available_slots
@@ -160,7 +191,7 @@ def get_xvm_links_from_part(part):
 
     count = 0
     for ind in range(len(part)):
-        count += sum(part[0:ind] + part[ind + 1:]) * part[ind]
+        count += sum(part[0:ind] + part[ind + 1 :]) * part[ind]
 
     return int(count / 2)
 
@@ -177,11 +208,11 @@ def get_num_xvm_links_from_in_flight_apps(in_flight_apps):
 
         part = list(app_ocupation.values())
         # TODO: delete me
-#    print("DEBUG - App: {} - Occupation: {} - Part: {} - Links: {}".format(
-#               app.appId,
-#               app_ocupation,
-#               part,
-#               get_xvm_links_from_part(part)))
+        #    print("DEBUG - App: {} - Occupation: {} - Part: {} - Links: {}".format(
+        #               app.appId,
+        #               app_ocupation,
+        #               part,
+        #               get_xvm_links_from_part(part)))
         total_xvm_links += get_xvm_links_from_part(part)
 
     return total_xvm_links

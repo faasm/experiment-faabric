@@ -30,10 +30,16 @@ ELASTIC_KERNEL = "p2p"
 
 ELASTIC_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels-elastic")
 ELASTIC_KERNELS_WASM_DIR = join(ELASTIC_KERNELS_DOCKER_DIR, "build", "wasm")
-ELASTIC_KERNELS_NATIVE_DIR = join(ELASTIC_KERNELS_DOCKER_DIR, "build", "native")
+ELASTIC_KERNELS_NATIVE_DIR = join(
+    ELASTIC_KERNELS_DOCKER_DIR, "build", "native"
+)
 
-OPENMP_ELASTIC_WASM = join(ELASTIC_KERNELS_WASM_DIR, "omp_{}.wasm".format(ELASTIC_KERNEL))
-OPENMP_ELASTIC_NATIVE_BINARY = join(ELASTIC_KERNELS_NATIVE_DIR, "omp_{}.o".format(ELASTIC_KERNEL))
+OPENMP_ELASTIC_WASM = join(
+    ELASTIC_KERNELS_WASM_DIR, "omp_{}.wasm".format(ELASTIC_KERNEL)
+)
+OPENMP_ELASTIC_NATIVE_BINARY = join(
+    ELASTIC_KERNELS_NATIVE_DIR, "omp_{}.o".format(ELASTIC_KERNEL)
+)
 
 # Parameters for the macrobenchmark
 OPENMP_ELASTIC_NUM_LOOPS = 5
@@ -43,7 +49,9 @@ def get_elastic_input_data(num_loops=OPENMP_ELASTIC_NUM_LOOPS, native=False):
     if native:
         return "FAASM_BENCH_PARAMS={}".format(int(num_loops))
 
-    return b64encode("{}".format(int(num_loops)).encode("utf-8")).decode("utf-8")
+    return b64encode("{}".format(int(num_loops)).encode("utf-8")).decode(
+        "utf-8"
+    )
 
 
 def read_elastic_results(num_vms, num_tasks, num_cpus_per_vm):
@@ -62,7 +70,9 @@ def read_elastic_results(num_vms, num_tasks, num_cpus_per_vm):
         result_dict[baseline] = {}
 
         makespan_s = results["MakespanSecs"].to_list()
-        assert len(makespan_s) == 1, "Too many rows: expected 1, got {}!".format(len(makespan_s))
+        assert (
+            len(makespan_s) == 1
+        ), "Too many rows: expected 1, got {}!".format(len(makespan_s))
         makespan_s = makespan_s[0]
         result_dict[baseline]["makespan"] = makespan_s
 
@@ -137,8 +147,10 @@ def read_elastic_results(num_vms, num_tasks, num_cpus_per_vm):
 
         result_dict[baseline]["ts_vcpus"] = {}
         total_available_vcpus = num_vms * num_cpus_per_vm
-        sched_info_csv = "makespan_sched-info_{}_{}_omp-elastic_{}_{}.csv".format(
+        sched_info_csv = (
+            "makespan_sched-info_{}_{}_omp-elastic_{}_{}.csv".format(
                 baseline, num_vms, num_tasks, num_cpus_per_vm
+            )
         )
 
         if baseline in NATIVE_BASELINES:
@@ -157,14 +169,20 @@ def read_elastic_results(num_vms, num_tasks, num_cpus_per_vm):
             # idle VMs as a number (not as a set)
             for ts in result_dict[baseline]["ts_vcpus"]:
                 result_dict[baseline]["ts_vcpus"][ts] = (
-                    result_dict[baseline]["ts_vcpus"][ts] / total_available_vcpus
+                    result_dict[baseline]["ts_vcpus"][ts]
+                    / total_available_vcpus
                 ) * 100
         else:
             # For Granny, the idle vCPUs results are directly available in
             # the file
             sch_info_csv = read_csv(join(MAKESPAN_RESULTS_DIR, sched_info_csv))
-            idle_cpus = (sch_info_csv["NumIdleCpus"] / total_available_vcpus * 100).to_list()
-            tss = (sch_info_csv["TimeStampSecs"] - sch_info_csv["TimeStampSecs"][0]).to_list()
+            idle_cpus = (
+                sch_info_csv["NumIdleCpus"] / total_available_vcpus * 100
+            ).to_list()
+            tss = (
+                sch_info_csv["TimeStampSecs"]
+                - sch_info_csv["TimeStampSecs"][0]
+            ).to_list()
 
             # Idle vCPUs
             for (idle_cpu, ts) in zip(idle_cpus, tss):
@@ -190,9 +208,7 @@ def _do_plot_makespan(results, ax, **kwargs):
     for ind, n_vms in enumerate(num_vms):
         x_offset = ind * len(baselines) + (ind + 1)
         xs += [x + x_offset for x in range(len(baselines))]
-        ys += [
-            results[n_vms][baseline]["makespan"] for baseline in baselines
-        ]
+        ys += [results[n_vms][baseline]["makespan"] for baseline in baselines]
         colors += [
             get_color_for_baseline("omp-elastic", baseline)
             for baseline in baselines
@@ -200,9 +216,7 @@ def _do_plot_makespan(results, ax, **kwargs):
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
-        xticklabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind])
-        )
+        xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind]))
 
         # Add spacing between vms
         if ind != len(num_vms) - 1:
@@ -275,24 +289,31 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
 
         for n_vms in num_vms:
             timestamps = list(results[n_vms][baseline]["ts_vcpus"].keys())
-            total_cpusecs = (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
+            total_cpusecs = (
+                (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
+            )
 
             cumsum = cum_sum(
                 timestamps,
-                [res * num_cpus_per_vm * int(n_vms) / 100
-                    for res in list(results[n_vms][baseline]["ts_vcpus"].values())],
+                [
+                    res * num_cpus_per_vm * int(n_vms) / 100
+                    for res in list(
+                        results[n_vms][baseline]["ts_vcpus"].values()
+                    )
+                ],
             )
 
             # Record both the total idle CPUsecs and the percentage
-            cumsum_ys[baseline][n_vms] = (cumsum, (cumsum / total_cpusecs) * 100)
+            cumsum_ys[baseline][n_vms] = (
+                cumsum,
+                (cumsum / total_cpusecs) * 100,
+            )
 
     xs = [ind for ind in range(len(num_vms))]
     xticklabels = []
 
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-        xticklabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, n_tasks)
-        )
+        xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
     for baseline in baselines:
         ys = [cumsum_ys[baseline][n_vms][1] for n_vms in num_vms]
         ax.plot(
@@ -312,7 +333,9 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
 
 def _do_plot_ts_vcpus(results, ax, **kwargs):
     assert "timeseries_num_vms" in kwargs, "timeseries_num_vms not in kwargs!"
-    assert "timeseries_num_tasks" in kwargs, "timeseries_num_tasks not in kwargs!"
+    assert (
+        "timeseries_num_tasks" in kwargs
+    ), "timeseries_num_tasks not in kwargs!"
     num_vms = kwargs["timeseries_num_vms"]
 
     baselines = ["slurm", "batch", "granny-elastic"]

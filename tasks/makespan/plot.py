@@ -6,9 +6,10 @@ from tasks.util.elastic import (
     read_elastic_results,
 )
 from tasks.util.eviction import (
-        read_eviction_results,
-        plot_eviction_results,
+    read_eviction_results,
+    plot_eviction_results,
 )
+
 # TODO: consider moving some of the migration to a different file (e.g.
 # tasks.util.locality)
 from tasks.util.makespan import (
@@ -98,40 +99,20 @@ def locality(ctx):
     # Plot 1: boxplot of idle vCPUs and num xVM links for various cluster sizes
     # ----------
 
-    do_makespan_plot(
-        "percentage_vcpus",
-        results,
-        ax1,
-        num_vms,
-        num_tasks
-    )
+    do_makespan_plot("percentage_vcpus", results, ax1, num_vms, num_tasks)
 
-    do_makespan_plot(
-        "percentage_xvm",
-        results,
-        ax2,
-        num_vms,
-        num_tasks
-    )
+    do_makespan_plot("percentage_xvm", results, ax2, num_vms, num_tasks)
 
     # ----------
     # Plot 2: (two) timeseries of one of the cluster sizes
     # ----------
 
     do_makespan_plot(
-        "ts_vcpus",
-        results,
-        ax3,
-        timeseries_num_vms,
-        timeseries_num_tasks
+        "ts_vcpus", results, ax3, timeseries_num_vms, timeseries_num_tasks
     )
 
     do_makespan_plot(
-        "ts_xvm_links",
-        results,
-        ax4,
-        timeseries_num_vms,
-        timeseries_num_tasks
+        "ts_xvm_links", results, ax4, timeseries_num_vms, timeseries_num_tasks
     )
 
     # Manually craft the legend
@@ -139,14 +120,15 @@ def locality(ctx):
     legend_entries = [
         Patch(
             color=get_color_for_baseline("mpi-migrate", baseline),
-            label=get_label_for_baseline("mpi-migrate", baseline)
-        ) for baseline in baselines
+            label=get_label_for_baseline("mpi-migrate", baseline),
+        )
+        for baseline in baselines
     ]
     fig.legend(
         handles=legend_entries,
         loc="upper center",
         ncols=len(baselines),
-        bbox_to_anchor=(0.52, 1.07)
+        bbox_to_anchor=(0.52, 1.07),
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality")
@@ -173,10 +155,11 @@ def eviction(ctx):
 
     results = {}
     for (n_vms, n_users, n_tasks) in zip(num_vms, num_users, num_tasks):
-        results[n_vms] = read_eviction_results(n_vms, n_users, n_tasks, num_cpus_per_vm)
+        results[n_vms] = read_eviction_results(
+            n_vms, n_users, n_tasks, num_cpus_per_vm
+        )
 
-    fig, ax = subplot_mosaic([['left', 'right'],
-                              ['left', 'right']])
+    fig, ax = subplot_mosaic([["left", "right"], ["left", "right"]])
 
     # ----------
     # Plot 1: bar plot of the CPUsecs per execution
@@ -254,14 +237,15 @@ def spot(ctx):
     legend_entries = [
         Patch(
             color=get_color_for_baseline("mpi-spot", baseline),
-            label=get_label_for_baseline("mpi-spot", baseline)
-        ) for baseline in baselines
+            label=get_label_for_baseline("mpi-spot", baseline),
+        )
+        for baseline in baselines
     ]
     fig.legend(
         handles=legend_entries,
         loc="upper center",
         ncols=len(baselines),
-        bbox_to_anchor=(0.52, 1.07)
+        bbox_to_anchor=(0.52, 1.07),
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_spot")
@@ -330,7 +314,7 @@ def elastic(ctx):
         results,
         ax3,
         cdf_num_vms=cdf_num_vms,
-        cdf_num_tasks=cdf_num_tasks
+        cdf_num_tasks=cdf_num_tasks,
     )
 
     # ----------
@@ -342,7 +326,7 @@ def elastic(ctx):
         results,
         ax4,
         timeseries_num_vms=timeseries_num_vms,
-        timeseries_num_tasks=timeseries_num_tasks
+        timeseries_num_tasks=timeseries_num_tasks,
     )
 
     # Manually craft the legend
@@ -350,14 +334,15 @@ def elastic(ctx):
     legend_entries = [
         Patch(
             color=get_color_for_baseline("omp-elastic", baseline),
-            label=get_label_for_baseline("omp-elastic", baseline)
-        ) for baseline in baselines
+            label=get_label_for_baseline("omp-elastic", baseline),
+        )
+        for baseline in baselines
     ]
     fig.legend(
         handles=legend_entries,
         loc="upper center",
         ncols=len(baselines),
-        bbox_to_anchor=(0.52, 1.07)
+        bbox_to_anchor=(0.52, 1.07),
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_elastic")
