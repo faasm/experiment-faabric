@@ -4,13 +4,12 @@ FROM faasm.azurecr.io/examples-build:0.5.0_0.4.0 as build
 RUN rm -rf /code \
     && mkdir -p /code \
     && cd /code \
-    # TODO: back to main branch
-    && git clone -b omp-elastic https://github.com/faasm/examples /code/faasm-examples \
+    && git clone https://github.com/faasm/examples /code/faasm-examples \
     && cd /code/faasm-examples \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout af49d15e623db0d8404948d7e06f12bed92ad6ec \
+    && git checkout 428a11c80263b82ea8a83157205c4ef0eceab979 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
