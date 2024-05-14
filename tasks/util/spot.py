@@ -92,19 +92,19 @@ def _do_plot_makespan(results, ax, **kwargs):
     else:
         ax.set_ylabel("Makespan Slowdown \n [Spot VMs / No Spot VMs]")
 
-    ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
-
-    # Manually craft legend
-    legend_entries = [
-        Patch(
-            color=get_color_for_baseline("mpi-spot", baseline),
-            label=get_label_for_baseline("mpi-spot", baseline)
-        ) for baseline in baselines
-    ]
     if tight:
+        legend_entries = [
+            Patch(
+                color=get_color_for_baseline("mpi-spot", baseline),
+                label=get_label_for_baseline("mpi-spot", baseline)
+            ) for baseline in baselines
+        ]
         ax.legend(handles=legend_entries, ncols=1, fontsize=6, loc="lower center")
+
+    if tight:
+        ax.set_xticks([])
     else:
-        ax.legend(handles=legend_entries, ncols=1, fontsize=8)
+        ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
 
 def _do_plot_cost(results, ax, **kwargs):
@@ -181,8 +181,8 @@ def _do_plot_cost(results, ax, **kwargs):
         # Add disccount annotation
         if tight:
             ax.text(
-                xs[-2] * 0.92,
-                ys[discount][-2] + 0.001,
+                xs[-1] * 0.90,
+                ys[discount][-1] + 0.002,
                 "{}% off".format(discount),
                 fontsize=6,
             )
@@ -209,13 +209,14 @@ def _do_plot_cost(results, ax, **kwargs):
 
     ax.set_ylim(bottom=0)
     if tight:
-        ax.set_ylabel("Cost [Hours / $]", fontsize=6)
+        ax.set_ylabel("Cost [VM Hours]", fontsize=6)
         ax.tick_params(axis='y', labelsize=6)
         ax.legend(fontsize=6)
+        ax.set_xticks([])
     else:
         ax.set_ylabel("Cost [VM Hours]")
         ax.legend(fontsize=8)
-    ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
+        ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
 
 def plot_spot_results(plot_name, results, ax, **kwargs):

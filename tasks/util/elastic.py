@@ -1,6 +1,5 @@
 from base64 import b64encode
 from glob import glob
-from matplotlib.patches import Patch
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import EXAMPLES_DOCKER_DIR, PLOTS_ROOT, RESULTS_DIR
@@ -217,15 +216,6 @@ def _do_plot_makespan(results, ax, **kwargs):
 
     ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
-    # Manually craft legend
-    legend_entries = [
-        Patch(
-            color=get_color_for_baseline("omp-elastic", baseline),
-            label=get_label_for_baseline("omp-elastic", baseline),
-        ) for baseline in baselines
-    ]
-    ax.legend(handles=legend_entries, ncols=1, fontsize=8)
-
 
 def _do_plot_cdf_jct(results, ax, **kwargs):
     assert "cdf_num_vms" in kwargs, "cdf_num_vms not in kwargs!"
@@ -262,7 +252,6 @@ def _do_plot_cdf_jct(results, ax, **kwargs):
         ax.set_xlabel("Job Completion Time [s]")
         ax.set_ylabel("CDF")
         ax.set_ylim(bottom=0, top=1)
-        ax.legend()
 
 
 def _do_plot_percentage_vcpus(results, ax, **kwargs):
@@ -319,16 +308,14 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
     ax.set_xlim(left=-0.25)
     ax.set_ylabel("Idle CPU-seconds /\n Total CPU-seconds [%]", fontsize=8)
     ax.set_xticks(xs, labels=xticklabels, fontsize=6)
-    ax.legend(fontsize=6, ncols=2)
 
 
 def _do_plot_ts_vcpus(results, ax, **kwargs):
     assert "timeseries_num_vms" in kwargs, "timeseries_num_vms not in kwargs!"
     assert "timeseries_num_tasks" in kwargs, "timeseries_num_tasks not in kwargs!"
     num_vms = kwargs["timeseries_num_vms"]
-    num_tasks = kwargs["timeseries_num_tasks"]
 
-    baselines = ["slurm", "batch", "granny", "granny-elastic"]
+    baselines = ["slurm", "batch", "granny-elastic"]
     xlim = 0
     for baseline in baselines:
         if baseline in NATIVE_BASELINES:

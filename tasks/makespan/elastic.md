@@ -10,7 +10,7 @@ Re-run the following instructions with the following values:
 
 ```bash
 NUM_VMS=8,16,24,32
-NUM_TASKS=25,50,75,100
+NUM_TASKS=50,100,150,200
 ```
 
 ## Deploy the cluster
@@ -75,7 +75,7 @@ During an experiment, you may monitor the state of the cluster (in a separete
 shell) by using:
 
 ```bash
-faasmctl monitor.planner --policy spot
+faasmctl monitor.planner
 ```
 
 Once you are done, you may delete the cluster:

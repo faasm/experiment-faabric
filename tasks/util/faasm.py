@@ -35,6 +35,7 @@ def post_async_msg_and_get_result_json(msg, host_list=None, req_dict=None):
         dict_out=True,
         host_list=host_list,
         req_dict=req_dict,
+        num_retries=1e5,
     )
 
     return result["messageResults"]

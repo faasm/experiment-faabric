@@ -67,8 +67,8 @@ def spot(ctx):
     """
     Subset of the makespan.spot plot to include in the motivation section
     """
-    num_vms = [4]
-    num_tasks = [10]
+    num_vms = [32]
+    num_tasks = [100]
     num_cpus_per_vm = 8
 
     results = {}
@@ -88,6 +88,23 @@ def spot(ctx):
         num_tasks=num_tasks,
         tight=True,
     )
+
+    # Manually craft the legend
+    """
+    baselines = ["slurm", "batch", "granny"]
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-spot", baseline),
+            label=get_label_for_baseline("mpi-spot", baseline)
+        ) for baseline in baselines
+    ]
+    fig.legend(
+        handles=legend_entries,
+        loc="upper center",
+        ncols=len(baselines),
+        bbox_to_anchor=(0.52, 1.07)
+    )
+    """
 
     save_plot(fig, MOTIVATION_PLOTS_DIR, "motivation_spot_makespan")
 

@@ -249,7 +249,22 @@ def spot(ctx):
         num_tasks=num_tasks,
     )
 
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "spot")
+    # Manually craft the legend
+    baselines = ["slurm", "batch", "granny-elastic"]
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-spot", baseline),
+            label=get_label_for_baseline("mpi-spot", baseline)
+        ) for baseline in baselines
+    ]
+    fig.legend(
+        handles=legend_entries,
+        loc="upper center",
+        ncols=len(baselines),
+        bbox_to_anchor=(0.52, 1.07)
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_spot")
 
 
 @task
@@ -265,10 +280,8 @@ def elastic(ctx):
 
     Initial idea is to have four columns
     """
-    # num_vms = [8, 16, 24, 32]
-    # num_tasks = [25, 50, 75, 100]
-    num_vms = [4, 8]
-    num_tasks = [10, 25]
+    num_vms = [8, 16, 24, 32]
+    num_tasks = [50, 100, 150, 200]
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
@@ -332,4 +345,19 @@ def elastic(ctx):
         timeseries_num_tasks=timeseries_num_tasks
     )
 
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "elastic")
+    # Manually craft the legend
+    baselines = ["slurm", "batch", "granny", "granny-elastic"]
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("omp-elastic", baseline),
+            label=get_label_for_baseline("omp-elastic", baseline)
+        ) for baseline in baselines
+    ]
+    fig.legend(
+        handles=legend_entries,
+        loc="upper center",
+        ncols=len(baselines),
+        bbox_to_anchor=(0.52, 1.07)
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_elastic")
