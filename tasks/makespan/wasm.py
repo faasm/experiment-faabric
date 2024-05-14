@@ -19,12 +19,12 @@ def upload(ctx):
     Upload the WASM files needed for the makespan experiment
     """
     wasm_file_details = [
-#         {
-#             "wasm_file": LAMMPS_MIGRATION_NET_DOCKER_WASM,
-#             "wasm_user": LAMMPS_FAASM_USER,
-#             "wasm_function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
-#             "copies": 1,
-#         },
+        {
+            "wasm_file": LAMMPS_MIGRATION_NET_DOCKER_WASM,
+            "wasm_user": LAMMPS_FAASM_USER,
+            "wasm_function": LAMMPS_FAASM_MIGRATION_NET_FUNC,
+            "copies": 1,
+        },
         {
             "wasm_file": OPENMP_ELASTIC_WASM,
             "wasm_user": OPENMP_ELASTIC_USER,
