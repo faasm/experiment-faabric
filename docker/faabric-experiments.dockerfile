@@ -9,10 +9,11 @@ RUN rm -rf /code \
     # Checkout to a specific commit, to make sure we do not forget to update it
     # when changes occur upstream, and we do not accidentally cache old WASM
     # versions
-    && git checkout 269557d7244c67d27ec4c98cc72fb04d7af762c8 \
+    && git checkout 428a11c80263b82ea8a83157205c4ef0eceab979 \
     && git submodule update --init -f cpp \
     && git submodule update --init -f python \
     && git submodule update --init -f examples/Kernels \
+    && git submodule update --init -f examples/Kernels-elastic \
     && git submodule update --init -f examples/lammps \
     && git submodule update --init -f examples/lammps-migration \
     && git submodule update --init -f examples/lammps-migration-net \
@@ -22,6 +23,13 @@ RUN rm -rf /code \
     && source ./venv/bin/activate \
     && inv kernels --native \
     && inv kernels \
+    # FIXME: for some reason, build only works if we create these directories
+    # manually. Annoyingly, the problem can not be reproduced inside the
+    # container image
+    && mkdir -p /code/faasm-examples/examples/Kernels-elastic/build/native \
+    && inv kernels --elastic --native --clean \
+    && mkdir -p /code/faasm-examples/examples/Kernels-elastic/build/wasm \
+    && inv kernels --elastic --clean \
     && inv lammps --native \
     && inv lammps \
     && inv lammps --migration --native \

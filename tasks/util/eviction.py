@@ -8,7 +8,7 @@ from tasks.util.env import (
     PLOTS_ROOT,
     RESULTS_DIR,
 )
-from tasks.util.plot import PLOT_COLORS
+from tasks.util.plot import get_color_for_baseline, get_label_for_baseline
 
 MAKESPAN_RESULTS_DIR = join(RESULTS_DIR, "makespan")
 MAKESPAN_PLOTS_DIR = join(PLOTS_ROOT, "makespan")
@@ -98,7 +98,7 @@ def _do_plot_makespan(results, ax, **kwargs):
         x_offset = ind * len(labels) + (ind + 1)
         xs += [x + x_offset for x in range(len(labels))]
         ys += [results[n_vms][la]["makespan"] for la in labels]
-        colors += [PLOT_COLORS[la] for la in labels]
+        colors += [get_color_for_baseline("mpi-migrate", la) for la in labels]
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(labels) / 2)
@@ -117,20 +117,12 @@ def _do_plot_makespan(results, ax, **kwargs):
     ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
 
     # Manually craft legend
-    legend_entries = []
-    for label in labels:
-        if label == "granny":
-            legend_entries.append(
-                Patch(color=PLOT_COLORS[label], label="granny-nomig")
-            )
-        elif label == "granny-migrate":
-            legend_entries.append(
-                Patch(color=PLOT_COLORS[label], label="granny")
-            )
-        else:
-            legend_entries.append(
-                Patch(color=PLOT_COLORS[label], label=label)
-            )
+    legend_entries = [
+        Patch(
+            color=get_color_for_baseline("mpi-migrate", label),
+            label=get_label_for_baseline("mpi-migrate", label)
+        ) for label in labels
+    ]
     ax.legend(handles=legend_entries, ncols=2, fontsize=8)
 
 
@@ -160,7 +152,7 @@ def _do_plot_tasks_per_user(results, ax, **kwargs):
             ax.plot(
                 xs[baseline],
                 ys,
-                color=PLOT_COLORS[baseline],
+                color=get_color_for_baseline("mpi-migrate", baseline),
                 linestyle="dotted",
             )
 
@@ -169,7 +161,7 @@ def _do_plot_tasks_per_user(results, ax, **kwargs):
             ax.plot(
                 xs_spline,
                 spline(xs_spline),
-                color=PLOT_COLORS[baseline],
+                color=get_color_for_baseline("mpi-migrate", baseline),
                 linestyle="-",
             )
 

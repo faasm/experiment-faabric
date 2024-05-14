@@ -5,6 +5,7 @@ from . import format_code
 
 import logging
 
+from tasks.elastic import ns as elastic_ns
 from tasks.kernels_mpi import ns as kernels_mpi_ns
 from tasks.kernels_omp import ns as kernels_omp_ns
 from tasks.lammps import ns as lammps_ns
@@ -23,6 +24,7 @@ ns = Collection(
     format_code,
 )
 
+ns.add_collection(elastic_ns, name="elastic")
 ns.add_collection(kernels_mpi_ns, name="kernels-mpi")
 ns.add_collection(kernels_omp_ns, name="kernels-omp")
 ns.add_collection(lammps_ns, name="lammps")

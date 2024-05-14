@@ -27,8 +27,9 @@ def get_num_idle_cpus_from_in_flight_apps(num_vms, num_cpus_per_vm, in_flight_ap
 def get_num_available_slots_from_in_flight_apps(
   num_vms,
   num_cpus_per_vm,
-  user_id = None,
-  num_evicted_vms = None,
+  user_id=None,
+  num_evicted_vms=None,
+  openmp=False,
 ):
     """
     For Granny baselines, we cannot use static knowledge of the
@@ -43,7 +44,10 @@ def get_num_available_slots_from_in_flight_apps(
         available_ips = [host.ip for host in available_hosts.hosts]
 
         if len(available_ips) != num_vms:
-            print("Not enough slots registered. Retrying...")
+            print("Not enough hosts registered ({}/{}). Retrying...".format(
+                len(available_ips),
+                num_vms)
+            )
             sleep(short_sleep_secs)
             continue
 
@@ -68,8 +72,10 @@ def get_num_available_slots_from_in_flight_apps(
 
         # Annoyingly, we may query for the in-flight apps as soon as we
         # schedule them, missing the init stage of the mpi app. Thus we
-        # sleep for a bit and ask again
-        if any([len(app.hostIps) != app.size for app in in_flight_apps.apps]):
+        # sleep for a bit and ask again (we allow the size to go over the
+        # specified size in case of an elsatic scale-up)
+        if any([len(app.hostIps) < app.size for app in in_flight_apps.apps]):
+            print("App not fully in-flight. We wait...")
             sleep(short_sleep_secs)
             continue
 
@@ -110,6 +116,14 @@ def get_num_available_slots_from_in_flight_apps(
 
                 if worker_occupation[ip] < int(num_cpus_per_vm):
                     worker_occupation[ip] += 1
+
+        # For OpenMP, we only care if any VM has enough slots to run the full
+        # application. Otherwise we wait.
+        if openmp:
+            if num_vms > len(list(worker_occupation.keys())):
+                return num_cpus_per_vm
+
+            return max([num_cpus_per_vm - worker_occupation[ip] for ip in worker_occupation])
 
         num_available_slots = (num_vms - len(list(worker_occupation.keys()))) * num_cpus_per_vm
         for ip in worker_occupation:
