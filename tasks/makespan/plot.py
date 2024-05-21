@@ -12,10 +12,10 @@ from tasks.util.eviction import (
 
 # TODO: consider moving some of the migration to a different file (e.g.
 # tasks.util.locality)
-from tasks.util.makespan import (
-    MAKESPAN_PLOTS_DIR,
-    do_makespan_plot,
-    read_makespan_results,
+from tasks.util.makespan import MAKESPAN_PLOTS_DIR
+from tasks.util.locality import (
+    plot_locality_results,
+    read_locality_results,
 )
 from tasks.util.plot import (
     get_color_for_baseline,
@@ -29,49 +29,6 @@ from tasks.util.spot import (
 
 
 @task
-def migration(ctx):
-    """
-    Macrobenchmark plot showing the benefits of migrating MPI applications to
-    improve locality of execution
-    """
-    # num_vms = [16, 24, 32, 48, 64]
-    # num_tasks = [50, 75, 100, 150, 200]
-    num_vms = [16]
-    exec_cdf_num_vms = 16
-    num_tasks = [50]
-    num_cpus_per_vm = 8
-
-    # Read results from files
-    results = {}
-    for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-        results[n_vms] = read_makespan_results(n_vms, n_tasks, num_cpus_per_vm)
-
-    fig, (ax1, ax2) = subplots(nrows=1, ncols=2)  # , figsize=(6, 3))
-    fig.subplots_adjust(wspace=0.35)
-
-    # ----------
-    # Plot 1: CDF of Job-Completion-Time
-    # ----------
-
-    # do_plot("exec_vs_tiq", results, ax1, num_vms, num_tasks)
-    do_makespan_plot("exec_cdf", results, ax1, exec_cdf_num_vms, num_tasks)
-
-    # ----------
-    # Plot 2: Job Churn
-    # ----------
-
-    # WARNING: the "makespan" plot is the only one that reads num_vms as
-    # an array
-    do_makespan_plot("makespan", results, ax2, num_vms, num_tasks)
-
-    # ----------
-    # Save figure
-    # ----------
-
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "mpi_migration")
-
-
-@task
 def locality(ctx):
     """
     Macrobenchmark plot showing the benefits of migrating MPI applications to
@@ -79,19 +36,25 @@ def locality(ctx):
     - LHS: both number of cross-VM links and number of idle cpu cores per exec
     - RHS: timeseries of one of the points in the plot
     """
-    num_vms = [8, 16, 24, 32]
-    num_tasks = [50, 100, 150, 200]
+    # num_vms = [8, 16, 24, 32]
+    # num_tasks = [50, 100, 150, 200]
+    # num_vms = [4, 8]
+    # num_tasks = [10, 50]
+    # num_vms = [8]
+    # num_tasks = [50]
+    num_vms = [4, 8, 16]
+    num_tasks = [10, 25, 50]
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
     timeseries_num_vms = 32
     timeseries_num_tasks = 200
 
-    # WARN: this assumes that we never repeat num_vms with different numbers of
-    # num_tasks (fair at this point)
     results = {}
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-        results[n_vms] = read_makespan_results(n_vms, n_tasks, num_cpus_per_vm)
+        results[n_vms] = read_locality_results(n_vms, n_tasks, num_cpus_per_vm)
+
+    return
 
     fig, (ax1, ax2, ax3, ax4) = subplots(nrows=1, ncols=4, figsize=(12, 3))
 
@@ -99,19 +62,19 @@ def locality(ctx):
     # Plot 1: boxplot of idle vCPUs and num xVM links for various cluster sizes
     # ----------
 
-    do_makespan_plot("percentage_vcpus", results, ax1, num_vms, num_tasks)
+    plot_locality_results("percentage_vcpus", results, ax1, num_vms, num_tasks)
 
-    do_makespan_plot("percentage_xvm", results, ax2, num_vms, num_tasks)
+    plot_locality_results("percentage_xvm", results, ax2, num_vms, num_tasks)
 
     # ----------
     # Plot 2: (two) timeseries of one of the cluster sizes
     # ----------
 
-    do_makespan_plot(
+    plot_locality_results(
         "ts_vcpus", results, ax3, timeseries_num_vms, timeseries_num_tasks
     )
 
-    do_makespan_plot(
+    plot_locality_results(
         "ts_xvm_links", results, ax4, timeseries_num_vms, timeseries_num_tasks
     )
 

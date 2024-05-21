@@ -1,0 +1,11 @@
+TaskId,App,Size,InterArrivalTimeSecs
+0,mpi-locality,12,0
+1,mpi-locality,4,11
+2,mpi-locality,12,0
+3,mpi-locality,14,8
+4,mpi-locality,12,8
+5,mpi-locality,8,2
+6,mpi-locality,11,8
+7,mpi-locality,10,0
+8,mpi-locality,13,0
+9,mpi-locality,9,0

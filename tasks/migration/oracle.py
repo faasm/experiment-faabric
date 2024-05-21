@@ -21,7 +21,7 @@ from tasks.util.lammps import (
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
     LAMMPS_SIM_WORKLOAD,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
-    get_faasm_benchmark,
+    get_lammps_data_file,
     get_lammps_migration_params,
 )
 from time import sleep
@@ -126,7 +126,7 @@ def run(ctx, workload="network", nprocs=None):
 
             host_list = generate_host_list(part)
             file_name = basename(
-                get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
+                get_lammps_data_file(LAMMPS_SIM_WORKLOAD)["data"][0]
             )
             user = LAMMPS_FAASM_USER
             func = LAMMPS_FAASM_MIGRATION_NET_FUNC

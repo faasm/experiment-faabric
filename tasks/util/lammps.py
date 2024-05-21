@@ -49,12 +49,28 @@ LAMMPS_SIM_CHUNK_SIZE = 2e4
 
 LAMMPS_SIM_WORKLOAD_CONFIGS = {
     "compute": {
+        "data_file": "compute",
+        "num_iterations": 10,
         "num_net_loops": 0,
         "chunk_size": 0,
     },
     "network": {
+        "data_file": "compute",
+        "num_iterations": 10,
         "num_net_loops": LAMMPS_SIM_NUM_NET_LOOPS,
         "chunk_size": LAMMPS_SIM_CHUNK_SIZE,
+    },
+    "very-network": {
+        "data_file": "compute",
+        "num_iterations": 10,
+        "num_net_loops": 1e6,
+        "chunk_size": 10,
+    },
+    "og-network": {
+        "data_file": "network",
+        "num_iterations": 10,
+        "num_net_loops": 0,
+        "chunk_size": 0,
     },
 }
 
@@ -94,15 +110,19 @@ BENCHMARKS = {
 }
 
 
-def get_faasm_benchmark(bench):
-    if bench not in BENCHMARKS:
-        print("Unrecognized benchmark: {}".format(bench))
-        print(
-            "The supported LAMMPS benchmarks are: {}".format(BENCHMARKS.keys())
-        )
-        raise RuntimeError("Unrecognized LAMMPS benchmark")
+def get_lammps_data_file(workload):
+    return BENCHMARKS[workload]
 
-    return BENCHMARKS[bench]
+
+def get_lammps_workload(workload):
+    if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
+        print("Unrecognized workload: {}".format(workload))
+        print(
+            "The supported LAMMPS workloads are: {}".format(LAMMPS_SIM_WORKLOAD_CONFIGS.keys())
+        )
+        raise RuntimeError("Unrecognized LAMMPS workload")
+
+    return LAMMPS_SIM_WORKLOAD_CONFIGS[workload]
 
 
 def get_lammps_migration_params(
@@ -138,7 +158,7 @@ def lammps_data_upload(ctx, bench):
     file_details = []
 
     for b in bench:
-        _bench = get_faasm_benchmark(b)
+        _bench = get_lammps_data_file(b)
 
         # Upload all data corresponding to the benchmark
         for data in _bench["data"]:

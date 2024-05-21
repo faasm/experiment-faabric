@@ -61,9 +61,9 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
             )
         )
 
-    if workload == "mpi-migrate":
+    if workload == "mpi-locality":
         if baseline == "granny":
-            this_label = "granny-no-migrate"
+            this_label = "slurm"
             if label:
                 return this_label
             if color:
@@ -74,8 +74,8 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
                 return this_label
             if color:
                 return _PLOT_COLORS[this_label]
-        if baseline == "batch" or baseline == "slurm":
-            this_label = baseline
+        if baseline == "granny-batch":
+            this_label = "batch"
             if label:
                 return this_label
             if color:
@@ -106,6 +106,7 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
                 baseline, workload
             )
         )
+
 
 
 def get_color_for_baseline(workload, baseline):

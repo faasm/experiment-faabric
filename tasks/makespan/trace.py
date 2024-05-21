@@ -9,7 +9,7 @@ from typing import List
 
 
 @task()
-def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
+def generate(ctx, workload, num_tasks, num_cores_per_vm=8, lmbd="0.1"):
     """
     A trace is a set of tasks where each task is identified by:
     - An arrival time sampled from a Poisson distribution with parameter lambda
@@ -45,8 +45,8 @@ def generate(ctx, workload, num_tasks, num_cores_per_vm, lmbd="0.1"):
     inter_arrival_times.insert(0, 0)
 
     # Work out the possible different workloads
-    if workload == "mpi-migrate":
-        possible_workloads = ["mpi-migrate"]
+    if workload == "mpi-locality":
+        possible_workloads = ["mpi-locality"]
     elif workload == "mpi-evict":
         possible_workloads = ["mpi-migrate"]
     elif workload == "mpi-spot":

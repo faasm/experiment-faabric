@@ -14,7 +14,7 @@ from tasks.util.lammps import (
     LAMMPS_FAASM_MIGRATION_NET_FUNC,
     LAMMPS_SIM_WORKLOAD,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
-    get_faasm_benchmark,
+    get_lammps_data_file,
     get_lammps_migration_params,
 )
 from time import sleep
@@ -48,9 +48,6 @@ def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
     """
     num_vms = len(get_faasm_worker_ips())
     assert num_vms == 2, "Expected 2 VMs got: {}!".format(num_vms)
-    # data_file = basename(get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0])
-    # TODO: is this a good idea? FIXME FIXME DELETE ME
-    data_file = basename(get_faasm_benchmark("compute")["data"][0])
 
     if check_in is None:
         check_array = [0, 2, 4, 6, 8, 10]
@@ -65,6 +62,7 @@ def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
                 )
             )
         workload_config = LAMMPS_SIM_WORKLOAD_CONFIGS[workload]
+        data_file = basename(get_lammps_data_file(workload_config["data_file"])["data"][0])
 
         csv_name = "migration_{}.csv".format(workload)
         _init_csv_file(csv_name)
