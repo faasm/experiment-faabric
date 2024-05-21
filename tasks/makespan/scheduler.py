@@ -274,8 +274,7 @@ def thread_pool_thread(
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app in MPI_WORKLOADS:
             if work_item.task.app == "mpi-locality":
-                # lammps_workload = "very-network"
-                lammps_workload = "compute"
+                lammps_workload = "very-network"
             else:
                 lammps_workload = "compute"
 
