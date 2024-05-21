@@ -5,13 +5,12 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.env import SYSTEM_NAME
-from tasks.util.faasm import get_faasm_version
 from tasks.util.lammps import (
     LAMMPS_PLOTS_DIR,
     LAMMPS_RESULTS_DIR,
     LAMMPS_SIM_WORKLOAD_CONFIGS,
 )
-from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
+from tasks.util.plot import UBENCH_PLOT_COLORS, SINGLE_COL_FIGSIZE, save_plot
 
 
 def _read_results():
@@ -74,6 +73,7 @@ def plot(ctx, plot_elapsed_times=True):
             slowdown,
             width=width,
             label=workload,
+            color=UBENCH_PLOT_COLORS[workload_ind],
             edgecolor="black",
         )
 
@@ -85,9 +85,8 @@ def plot(ctx, plot_elapsed_times=True):
     ax.set_xlim(left=xmin)
     ax.set_xticks(list(range(17)))
     ax.set_ylim(bottom=ymin, top=ymax)
-    ax.legend()
+    ax.legend(ncols=2, loc="upper center")
     ax.set_xlabel("# MPI Processes")
-    ax.set_ylabel("Slowdown [{} / OpenMPI]".format(SYSTEM_NAME))
-    ax.set_title("Faasm Version ({})".format(get_faasm_version()))
+    ax.set_ylabel("Slowdown\n[{} / OpenMPI]".format(SYSTEM_NAME))
 
     save_plot(fig, LAMMPS_PLOTS_DIR, "lammps_slowdown")

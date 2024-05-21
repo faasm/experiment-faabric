@@ -11,7 +11,7 @@ from tasks.util.kernels import (
     MPI_KERNELS_PLOTS_DIR,
     MPI_KERNELS_RESULTS_DIR,
 )
-from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
+from tasks.util.plot import UBENCH_PLOT_COLORS, SINGLE_COL_FIGSIZE, save_plot
 
 
 def _read_kernels_results():
@@ -92,6 +92,7 @@ def kernels(ctx):
             xs,
             ys,
             width,
+            color=UBENCH_PLOT_COLORS[ind_kernel],
             label=kernel,
             edgecolor="black",
         )
@@ -108,6 +109,7 @@ def kernels(ctx):
     # Vertical lines to separate MPI processes
     ylim_bottom = 0
     ylim_top = ymax
+    """
     ax.vlines(
         [i + 0.5 for i in range(len(MPI_KERNELS_EXPERIMENT_NPROCS) - 1)],
         ylim_bottom,
@@ -115,6 +117,7 @@ def kernels(ctx):
         linestyle="dashed",
         colors="gray",
     )
+    """
 
     ax.set_xlim(left=xlim_left, right=xlim_right)
     ax.set_ylim(bottom=ylim_bottom, top=ylim_top)
