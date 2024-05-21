@@ -16,7 +16,11 @@ def deploy(ctx, backend="k8s", num_vms=2):
     if backend == "k8s":
         deploy_native_mpi("lammps", FAABRIC_EXP_IMAGE_NAME, num_vms)
 
-        wait_for_pods(get_native_mpi_namespace("lammps"), "run=faasm-openmpi")
+        wait_for_pods(
+            get_native_mpi_namespace("lammps"),
+            "run=faasm-openmpi",
+            num_expected=num_vms,
+        )
     else:
         raise RuntimeError("Compose backend not implemented!")
 

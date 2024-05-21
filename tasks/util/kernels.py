@@ -35,7 +35,7 @@ MPI_KERNELS_RESULTS_DIR = join(RESULTS_DIR, "kernels-mpi")
 # -------------------
 
 OPENMP_KERNELS_DOCKER_DIR = join(EXAMPLES_DOCKER_DIR, "Kernels")
-OPENMP_KERNELS = ["global", "p2p", "sparse", "nstream", "reduce", "dgemm"]
+OPENMP_KERNELS = ["p2p", "sparse", "nstream", "reduce", "dgemm"]
 OPENMP_KERNELS_FAASM_USER = "kernels-omp"
 
 OPENMP_KERNELS_PLOTS_DIR = join(PLOTS_ROOT, "kernels-omp")

@@ -100,9 +100,7 @@ def native(ctx, w, repeats=1):
     """
     num_cpus_per_vm = 8
     num_vms = 2
-    # data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0],
-    # TODO: is this a good idea? FIXME FIXME DELETE ME
-    data_file = get_faasm_benchmark("compute")["data"][0]
+    data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
 
     for workload in w:
         if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
@@ -150,6 +148,7 @@ def native(ctx, w, repeats=1):
                     "mpirun",
                     get_lammps_migration_params(
                         native=True,
+                        num_loops=3,
                         num_net_loops=workload_config["num_net_loops"],
                         chunk_size=workload_config["chunk_size"],
                     ),
