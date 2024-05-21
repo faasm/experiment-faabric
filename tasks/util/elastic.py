@@ -228,7 +228,7 @@ def _do_plot_makespan(results, ax, **kwargs):
     ax.set_ylim(bottom=0)
     ax.set_ylabel("Makespan [s]")
 
-    ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
+    ax.set_xticks(xticks, labels=xticklabels)
 
 
 def _do_plot_cdf_jct(results, ax, **kwargs):
@@ -327,8 +327,8 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=-0.25)
-    ax.set_ylabel("Idle CPU-seconds /\n Total CPU-seconds [%]", fontsize=8)
-    ax.set_xticks(xs, labels=xticklabels, fontsize=6)
+    ax.set_ylabel("Idle CPU-seconds /\n Total CPU-seconds [%]")
+    ax.set_xticks(xs, labels=xticklabels)
 
 
 def _do_plot_ts_vcpus(results, ax, **kwargs):

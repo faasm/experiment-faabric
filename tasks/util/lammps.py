@@ -63,7 +63,7 @@ LAMMPS_SIM_WORKLOAD_CONFIGS = {
     "very-network": {
         "data_file": "compute",
         "num_iterations": 10,
-        "num_net_loops": 1e6,
+        "num_net_loops": 1e5,
         "chunk_size": 10,
     },
     "og-network": {

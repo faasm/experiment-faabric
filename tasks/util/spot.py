@@ -108,7 +108,7 @@ def _do_plot_makespan(results, ax, **kwargs):
     if tight:
         ax.set_xticks([])
     else:
-        ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
+        ax.set_xticks(xticks, labels=xticklabels)
 
 
 def _do_plot_cost(results, ax, **kwargs):
@@ -203,11 +203,9 @@ def _do_plot_cost(results, ax, **kwargs):
             )
         else:
             ax.text(
-                xs[-1] + 0.5,
+                xs[-1] - 0.5,
                 ys[discount][-1] + 0.0001,
                 "{}% off".format(discount),
-                fontsize=6,
-                rotation=90,
             )
 
         bottom_ys = ys[discount]
@@ -231,7 +229,7 @@ def _do_plot_cost(results, ax, **kwargs):
     else:
         ax.set_ylabel("Cost [VM Hours]")
         ax.legend(fontsize=8)
-        ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
+        ax.set_xticks(xticks, labels=xticklabels)
 
 
 def plot_spot_results(plot_name, results, ax, **kwargs):

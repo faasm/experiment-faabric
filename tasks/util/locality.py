@@ -23,8 +23,8 @@ from tasks.util.trace import load_task_trace_from_file
 # ----------------------------
 
 
-def read_locality_results(num_vms, num_tasks, num_cpus_per_vm):
-    workload = "mpi-locality"
+def read_locality_results(num_vms, num_tasks, num_cpus_per_vm, migrate=False):
+    workload = "mpi-locality" if not migrate else "mpi-migrate"
 
     # Load results
     result_dict = {}

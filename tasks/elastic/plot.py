@@ -5,7 +5,7 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.elastic import ELASTIC_PLOTS_DIR, ELASTIC_RESULTS_DIR
-from tasks.util.plot import SINGLE_COL_FIGSIZE, save_plot
+from tasks.util.plot import SINGLE_COL_FIGSIZE, get_color_for_baseline, save_plot
 
 
 def _read_results():
@@ -37,7 +37,6 @@ def plot(ctx):
     Plot the slowdown of OpenMP's ParRes kernels
     """
     results = _read_results()
-    print(results)
     makedirs(ELASTIC_PLOTS_DIR, exist_ok=True)
     fig, ax = subplots(figsize=SINGLE_COL_FIGSIZE)
 
@@ -56,6 +55,7 @@ def plot(ctx):
     ax.bar(
         xs,
         ys,
+        color=get_color_for_baseline("omp-elastic", "granny"),
         edgecolor="black",
     )
 

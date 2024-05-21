@@ -24,6 +24,9 @@ UBENCH_PLOT_COLORS = [
 
 PLOT_PATTERNS = ["//", "\\\\", "||", "-", "*-", "o-"]
 SINGLE_COL_FIGSIZE = (6, 3)
+SINGLE_COL_FIGSIZE_HALF = (3, 3)
+DOUBLE_COL_FIGSIZE_HALF = SINGLE_COL_FIGSIZE
+DOUBLE_COL_FIGSIZE_THIRD = (4, 4)
 
 
 def fix_hist_step_vertical_line_at_end(ax):
@@ -106,7 +109,6 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
                 baseline, workload
             )
         )
-
 
 
 def get_color_for_baseline(workload, baseline):
