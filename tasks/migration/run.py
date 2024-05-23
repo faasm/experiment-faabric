@@ -59,7 +59,10 @@ def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
         check_array = [int(check_in)]
 
     for workload in w:
-        if workload != "all-to-all" and workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
+        if (
+            workload != "all-to-all"
+            and workload not in LAMMPS_SIM_WORKLOAD_CONFIGS
+        ):
             print(
                 "Unrecognised workload config ({}) must be one in: {}".format(
                     workload, LAMMPS_SIM_WORKLOAD.keys()

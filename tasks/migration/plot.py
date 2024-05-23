@@ -6,10 +6,16 @@ from os.path import join
 from pandas import read_csv
 from tasks.util.env import PROJ_ROOT
 from tasks.util.migration import MIGRATION_PLOTS_DIR
-from tasks.util.plot import save_plot
+from tasks.util.plot import UBENCH_PLOT_COLORS, save_plot
 
 
-ALL_WORKLOADS = ["all-to-all", "compute", "network", "og-network", "very-network"]
+ALL_WORKLOADS = [
+    "all-to-all",
+    "compute",
+    "network",
+    "og-network",
+    "very-network",
+]
 
 
 def _read_results():
@@ -44,10 +50,10 @@ def plot(ctx):
     migration_results = _read_results()
 
     do_plot("all-to-all", migration_results)
-    do_plot("compute", migration_results)
-    do_plot("network", migration_results)
+    # do_plot("compute", migration_results)
+    # do_plot("network", migration_results)
     do_plot("very-network", migration_results)
-    do_plot("og-network", migration_results)
+    # do_plot("og-network", migration_results)
 
 
 def do_plot(workload, migration_results):
@@ -66,11 +72,14 @@ def do_plot(workload, migration_results):
             )
         )
 
+    color_idx = list(migration_results.keys()).index(workload)
+
     ax.bar(
         xticks,
         ys,
         width,
         label=workload,
+        color=UBENCH_PLOT_COLORS[color_idx],
         edgecolor="black",
     )
 
@@ -89,7 +98,7 @@ def do_plot(workload, migration_results):
             1.5,
             "{:.1f}".format(ys[0]),
             rotation="vertical",
-            fontsize=6,
+            fontsize=8,
             bbox={
                 "boxstyle": "Square, pad=0.2",
                 "edgecolor": "black",

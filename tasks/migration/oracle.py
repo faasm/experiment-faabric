@@ -2,7 +2,7 @@ from faasmctl.util.planner import reset as reset_planner
 from glob import glob
 from invoke import task
 from math import ceil
-from matplotlib.pyplot import savefig, subplots
+from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import basename, join
 from random import sample
@@ -60,9 +60,9 @@ def run(ctx, workload="very-network", nprocs=None):
     Experiment to measure the benefits of migration in isolation
     """
     # Work out the number of processes to run with
-    num_procs = [2, 3, 4, 5, 6, 7, 8] # , 9, 10, 11, 12, 13, 14, 15, 16]
+    num_procs = [2, 3, 4, 5, 6, 7, 8]  # , 9, 10, 11, 12, 13, 14, 15, 16]
     num_cpus_per_vm = 8
-    num_vms = 8 # 16
+    num_vms = 8  # 16
     if nprocs is not None:
         num_procs = [int(nprocs)]
 
@@ -196,7 +196,9 @@ def plot(ctx, workload="very-network"):
     num_rows = ceil(num_plots / num_cols)
     fig, axes = subplots(nrows=num_rows, ncols=num_cols)
     fig.suptitle(
-        "Correlation between execution time (Y) and x-VM links (X)\n(wload: {})".format(workload)
+        "Correlation between execution time (Y) and x-VM links (X)\n(wload: {})".format(
+            workload
+        )
     )
 
     def do_plot(ax, results, num_procs):
@@ -210,4 +212,8 @@ def plot(ctx, workload="very-network"):
             axes[int(i / 4)][int(i % 4)], result_dict[num_procs], num_procs
         )
 
-    save_plot(fig, join(PLOTS_ROOT, "migration"), "migration_oracle_{}".format(workload))
+    save_plot(
+        fig,
+        join(PLOTS_ROOT, "migration"),
+        "migration_oracle_{}".format(workload),
+    )
