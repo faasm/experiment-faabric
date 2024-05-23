@@ -81,7 +81,9 @@ def granny(
         ), "--fault flag should only be used with omp-elastic workload!"
         baseline = "granny-elastic"
     if workload == "mpi-locality":
-        assert migrate, "mpi-locality for granny can only be run with --migrate!"
+        assert (
+            migrate
+        ), "mpi-locality for granny can only be run with --migrate!"
 
     workload = _validate_workload(workload)
     trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)

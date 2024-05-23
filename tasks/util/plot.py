@@ -64,6 +64,32 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
             )
         )
 
+    if workload == "mpi-migrate":
+        if baseline == "granny":
+            this_label = "granny-no-migrate"
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+        if baseline == "granny-migrate":
+            this_label = "granny"
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+        if baseline in ["slurm", "batch"]:
+            this_label = baseline
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+
+        raise RuntimeError(
+            "Unrecognised baseline ({}) for workload: {}".format(
+                baseline, workload
+            )
+        )
+
     if workload == "mpi-locality":
         if baseline == "granny":
             this_label = "slurm"

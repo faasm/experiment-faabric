@@ -158,7 +158,9 @@ def get_num_available_slots_from_in_flight_apps(
         # The planner will by default do so, if enough free VMs are available
         if batch and next_task_size is not None:
             num_needed_vms = ceil(next_task_size / num_cpus_per_vm)
-            if (num_vms - len(list(worker_occupation.keys()))) < num_needed_vms:
+            if (
+                num_vms - len(list(worker_occupation.keys()))
+            ) < num_needed_vms:
                 sleep(5 * long_sleep_secs)
                 continue
 
@@ -167,7 +169,9 @@ def get_num_available_slots_from_in_flight_apps(
         ) * num_cpus_per_vm
         for ip in worker_occupation:
             if worker_occupation[ip] != used_slots_map[ip]:
-                print("Inconsistent worker used slots map for ip: {}".format(ip))
+                print(
+                    "Inconsistent worker used slots map for ip: {}".format(ip)
+                )
                 must_hold_back = True
                 break
 
@@ -195,7 +199,8 @@ def get_num_available_slots_from_in_flight_apps(
         if (
             next_task_size is not None
             and not batch
-            and (num_available_slots - next_task_size) < int(num_vms * num_cpus_per_vm * pctg)
+            and (num_available_slots - next_task_size)
+            < int(num_vms * num_cpus_per_vm * pctg)
         ):
             sleep(long_sleep_secs)
             continue

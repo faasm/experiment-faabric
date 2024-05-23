@@ -46,7 +46,6 @@ from tasks.util.lammps import (
     LAMMPS_MIGRATION_NET_DOCKER_BINARY,
     LAMMPS_MIGRATION_NET_DOCKER_DIR,
     LAMMPS_SIM_NUM_ITERATIONS,
-    LAMMPS_SIM_WORKLOAD,
     get_lammps_data_file,
     get_lammps_migration_params,
     get_lammps_workload,
@@ -279,8 +278,12 @@ def thread_pool_thread(
                 lammps_workload = "compute"
 
             workload_config = get_lammps_workload(lammps_workload)
-            assert "data_file" in workload_config, "Workload config has no data file!"
-            data_file = get_lammps_data_file(workload_config["data_file"])["data"][0]
+            assert (
+                "data_file" in workload_config
+            ), "Workload config has no data file!"
+            data_file = get_lammps_data_file(workload_config["data_file"])[
+                "data"
+            ][0]
 
         # Record the start timestamp
         start_ts = 0
@@ -306,7 +309,7 @@ def thread_pool_thread(
                         num_loops=workload_config["num_iterations"],
                         num_net_loops=workload_config["num_net_loops"],
                         chunk_size=workload_config["chunk_size"],
-                        native=True
+                        native=True,
                     ),
                     "-np {}".format(world_size),
                     # To improve OpenMPI performance, we tell it exactly where

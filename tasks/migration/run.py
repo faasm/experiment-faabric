@@ -62,7 +62,9 @@ def run(ctx, w, check_in=None, repeats=1, num_cores_per_vm=8):
                 )
             )
         workload_config = LAMMPS_SIM_WORKLOAD_CONFIGS[workload]
-        data_file = basename(get_lammps_data_file(workload_config["data_file"])["data"][0])
+        data_file = basename(
+            get_lammps_data_file(workload_config["data_file"])["data"][0]
+        )
 
         csv_name = "migration_{}.csv".format(workload)
         _init_csv_file(csv_name)

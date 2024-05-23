@@ -45,11 +45,12 @@ def migration(ctx):
 
     # RHS: zoom in one of the bars
     timeseries_num_vms = num_vms[-1]
-    timeseries_num_tasks = num_tasks[-1]
 
     results = {}
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
-        results[n_vms] = read_locality_results(n_vms, n_tasks, num_cpus_per_vm, migrate=True)
+        results[n_vms] = read_locality_results(
+            n_vms, n_tasks, num_cpus_per_vm, migrate=True
+        )
 
     # ----------
     # Plot 1: aggregate idle vCPUs
@@ -57,7 +58,14 @@ def migration(ctx):
 
     fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
 
-    plot_locality_results("percentage_vcpus", results, ax, num_vms, num_tasks)
+    plot_locality_results(
+        "percentage_vcpus",
+        results,
+        ax,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+        migrate=True,
+    )
 
     # Manually craft the legend
     baselines = ["slurm", "batch", "granny", "granny-migrate"]
@@ -72,7 +80,7 @@ def migration(ctx):
         handles=legend_entries,
         loc="upper center",
         ncols=2,
-        bbox_to_anchor=(0.57, 0.2),
+        bbox_to_anchor=(0.535, 0.3),
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_migrate_vcpus")
@@ -83,7 +91,14 @@ def migration(ctx):
 
     fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
 
-    plot_locality_results("percentage_xvm", results, ax, num_vms, num_tasks)
+    plot_locality_results(
+        "percentage_xvm",
+        results,
+        ax,
+        num_vms=num_vms,
+        num_tasks=num_tasks,
+        migrate=True,
+    )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_migrate_xvm")
 
@@ -94,7 +109,7 @@ def migration(ctx):
     fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
 
     plot_locality_results(
-        "ts_vcpus", results, ax, timeseries_num_vms, timeseries_num_tasks
+        "ts_vcpus", results, ax, num_vms=timeseries_num_vms, migrate=True
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_migrate_ts_vcpus")
@@ -106,7 +121,7 @@ def migration(ctx):
     fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
 
     plot_locality_results(
-        "ts_xvm_links", results, ax, timeseries_num_vms, timeseries_num_tasks
+        "ts_xvm_links", results, ax, num_vms=timeseries_num_vms, migrate=True
     )
 
     save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_migrate_ts_xvm")
@@ -126,59 +141,107 @@ def locality(ctx):
     # num_tasks = [10, 50]
     # num_vms = [8]
     # num_tasks = [50]
-    num_vms = [4, 8, 16]
-    num_tasks = [10, 25, 50]
+    num_vms = [8, 16, 24, 32]
+    num_tasks = [25, 50, 75, 100]
     num_cpus_per_vm = 8
 
     # RHS: zoom in one of the bars
-    timeseries_num_vms = 32
-    timeseries_num_tasks = 200
+    timeseries_num_vms = num_vms[-1]
+    timeseries_num_tasks = num_tasks[-1]
 
     results = {}
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
         results[n_vms] = read_locality_results(n_vms, n_tasks, num_cpus_per_vm)
 
-    return
-
-    fig, (ax1, ax2, ax3, ax4) = subplots(nrows=1, ncols=4, figsize=(12, 3))
-
     # ----------
-    # Plot 1: boxplot of idle vCPUs and num xVM links for various cluster sizes
+    # Plot 1: makespan bar plot
     # ----------
 
-    plot_locality_results("percentage_vcpus", results, ax1, num_vms, num_tasks)
-
-    plot_locality_results("percentage_xvm", results, ax2, num_vms, num_tasks)
-
-    # ----------
-    # Plot 2: (two) timeseries of one of the cluster sizes
-    # ----------
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
 
     plot_locality_results(
-        "ts_vcpus", results, ax3, timeseries_num_vms, timeseries_num_tasks
+        "makespan", results, ax, num_vms=num_vms, num_tasks=num_tasks
     )
 
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_makespan")
+
+    # ----------
+    # Plot 2: Aggregate vCPUs metric
+    # ----------
+
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
+
     plot_locality_results(
-        "ts_xvm_links", results, ax4, timeseries_num_vms, timeseries_num_tasks
+        "percentage_vcpus", results, ax, num_vms=num_vms, num_tasks=num_tasks
+    )
+
+    # ----------
+    # Plot 3: Aggregate xVM metric
+    # ----------
+
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
+
+    plot_locality_results(
+        "percentage_xvm", results, ax, num_vms=num_vms, num_tasks=num_tasks
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_xvm")
+
+    # ----------
+    # Plot 4: execution time CDF
+    # ----------
+
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
+
+    plot_locality_results(
+        "cdf_jct",
+        results,
+        ax,
+        cdf_num_vms=timeseries_num_vms,
+        cdf_num_tasks=timeseries_num_tasks,
     )
 
     # Manually craft the legend
-    baselines = ["slurm", "batch", "granny", "granny-migrate"]
+    baselines = ["granny-batch", "granny", "granny-migrate"]
     legend_entries = [
         Patch(
-            color=get_color_for_baseline("mpi-migrate", baseline),
-            label=get_label_for_baseline("mpi-migrate", baseline),
+            color=get_color_for_baseline("mpi-locality", baseline),
+            label=get_label_for_baseline("mpi-locality", baseline),
         )
         for baseline in baselines
     ]
     fig.legend(
         handles=legend_entries,
-        loc="upper center",
-        ncols=len(baselines),
-        bbox_to_anchor=(0.52, 1.07),
+        loc="lower center",
+        ncols=2,
+        bbox_to_anchor=(0.65, 0.17),
     )
 
-    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality")
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_vcpus")
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_cdf_jct")
+
+    # ----------
+    # Plot 5: time-series of idle vCPUs
+    # ----------
+
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
+
+    plot_locality_results("ts_vcpus", results, ax, num_vms=timeseries_num_vms)
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_ts_vcpus")
+
+    # ----------
+    # Plot 5: time-series of cross-VM links
+    # ----------
+
+    fig, ax = subplots(figsize=DOUBLE_COL_FIGSIZE_THIRD)
+
+    plot_locality_results(
+        "ts_xvm_links", results, ax, num_vms=timeseries_num_vms
+    )
+
+    save_plot(fig, MAKESPAN_PLOTS_DIR, "makespan_locality_ts_xvm")
 
 
 @task

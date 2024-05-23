@@ -36,7 +36,9 @@ def locality(ctx):
     # ----------
 
     fig, ax1 = subplots(figsize=(6, 2))
-    plot_locality_results("ts_vcpus", results, ax1, num_vms=num_vms, num_tasks=num_tasks)
+    plot_locality_results(
+        "ts_vcpus", results, ax1, num_vms=num_vms, num_tasks=num_tasks
+    )
 
     # Manually craft the legend
     baselines = ["slurm", "batch", "granny-migrate"]
@@ -61,7 +63,9 @@ def locality(ctx):
     # ----------
 
     fig, ax2 = subplots(figsize=(6, 2))
-    plot_locality_results("ts_xvm_links", results, ax2, num_vms=num_vms, num_tasks=num_tasks)
+    plot_locality_results(
+        "ts_xvm_links", results, ax2, num_vms=num_vms, num_tasks=num_tasks
+    )
     save_plot(fig, MOTIVATION_PLOTS_DIR, "motivation_xvm_links")
 
 

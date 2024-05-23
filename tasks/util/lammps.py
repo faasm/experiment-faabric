@@ -118,7 +118,9 @@ def get_lammps_workload(workload):
     if workload not in LAMMPS_SIM_WORKLOAD_CONFIGS:
         print("Unrecognized workload: {}".format(workload))
         print(
-            "The supported LAMMPS workloads are: {}".format(LAMMPS_SIM_WORKLOAD_CONFIGS.keys())
+            "The supported LAMMPS workloads are: {}".format(
+                LAMMPS_SIM_WORKLOAD_CONFIGS.keys()
+            )
         )
         raise RuntimeError("Unrecognized LAMMPS workload")
 

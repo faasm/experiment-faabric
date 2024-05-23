@@ -5,7 +5,11 @@ from os import makedirs
 from os.path import join
 from pandas import read_csv
 from tasks.util.elastic import ELASTIC_PLOTS_DIR, ELASTIC_RESULTS_DIR
-from tasks.util.plot import SINGLE_COL_FIGSIZE, get_color_for_baseline, save_plot
+from tasks.util.plot import (
+    SINGLE_COL_FIGSIZE,
+    get_color_for_baseline,
+    save_plot,
+)
 
 
 def _read_results():

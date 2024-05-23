@@ -1,5 +1,4 @@
 from glob import glob
-from matplotlib.patches import Patch
 from numpy import linspace
 from os.path import join
 from pandas import read_csv
@@ -362,20 +361,15 @@ def _do_plot_exec_vs_tiq(results, ax, **kwargs):
 
         # Add a vertical line at the end of each VM block
         xs_vlines.append(
-            x_vm_offset
-            + (num_slowdowns * len(percentiles) + 1 - 0.25) * width
+            x_vm_offset + (num_slowdowns * len(percentiles) + 1 - 0.25) * width
         )
 
         # Add a label once per VM block
         x_label = x_vm_offset + (
-            (num_slowdowns * len(percentiles) + num_slowdowns - 2)
-            / 2
-            * width
+            (num_slowdowns * len(percentiles) + num_slowdowns - 2) / 2 * width
         )
         xticks.append(x_label)
-        xlabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, num_tasks[vm_ind])
-        )
+        xlabels.append("{} VMs\n({} Jobs)".format(n_vms, num_tasks[vm_ind]))
 
     xmin = -0.5
     xmax = len(num_vms) * num_slowdowns - 0.5
@@ -454,7 +448,7 @@ def _do_plot_exec_cdf(results, ax, **kwargs):
 def _do_plot_makespan(results, ax, **kwargs):
     num_vms = kwargs["num_vms"]
     num_tasks = kwargs["num_tasks"]
-    baselines = ["slurm", "batch", "granny", "granny-migrate"]
+    baselines = ["granny", "granny-batch", "granny-migrate"]
 
     xs = []
     ys = []
@@ -467,14 +461,12 @@ def _do_plot_makespan(results, ax, **kwargs):
         xs += [x + x_offset for x in range(len(baselines))]
         ys += [results[n_vms][la]["makespan"] for la in baselines]
         colors += [
-            get_color_for_baseline("mpi-migrate", la) for la in baselines
+            get_color_for_baseline("mpi-locality", la) for la in baselines
         ]
 
         # Add one tick and xlabel per VM size
         xticks.append(x_offset + len(baselines) / 2)
-        xticklabels.append(
-            "{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind])
-        )
+        xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, num_tasks[ind]))
 
         # Add spacing between vms
         xs.append(x_offset + len(baselines))
@@ -484,17 +476,7 @@ def _do_plot_makespan(results, ax, **kwargs):
     ax.bar(xs, ys, color=colors, edgecolor="black", width=1)
     ax.set_ylim(bottom=0)
     ax.set_ylabel("Makespan [s]")
-    ax.set_xticks(xticks, labels=xticklabels, fontsize=6)
-
-    # Manually craft legend
-    legend_entries = [
-        Patch(
-            color=get_color_for_baseline("mpi-locality", baseline),
-            label=get_label_for_baseline("mpi-locality", baseline),
-        )
-        for baseline in baselines
-    ]
-    ax.legend(handles=legend_entries, ncols=2, fontsize=8)
+    ax.set_xticks(xticks, labels=xticklabels)
 
 
 def _do_plot_ts_vcpus(results, ax, **kwargs):
@@ -502,7 +484,12 @@ def _do_plot_ts_vcpus(results, ax, **kwargs):
     This plot presents a timeseries of the % of idle vCPUs over time
     """
     num_vms = kwargs["num_vms"]
-    baselines = ["batch", "slurm", "granny-migrate"]
+    workload = "mpi-migrate" if "migrate" in kwargs else "mpi-locality"
+
+    if workload == "mpi-migrate":
+        baselines = ["batch", "slurm", "granny", "granny-migrate"]
+    else:
+        baselines = ["granny", "granny-batch", "granny-migrate"]
 
     xlim = 0
     for baseline in baselines:
@@ -515,8 +502,8 @@ def _do_plot_ts_vcpus(results, ax, **kwargs):
         ax.plot(
             xs,
             [results[num_vms][baseline]["ts_vcpus"][x] for x in xs],
-            label=get_label_for_baseline("mpi-migrate", baseline),
-            color=get_color_for_baseline("mpi-migrate", baseline),
+            label=get_label_for_baseline(workload, baseline),
+            color=get_color_for_baseline(workload, baseline),
         )
 
     ax.set_xlim(left=0, right=xlim)
@@ -530,11 +517,30 @@ def _do_plot_ts_xvm_links(results, ax, **kwargs):
     This plot presents a timeseries of the # of cross-VM links over time
     """
     num_vms = kwargs["num_vms"]
+    workload = "mpi-migrate" if "migrate" in kwargs else "mpi-locality"
     num_points = 500
 
-    xs_slurm = range(len(results[num_vms]["slurm"]["ts_xvm_links"]))
-    xs_batch = range(len(results[num_vms]["batch"]["ts_xvm_links"]))
+    if workload == "mpi-migrate":
+        baselines = ["batch", "slurm"]
+    else:
+        baselines = ["granny", "granny-batch"]
 
+    xlim = 0
+    for baseline in baselines:
+        if workload == "mpi-migrate":
+            xs = range(len(results[num_vms][baseline]["ts_xvm_links"]))
+        else:
+            xs = list(results[num_vms][baseline]["ts_xvm_links"].keys())
+        xlim = max(xlim, max(xs))
+
+        ax.plot(
+            xs,
+            [results[num_vms][baseline]["ts_xvm_links"][x] for x in xs],
+            label=get_label_for_baseline(workload, baseline),
+            color=get_color_for_baseline(workload, baseline),
+        )
+
+    # We do Granny separately to interpolate
     xs_granny_migrate = list(
         results[num_vms]["granny-migrate"]["ts_xvm_links"].keys()
     )
@@ -543,30 +549,16 @@ def _do_plot_ts_xvm_links(results, ax, **kwargs):
         for x in xs_granny_migrate
     ]
     spl_granny_migrate = CubicSpline(xs_granny_migrate, ys_granny_migrate)
-    new_xs_granny_migrate = linspace(
-        0, max(xs_granny_migrate), num=num_points
-    )
+    new_xs_granny_migrate = linspace(0, max(xs_granny_migrate), num=num_points)
 
-    ax.plot(
-        xs_slurm,
-        [results[num_vms]["slurm"]["ts_xvm_links"][x] for x in xs_slurm],
-        label="slurm",
-        color=get_color_for_baseline("mpi-locality", "slurm"),
-    )
-    ax.plot(
-        xs_batch,
-        [results[num_vms]["batch"]["ts_xvm_links"][x] for x in xs_batch],
-        label="batch",
-        color=get_color_for_baseline("mpi-locality", "batch"),
-    )
     ax.plot(
         new_xs_granny_migrate,
         spl_granny_migrate(new_xs_granny_migrate),
-        label=get_label_for_baseline("mpi-locality", "granny-migrate"),
-        color=get_color_for_baseline("mpi-locality", "granny-migrate"),
+        label=get_label_for_baseline(workload, "granny-migrate"),
+        color=get_color_for_baseline(workload, "granny-migrate"),
     )
 
-    xlim = max(xs_batch[-1], xs_slurm[-1], new_xs_granny_migrate[-1])
+    xlim = max(xlim, max(new_xs_granny_migrate))
     ax.set_xlim(left=0, right=xlim)
     ax.set_ylim(bottom=0)
     ax.set_xlabel("Time [s]")
@@ -575,9 +567,13 @@ def _do_plot_ts_xvm_links(results, ax, **kwargs):
 
 def _do_plot_percentage_vcpus(results, ax, **kwargs):
     num_vms = kwargs["num_vms"]
+    workload = "mpi-migrate" if "migrate" in kwargs else "mpi-locality"
     num_tasks = kwargs["num_tasks"]
 
-    labels = ["slurm", "batch", "granny", "granny-migrate"]
+    if workload == "mpi-migrate":
+        baselines = ["batch", "slurm", "granny", "granny-migrate"]
+    else:
+        baselines = ["granny", "granny-batch", "granny-migrate"]
 
     xs = []
     ys = []
@@ -588,15 +584,13 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
     # Integral of idle CPU cores over time
     # WARNING: this plot reads num_vms as an array
     cumsum_ys = {}
-    for la in labels:
-        cumsum_ys[la] = {}
+    for baseline in baselines:
+        cumsum_ys[baseline] = {}
 
         for n_vms in num_vms:
-            timestamps = list(results[n_vms][la]["ts_vcpus"].keys())
+            timestamps = list(results[n_vms][baseline]["ts_vcpus"].keys())
             total_cpusecs = (
-                (timestamps[-1] - timestamps[0])
-                * num_cpus_per_vm
-                * int(n_vms)
+                (timestamps[-1] - timestamps[0]) * num_cpus_per_vm * int(n_vms)
             )
 
             cumsum = cum_sum(
@@ -604,88 +598,90 @@ def _do_plot_percentage_vcpus(results, ax, **kwargs):
                 [
                     res * num_cpus_per_vm * int(n_vms) / 100
                     for res in list(
-                        results[n_vms][la]["ts_vcpus"].values()
+                        results[n_vms][baseline]["ts_vcpus"].values()
                     )
                 ],
             )
 
             # Record both the total idle CPUsecs and the percentage
-            cumsum_ys[la][n_vms] = (cumsum, (cumsum / total_cpusecs) * 100)
+            cumsum_ys[baseline][n_vms] = (
+                cumsum,
+                (cumsum / total_cpusecs) * 100,
+            )
 
     xs = [ind for ind in range(len(num_vms))]
     xticklabels = []
 
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
         xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
-    for la in labels:
-        ys = [cumsum_ys[la][n_vms][1] for n_vms in num_vms]
+    for baseline in baselines:
+        ys = [cumsum_ys[baseline][n_vms][1] for n_vms in num_vms]
         ax.plot(
             xs,
             ys,
-            color=get_color_for_baseline("mpi-migrate", la),
+            color=get_color_for_baseline(workload, baseline),
             linestyle="-",
             marker=".",
-            label=get_label_for_baseline("mpi-migrate", la),
+            label=get_label_for_baseline(workload, baseline),
         )
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=-0.25)
     ax.set_ylabel("Idle CPU-seconds /\n Total CPU-seconds [%]", fontsize=8)
-    ax.set_xticks(xs, labels=xticklabels, fontsize=6)
+    ax.set_xticks(xs, labels=xticklabels)
 
 
 def _do_plot_percentage_xvm(results, ax, **kwargs):
     num_vms = kwargs["num_vms"]
+    workload = "mpi-migrate" if "migrate" in kwargs else "mpi-locality"
     num_tasks = kwargs["num_tasks"]
 
-    labels = ["slurm", "batch", "granny", "granny-migrate"]
+    if workload == "mpi-migrate":
+        baselines = ["batch", "slurm", "granny", "granny-migrate"]
+        optimal_baseline = "batch"
+    else:
+        baselines = ["granny", "granny-batch", "granny-migrate"]
+        optimal_baseline = "granny-batch"
 
     xs = []
     ys = []
     xticklabels = []
 
-    num_cpus_per_vm = 8
-
     # Integral of idle CPU cores over time
     cumsum_ys = {}
-    for la in labels:
-        cumsum_ys[la] = {}
+    for baseline in baselines:
+        cumsum_ys[baseline] = {}
 
         for n_vms in num_vms:
-            timestamps = list(results[n_vms][la]["ts_xvm_links"].keys())
-            total_cpusecs = (
-                (timestamps[-1] - timestamps[0])
-                * num_cpus_per_vm
-                * int(n_vms)
-            )
+            timestamps = list(results[n_vms][baseline]["ts_xvm_links"].keys())
 
             cumsum = cum_sum(
                 timestamps,
                 [
                     res
                     for res in list(
-                        results[n_vms][la]["ts_xvm_links"].values()
+                        results[n_vms][baseline]["ts_xvm_links"].values()
                     )
                 ],
             )
 
-            cumsum_ys[la][n_vms] = cumsum
+            cumsum_ys[baseline][n_vms] = cumsum
 
     # WARNING: this plot reads num_vms as an array
     xs = [ind for ind in range(len(num_vms))]
     xticklabels = []
     for (n_vms, n_tasks) in zip(num_vms, num_tasks):
         xticklabels.append("{} VMs\n({} Jobs)".format(n_vms, n_tasks))
-    for la in labels:
+    for baseline in baselines:
         ys = [
-            cumsum_ys[la][n_vms] / cumsum_ys["batch"][n_vms]
+            cumsum_ys[baseline][n_vms] / cumsum_ys[optimal_baseline][n_vms]
             for n_vms in num_vms
         ]
         ax.plot(
             xs,
             ys,
-            label=get_label_for_baseline("mpi-migrate", la),
-            color=get_color_for_baseline("mpi-migrate", la),
+            label=get_label_for_baseline(workload, baseline),
+            color=get_color_for_baseline(workload, baseline),
             linestyle="-",
             marker=".",
         )
@@ -693,7 +689,35 @@ def _do_plot_percentage_xvm(results, ax, **kwargs):
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=-0.25)
     ax.set_ylabel("Total cross-VM / Optimal cross-VM links", fontsize=8)
-    ax.set_xticks(xs, labels=xticklabels, fontsize=6)
+    ax.set_xticks(xs, labels=xticklabels)
+
+
+def _do_plot_cdf_jct(results, ax, **kwargs):
+    assert "cdf_num_vms" in kwargs, "cdf_num_vms not in kwargs!"
+    assert "cdf_num_tasks" in kwargs, "cdf_num_tasks not in kwargs!"
+    cdf_num_vms = kwargs["cdf_num_vms"]
+    cdf_num_tasks = kwargs["cdf_num_tasks"]
+
+    baselines = ["granny-batch", "granny", "granny-migrate"]
+
+    xs = list(range(cdf_num_tasks))
+    for baseline in baselines:
+        ys = []
+
+        ys, xs, patches = ax.hist(
+            results[cdf_num_vms][baseline]["jct"],
+            100,
+            color=get_color_for_baseline("mpi-locality", baseline),
+            label=get_label_for_baseline("mpi-locality", baseline),
+            histtype="step",
+            density=True,
+            cumulative=True,
+        )
+        fix_hist_step_vertical_line_at_end(ax)
+
+        ax.set_xlabel("Job Completion Time [s]")
+        ax.set_ylabel("CDF")
+        ax.set_ylim(bottom=0, top=1)
 
 
 def plot_locality_results(plot_name, results, ax, **kwargs):
@@ -715,3 +739,5 @@ def plot_locality_results(plot_name, results, ax, **kwargs):
         _do_plot_percentage_vcpus(results, ax, **kwargs)
     elif plot_name == "percentage_xvm":
         _do_plot_percentage_xvm(results, ax, **kwargs)
+    elif plot_name == "cdf_jct":
+        _do_plot_cdf_jct(results, ax, **kwargs)
