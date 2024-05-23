@@ -31,9 +31,8 @@ getLogger("requests").setLevel(log_level_WARNING)
 getLogger("urllib3").setLevel(log_level_WARNING)
 
 
-def _get_workload_from_cmdline(workload):
-    # TODO: rename mpi-migrate to something like mpi-locality
-    all_workloads = ["mpi-evict", "mpi-migrate", "mpi-spot", "omp-elastic"]
+def _validate_workload(workload):
+    all_workloads = ["mpi-evict", "mpi-locality", "mpi-spot", "omp-elastic"]
 
     if workload not in all_workloads:
         raise RuntimeError(
@@ -48,7 +47,7 @@ def _get_workload_from_cmdline(workload):
 @task()
 def granny(
     ctx,
-    workload="mpi-migrate",
+    workload,
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -68,7 +67,7 @@ def granny(
     baseline = "granny"
     if migrate:
         assert (
-            workload == "mpi-migrate"
+            workload == "mpi-locality"
         ), "--migrate flag should only be used with mpi-migrate workload!"
         baseline = "granny-migrate"
     if fault:
@@ -81,8 +80,12 @@ def granny(
             workload == "omp-elastic"
         ), "--fault flag should only be used with omp-elastic workload!"
         baseline = "granny-elastic"
+    if workload == "mpi-locality":
+        assert (
+            migrate
+        ), "mpi-locality for granny can only be run with --migrate!"
 
-    workload = _get_workload_from_cmdline(workload)
+    workload = _validate_workload(workload)
     trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
     _do_run(baseline, num_vms, trace, num_users)
 
@@ -90,7 +93,7 @@ def granny(
 @task()
 def native_slurm(
     ctx,
-    workload="mpi-migrate",
+    workload,
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -105,7 +108,11 @@ def native_slurm(
     if fault:
         baseline = "slurm-ft"
 
-    workload = _get_workload_from_cmdline(workload)
+    # For MPI locality, native-slurm is equivalent to granny-no-migrate
+    if workload == "mpi-locality":
+        baseline = "granny"
+
+    workload = _validate_workload(workload)
     trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
     _do_run(
         baseline,
@@ -118,7 +125,7 @@ def native_slurm(
 @task()
 def native_batch(
     ctx,
-    workload="mpi-migrate",
+    workload,
     num_vms=32,
     num_cpus_per_vm=8,
     num_tasks=100,
@@ -133,7 +140,12 @@ def native_batch(
     if fault:
         baseline = "batch-ft"
 
-    workload = _get_workload_from_cmdline(workload)
+    # For MPI locality, native-batch is equivalent to granny allocating
+    # resources to jobs at VM granularity
+    if workload == "mpi-locality":
+        baseline = "granny-batch"
+
+    workload = _validate_workload(workload)
     trace = get_trace_from_parameters(workload, num_tasks, num_cpus_per_vm)
     _do_run(
         baseline,

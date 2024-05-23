@@ -24,6 +24,9 @@ UBENCH_PLOT_COLORS = [
 
 PLOT_PATTERNS = ["//", "\\\\", "||", "-", "*-", "o-"]
 SINGLE_COL_FIGSIZE = (6, 3)
+SINGLE_COL_FIGSIZE_HALF = (3, 3)
+DOUBLE_COL_FIGSIZE_HALF = SINGLE_COL_FIGSIZE
+DOUBLE_COL_FIGSIZE_THIRD = (4, 4)
 
 
 def fix_hist_step_vertical_line_at_end(ax):
@@ -74,8 +77,34 @@ def _do_get_for_baseline(workload, baseline, color=False, label=False):
                 return this_label
             if color:
                 return _PLOT_COLORS[this_label]
-        if baseline == "batch" or baseline == "slurm":
+        if baseline in ["slurm", "batch"]:
             this_label = baseline
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+
+        raise RuntimeError(
+            "Unrecognised baseline ({}) for workload: {}".format(
+                baseline, workload
+            )
+        )
+
+    if workload == "mpi-locality":
+        if baseline == "granny":
+            this_label = "slurm"
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+        if baseline == "granny-migrate":
+            this_label = "granny"
+            if label:
+                return this_label
+            if color:
+                return _PLOT_COLORS[this_label]
+        if baseline == "granny-batch":
+            this_label = "batch"
             if label:
                 return this_label
             if color:

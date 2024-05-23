@@ -10,7 +10,7 @@ from tasks.util.env import PLOTS_ROOT, RESULTS_DIR
 from tasks.util.lammps import (
     LAMMPS_DOCKER_BINARY,
     LAMMPS_DOCKER_DIR,
-    get_faasm_benchmark,
+    get_lammps_data_file,
 )
 from tasks.util.openmpi import get_native_mpi_pods, run_kubectl_cmd
 from time import time
@@ -84,7 +84,7 @@ def do_single_run(vm_names, vm_ips, size, partition):
     assert len(allocated_pod_ips) == size
 
     # Prepare LAMMPS command line
-    data_file = get_faasm_benchmark("compute-xl")["data"][0]
+    data_file = get_lammps_data_file("compute-xl")["data"][0]
     lammps_cmdline = "-in {}/{}.faasm.native".format(
         LAMMPS_DOCKER_DIR, data_file
     )

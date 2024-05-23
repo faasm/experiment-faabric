@@ -25,25 +25,28 @@ inv cluster.provision --vm Standard_D8_v5 --nodes ${NUM_VMS} + 1
 inv cluster.credentials
 ```
 
-## Native (OpenMPI)
+## Native (Native Batch Schedulers with Granny's MPI implementation)
 
-First, deploy the native `k8s` cluster:
+For this experiment, our native baselines also run with Granny's MPI
+implementation. This is to make the comparison of improvement of performance
+through better locality fair:
 
 ```bash
-inv makespan.native.deploy --num-vms ${NUM_VMS}
+faasmctl deploy.k8s --workers=${NUM_VMS}
+inv makespan.wasm.upload
 ```
 
-Now, you can run the different OpenMPI baselines:
+Now, you can run the different baselines:
 
 ```bash
-inv makespan.run.native-batch --workload mpi-migrate --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS}
-inv makespan.run.native-slurm --workload mpi-migrate --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS}
+inv makespan.run.native-batch --workload mpi-locality --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS}
+inv makespan.run.native-slurm --workload mpi-locality --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS}
 ```
 
 Once you are done, you may remove the native OpenMPI cluster:
 
 ```bash
-inv makespan.native.delete
+faasmctl delete
 ```
 
 ## Granny
@@ -63,11 +66,8 @@ inv makespan.wasm.upload
 Third, run the experiment:
 
 ```bash
-# Granny with migration disabled as another baseline
-inv makespan.run.granny --workload mpi-migrate --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS}
-
-# Granny with migration enabled (aka Granny)
-inv makespan.run.granny --workload mpi-migrate --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS} --migrate
+# Granny with migration enabled
+inv makespan.run.granny --workload mpi-locality --num-vms ${NUM_VMS} --num-tasks ${NUM_TASKS} --migrate
 ```
 
 During an experiment, you may monitor the state of the cluster (in a separete

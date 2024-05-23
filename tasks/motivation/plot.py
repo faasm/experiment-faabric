@@ -4,7 +4,7 @@ from matplotlib.pyplot import subplots
 from os import makedirs
 from os.path import join
 from tasks.util.env import PLOTS_ROOT
-from tasks.util.makespan import do_makespan_plot, read_makespan_results
+from tasks.util.locality import plot_locality_results, read_locality_results
 from tasks.util.plot import (
     get_color_for_baseline,
     get_label_for_baseline,
@@ -26,7 +26,7 @@ def locality(ctx):
     num_cpus_per_vm = 8
 
     results = {}
-    results[num_vms] = read_makespan_results(
+    results[num_vms] = read_locality_results(
         num_vms, num_tasks, num_cpus_per_vm
     )
     makedirs(MOTIVATION_PLOTS_DIR, exist_ok=True)
@@ -36,7 +36,9 @@ def locality(ctx):
     # ----------
 
     fig, ax1 = subplots(figsize=(6, 2))
-    do_makespan_plot("ts_vcpus", results, ax1, num_vms, num_tasks)
+    plot_locality_results(
+        "ts_vcpus", results, ax1, num_vms=num_vms, num_tasks=num_tasks
+    )
 
     # Manually craft the legend
     baselines = ["slurm", "batch", "granny-migrate"]
@@ -61,7 +63,9 @@ def locality(ctx):
     # ----------
 
     fig, ax2 = subplots(figsize=(6, 2))
-    do_makespan_plot("ts_xvm_links", results, ax2, num_vms, num_tasks)
+    plot_locality_results(
+        "ts_xvm_links", results, ax2, num_vms=num_vms, num_tasks=num_tasks
+    )
     save_plot(fig, MOTIVATION_PLOTS_DIR, "motivation_xvm_links")
 
 

@@ -46,14 +46,15 @@ from tasks.util.lammps import (
     LAMMPS_MIGRATION_NET_DOCKER_BINARY,
     LAMMPS_MIGRATION_NET_DOCKER_DIR,
     LAMMPS_SIM_NUM_ITERATIONS,
-    LAMMPS_SIM_WORKLOAD,
-    get_faasm_benchmark,
+    get_lammps_data_file,
     get_lammps_migration_params,
+    get_lammps_workload,
 )
 from tasks.util.makespan import (
     ALLOWED_BASELINES,
     EXEC_TASK_INFO_FILE_PREFIX,
     GRANNY_BASELINES,
+    GRANNY_BATCH_BASELINES,
     GRANNY_ELASTIC_BASELINES,
     GRANNY_FT_BASELINES,
     GRANNY_MIGRATE_BASELINES,
@@ -271,7 +272,18 @@ def thread_pool_thread(
 
         # Choose the right data file if running a LAMMPS simulation
         if work_item.task.app in MPI_WORKLOADS:
-            data_file = get_faasm_benchmark(LAMMPS_SIM_WORKLOAD)["data"][0]
+            if work_item.task.app == "mpi-locality":
+                lammps_workload = "very-network"
+            else:
+                lammps_workload = "compute"
+
+            workload_config = get_lammps_workload(lammps_workload)
+            assert (
+                "data_file" in workload_config
+            ), "Workload config has no data file!"
+            data_file = get_lammps_data_file(workload_config["data_file"])[
+                "data"
+            ][0]
 
         # Record the start timestamp
         start_ts = 0
@@ -293,7 +305,12 @@ def thread_pool_thread(
 
                 mpirun_cmd = [
                     "mpirun",
-                    get_lammps_migration_params(native=True),
+                    get_lammps_migration_params(
+                        num_loops=workload_config["num_iterations"],
+                        num_net_loops=workload_config["num_net_loops"],
+                        chunk_size=workload_config["chunk_size"],
+                        native=True,
+                    ),
                     "-np {}".format(world_size),
                     # To improve OpenMPI performance, we tell it exactly where
                     # to run each rank. According to the MPI manual, to specify
@@ -373,7 +390,10 @@ def thread_pool_thread(
                         else LAMMPS_SIM_NUM_ITERATIONS
                     )
                     msg["input_data"] = get_lammps_migration_params(
-                        check_every=check_every
+                        check_every=check_every,
+                        num_loops=workload_config["num_iterations"],
+                        num_net_loops=workload_config["num_net_loops"],
+                        chunk_size=workload_config["chunk_size"],
                     )
             elif work_item.task.app in OPENMP_WORKLOADS:
                 if work_item.task.size > num_cpus_per_vm:
@@ -912,6 +932,33 @@ class BatchScheduler:
                         self.state.num_vms,
                         self.state.num_cpus_per_vm,
                         num_evicted_vms=self.state.num_faults,
+                    )
+                    >= task.size
+                )
+
+            if (
+                self.state.workload == "mpi-locality"
+                and self.state.baseline in GRANNY_MIGRATE_BASELINES
+            ):
+                return (
+                    get_num_available_slots_from_in_flight_apps(
+                        self.state.num_vms,
+                        self.state.num_cpus_per_vm,
+                        next_task_size=task.size,
+                    )
+                    >= task.size
+                )
+
+            if (
+                self.state.workload == "mpi-locality"
+                and self.state.baseline in GRANNY_BATCH_BASELINES
+            ):
+                return (
+                    get_num_available_slots_from_in_flight_apps(
+                        self.state.num_vms,
+                        self.state.num_cpus_per_vm,
+                        next_task_size=task.size,
+                        batch=True,
                     )
                     >= task.size
                 )

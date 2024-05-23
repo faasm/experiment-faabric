@@ -2,6 +2,7 @@ from faasmctl.util.planner import (
     get_available_hosts as planner_get_available_hosts,
     get_in_fligh_apps as planner_get_in_fligh_apps,
 )
+from math import ceil
 from time import sleep
 
 
@@ -33,6 +34,10 @@ def get_num_available_slots_from_in_flight_apps(
     user_id=None,
     num_evicted_vms=None,
     openmp=False,
+    # Used to leave some slack CPUs to help de-fragment (for `mpi-locality`)
+    next_task_size=None,
+    # Used to make Granny behave like batch (for `mpi-locality`)
+    batch=False,
 ):
     """
     For Granny baselines, we cannot use static knowledge of the
@@ -62,6 +67,10 @@ def get_num_available_slots_from_in_flight_apps(
             ]
         )
 
+        used_slots_map = {
+            host.ip: host.usedSlots for host in available_hosts.hosts
+        }
+
         next_evicted_vm_ips = []
         try:
             next_evicted_vm_ips = in_flight_apps.nextEvictedVmIps
@@ -87,7 +96,6 @@ def get_num_available_slots_from_in_flight_apps(
         # sleep for a bit and ask again (we allow the size to go over the
         # specified size in case of an elsatic scale-up)
         if any([len(app.hostIps) < app.size for app in in_flight_apps.apps]):
-            print("App not fully in-flight. We wait...")
             sleep(short_sleep_secs)
             continue
 
@@ -146,14 +154,36 @@ def get_num_available_slots_from_in_flight_apps(
                 ]
             )
 
+        # In a batch setting, we allocate resources to jobs at VM granularity
+        # The planner will by default do so, if enough free VMs are available
+        if batch and next_task_size is not None:
+            num_needed_vms = ceil(next_task_size / num_cpus_per_vm)
+            if (
+                num_vms - len(list(worker_occupation.keys()))
+            ) < num_needed_vms:
+                sleep(5 * long_sleep_secs)
+                continue
+
         num_available_slots = (
             num_vms - len(list(worker_occupation.keys()))
         ) * num_cpus_per_vm
         for ip in worker_occupation:
+            if worker_occupation[ip] != used_slots_map[ip]:
+                print(
+                    "Inconsistent worker used slots map for ip: {}".format(ip)
+                )
+                must_hold_back = True
+                break
+
             num_available_slots += num_cpus_per_vm - worker_occupation[ip]
 
+        if must_hold_back:
+            sleep(long_sleep_secs)
+            continue
+
         # Double-check the number of available slots with our other source of truth
-        if user_id is not None and num_available_slots != available_slots:
+        # are consistent with the in-flight apps?
+        if num_available_slots != available_slots:
             print(
                 "WARNING: inconsistency in the number of available slots"
                 " (in flight: {} - registered: {})".format(
@@ -161,6 +191,18 @@ def get_num_available_slots_from_in_flight_apps(
                 )
             )
             sleep(short_sleep_secs)
+            continue
+
+        # TODO: decide on the percentage, 10% or 5% ?
+        # with 10% we almost always have perfect locality
+        pctg = 0.05
+        if (
+            next_task_size is not None
+            and not batch
+            and (num_available_slots - next_task_size)
+            < int(num_vms * num_cpus_per_vm * pctg)
+        ):
+            sleep(long_sleep_secs)
             continue
 
         # If we have made it this far, we are done
