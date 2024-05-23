@@ -6,8 +6,8 @@ applications to benefit from dynamic changes in the compute environment.
 First, provision the cluster:
 
 ```bash
-(faasm-exp-pase) inv cluster.provision --vm Standard_D8_v5 --nodes 3 --name ${CLUSTER_NAME}
-(faasm-exp-base) inv cluster.credentials --name ${CLUSTER_NAME}
+inv cluster.provision --vm Standard_D8_v5 --nodes 3 --name ${CLUSTER_NAME}
+inv cluster.credentials --name ${CLUSTER_NAME}
 ```
 
 Second, deploy the cluster
